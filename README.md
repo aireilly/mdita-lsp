@@ -113,6 +113,7 @@ diagnostics:
 | Linked Editing | Simultaneous rename of headings and their `[[#heading]]` references |
 | Formatting | Trim trailing whitespace, normalize headings, align tables, ensure trailing newline (full + range) |
 | Inlay Hints | Show resolved wiki link titles and keyref targets inline |
+| Document Highlight | Highlight all same-document references to heading under cursor |
 | Semantic Tokens | Syntax highlighting for wiki links (full + range) |
 | File Rename | Auto-update wiki links, markdown links, and map references on file rename |
 | Execute Command | Create files, add documents to map |
@@ -162,7 +163,7 @@ Keys are derived from filenames (e.g., `install.md` → key `install`). Use `[in
 
 ```bash
 make build     # Build binary
-make test      # Run 177 tests with race detection
+make test      # Run 198 tests with race detection
 make lint      # Run golangci-lint
 make publish   # Cross-compile for 5 platforms (~3.5 MB each)
 make clean     # Remove build artifacts
