@@ -3,6 +3,7 @@ package lsp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -49,6 +50,10 @@ func NewServer() *Server {
 
 func (s *Server) SetNotify(fn func(method string, params any)) {
 	s.notify = fn
+}
+
+func (s *Server) logMessage(level int, msg string) {
+	s.notify("window/logMessage", LogMessageParams{Type: level, Message: msg})
 }
 
 type InitializeParams struct {
@@ -285,6 +290,18 @@ type ApplyWorkspaceEditParams struct {
 	Edit  WorkspaceEditResult `json:"edit"`
 }
 
+type LogMessageParams struct {
+	Type    int    `json:"type"`
+	Message string `json:"message"`
+}
+
+const (
+	LogError   = 1
+	LogWarning = 2
+	LogInfo    = 3
+	LogDebug   = 4
+)
+
 type DocumentDiagnosticReport struct {
 	Kind  string             `json:"kind"`
 	Items []DiagnosticResult `json:"items"`
@@ -379,10 +396,12 @@ func (s *Server) addWorkspaceFolder(uri string) {
 	folder.ScanFiles()
 	s.workspace.AddFolder(folder)
 
-	for _, doc := range folder.AllDocs() {
+	docs := folder.AllDocs()
+	for _, doc := range docs {
 		s.graph.AddDefs(doc.URI, doc.Defs())
 		s.graph.AddRefs(doc.URI, doc.Refs())
 	}
+	s.logMessage(LogInfo, fmt.Sprintf("Indexed workspace %s: %d documents", rootPath, len(docs)))
 }
 
 func (s *Server) handleDidOpen(_ context.Context, rawParams json.RawMessage) error {
@@ -580,6 +599,7 @@ func (s *Server) handleWillRenameFiles(_ context.Context, rawParams json.RawMess
 	if len(docEdits) == 0 {
 		return nil, nil
 	}
+	s.logMessage(LogInfo, fmt.Sprintf("File rename: updating %d documents", len(docEdits)))
 
 	changes := make(map[string][]TextEditResult)
 	for _, de := range docEdits {
@@ -1187,9 +1207,10 @@ func (s *Server) executeCreateFile(args []string) (any, error) {
 	title := stem[:len(stem)-len(ext)]
 
 	content := "# " + title + "\n"
-	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
 		return nil, err
 	}
+	s.logMessage(LogInfo, "Created file: "+filename)
 
 	uri := paths.PathToURI(filePath)
 	doc := document.New(uri, 0, content)
