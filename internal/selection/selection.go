@@ -3,8 +3,8 @@ package selection
 import "github.com/aireilly/mdita-lsp/internal/document"
 
 type SelectionRange struct {
-	Range  document.Range   `json:"range"`
-	Parent *SelectionRange  `json:"parent,omitempty"`
+	Range  document.Range  `json:"range"`
+	Parent *SelectionRange `json:"parent,omitempty"`
 }
 
 func GetRanges(doc *document.Document, positions []document.Position) []SelectionRange {

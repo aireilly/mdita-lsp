@@ -19,10 +19,10 @@ type Request struct {
 }
 
 type Response struct {
-	JSONRPC string         `json:"jsonrpc"`
+	JSONRPC string           `json:"jsonrpc"`
 	ID      *json.RawMessage `json:"id"`
-	Result  interface{}    `json:"result,omitempty"`
-	Error   *ResponseError `json:"error,omitempty"`
+	Result  interface{}      `json:"result,omitempty"`
+	Error   *ResponseError   `json:"error,omitempty"`
 }
 
 type ResponseError struct {

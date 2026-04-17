@@ -13,9 +13,9 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/config"
 	"github.com/aireilly/mdita-lsp/internal/definition"
 	"github.com/aireilly/mdita-lsp/internal/diagnostic"
+	"github.com/aireilly/mdita-lsp/internal/docsymbols"
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/filerename"
-	"github.com/aireilly/mdita-lsp/internal/docsymbols"
 	"github.com/aireilly/mdita-lsp/internal/folding"
 	"github.com/aireilly/mdita-lsp/internal/formatting"
 	"github.com/aireilly/mdita-lsp/internal/hover"
@@ -66,26 +66,26 @@ type InitializeResult struct {
 }
 
 type ServerCapabilities struct {
-	TextDocumentSync        int                    `json:"textDocumentSync"`
-	CompletionProvider      *CompletionOptions     `json:"completionProvider,omitempty"`
-	DefinitionProvider      bool                   `json:"definitionProvider"`
-	HoverProvider           bool                   `json:"hoverProvider"`
-	ReferencesProvider      bool                   `json:"referencesProvider"`
-	RenameProvider          *RenameOptions         `json:"renameProvider,omitempty"`
-	CodeActionProvider      bool                   `json:"codeActionProvider"`
-	CodeLensProvider        *CodeLensOptions       `json:"codeLensProvider,omitempty"`
-	DocumentLinkProvider    bool                   `json:"documentLinkProvider"`
-	FoldingRangeProvider    bool                   `json:"foldingRangeProvider"`
-	DocumentSymbolProvider  bool                   `json:"documentSymbolProvider"`
-	WorkspaceSymbolProvider bool                   `json:"workspaceSymbolProvider"`
-	SelectionRangeProvider       bool                   `json:"selectionRangeProvider"`
-	LinkedEditingRangeProvider   bool                   `json:"linkedEditingRangeProvider"`
-	DocumentFormattingProvider   bool                   `json:"documentFormattingProvider"`
-	InlayHintProvider            bool                   `json:"inlayHintProvider"`
-	DocumentRangeFormattingProvider bool                `json:"documentRangeFormattingProvider"`
-	ExecuteCommandProvider       *ExecuteCommandOptions `json:"executeCommandProvider,omitempty"`
-	SemanticTokensProvider       *SemanticTokensOptions `json:"semanticTokensProvider,omitempty"`
-	Workspace               *WorkspaceCapabilities `json:"workspace,omitempty"`
+	TextDocumentSync                int                    `json:"textDocumentSync"`
+	CompletionProvider              *CompletionOptions     `json:"completionProvider,omitempty"`
+	DefinitionProvider              bool                   `json:"definitionProvider"`
+	HoverProvider                   bool                   `json:"hoverProvider"`
+	ReferencesProvider              bool                   `json:"referencesProvider"`
+	RenameProvider                  *RenameOptions         `json:"renameProvider,omitempty"`
+	CodeActionProvider              bool                   `json:"codeActionProvider"`
+	CodeLensProvider                *CodeLensOptions       `json:"codeLensProvider,omitempty"`
+	DocumentLinkProvider            bool                   `json:"documentLinkProvider"`
+	FoldingRangeProvider            bool                   `json:"foldingRangeProvider"`
+	DocumentSymbolProvider          bool                   `json:"documentSymbolProvider"`
+	WorkspaceSymbolProvider         bool                   `json:"workspaceSymbolProvider"`
+	SelectionRangeProvider          bool                   `json:"selectionRangeProvider"`
+	LinkedEditingRangeProvider      bool                   `json:"linkedEditingRangeProvider"`
+	DocumentFormattingProvider      bool                   `json:"documentFormattingProvider"`
+	InlayHintProvider               bool                   `json:"inlayHintProvider"`
+	DocumentRangeFormattingProvider bool                   `json:"documentRangeFormattingProvider"`
+	ExecuteCommandProvider          *ExecuteCommandOptions `json:"executeCommandProvider,omitempty"`
+	SemanticTokensProvider          *SemanticTokensOptions `json:"semanticTokensProvider,omitempty"`
+	Workspace                       *WorkspaceCapabilities `json:"workspace,omitempty"`
 }
 
 type WorkspaceCapabilities struct {
@@ -247,21 +247,21 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 				TriggerCharacters: []string{"[", "#", "("},
 				ResolveProvider:   true,
 			},
-			DefinitionProvider:      true,
-			HoverProvider:           true,
-			ReferencesProvider:      true,
-			RenameProvider:          &RenameOptions{PrepareProvider: true},
-			CodeActionProvider:      true,
-			CodeLensProvider:        &CodeLensOptions{},
-			DocumentLinkProvider:    true,
-			FoldingRangeProvider:    true,
-			DocumentSymbolProvider:  true,
-			WorkspaceSymbolProvider: true,
-			SelectionRangeProvider:     true,
-			LinkedEditingRangeProvider:  true,
-			DocumentFormattingProvider: true,
-			InlayHintProvider:                  true,
-			DocumentRangeFormattingProvider:     true,
+			DefinitionProvider:              true,
+			HoverProvider:                   true,
+			ReferencesProvider:              true,
+			RenameProvider:                  &RenameOptions{PrepareProvider: true},
+			CodeActionProvider:              true,
+			CodeLensProvider:                &CodeLensOptions{},
+			DocumentLinkProvider:            true,
+			FoldingRangeProvider:            true,
+			DocumentSymbolProvider:          true,
+			WorkspaceSymbolProvider:         true,
+			SelectionRangeProvider:          true,
+			LinkedEditingRangeProvider:      true,
+			DocumentFormattingProvider:      true,
+			InlayHintProvider:               true,
+			DocumentRangeFormattingProvider: true,
 			ExecuteCommandProvider: &ExecuteCommandOptions{
 				Commands: []string{
 					"mdita-lsp.createFile",

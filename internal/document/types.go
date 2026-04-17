@@ -92,8 +92,8 @@ type Heading struct {
 	Range Range
 }
 
-func (h *Heading) Rng() Range { return h.Range }
-func (h *Heading) element()   {}
+func (h *Heading) Rng() Range    { return h.Range }
+func (h *Heading) element()      {}
 func (h *Heading) IsTitle() bool { return h.Level == 1 }
 
 type WikiLink struct {

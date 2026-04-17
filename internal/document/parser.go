@@ -18,7 +18,6 @@ var admonitionRegex = regexp.MustCompile(`(?m)^!!!\s+(\w+)`)
 var footnoteRefRegex = regexp.MustCompile(`\[\^([^\]]+)\][^:]`)
 var footnoteDefRegex = regexp.MustCompile(`(?m)^\[\^([^\]]+)\]:`)
 
-
 func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 	src := []byte(source)
 
