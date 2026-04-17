@@ -85,6 +85,7 @@ func GetActions(doc *document.Document, rng document.Range, folder *workspace.Fo
 	actions = append(actions, addToMapActions(doc, folder)...)
 	actions = append(actions, fixNBSPActions(doc, rng)...)
 	actions = append(actions, fixFootnoteRefActions(doc, rng)...)
+	actions = append(actions, fixHeadingHierarchyActions(doc, rng)...)
 
 	return actions
 }
@@ -235,6 +236,40 @@ func fixFootnoteRefActions(doc *document.Document, rng document.Range) []CodeAct
 				Code:     "13",
 				Source:   "mdita-lsp",
 				Message:  "Footnote reference without definition: " + ref.Label,
+			}},
+		})
+	}
+	return actions
+}
+
+func fixHeadingHierarchyActions(doc *document.Document, rng document.Range) []CodeAction {
+	var actions []CodeAction
+	headings := doc.Index.Headings()
+	for i := 1; i < len(headings); i++ {
+		prev := headings[i-1].Level
+		curr := headings[i].Level
+		if curr <= prev+1 {
+			continue
+		}
+		if !rangesOverlap(rng, headings[i].Range) {
+			continue
+		}
+		fixedLevel := prev + 1
+		prefix := strings.Repeat("#", fixedLevel) + " "
+		actions = append(actions, CodeAction{
+			Title:  "Fix heading level",
+			Kind:   "quickfix",
+			DocURI: doc.URI,
+			Edit: &TextEdit{
+				Range:   headings[i].Range,
+				NewText: prefix + headings[i].Text,
+			},
+			Diagnostics: []DiagnosticInfo{{
+				Range:    headings[i].Range,
+				Severity: 2,
+				Code:     "6",
+				Source:   "mdita-lsp",
+				Message:  "Invalid heading hierarchy: skipped heading level",
 			}},
 		})
 	}

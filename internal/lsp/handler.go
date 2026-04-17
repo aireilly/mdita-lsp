@@ -4,12 +4,15 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"strconv"
 	"strings"
 )
+
+var errMethodNotFound = errors.New("method not found")
 
 type Request struct {
 	JSONRPC string           `json:"jsonrpc"`
@@ -62,7 +65,11 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 			result, err := s.dispatch(ctx, req.Method, req.Params)
 			resp := Response{JSONRPC: "2.0", ID: req.ID}
 			if err != nil {
-				resp.Error = &ResponseError{Code: -32603, Message: err.Error()}
+				code := -32603
+				if errors.Is(err, errMethodNotFound) {
+					code = -32601
+				}
+				resp.Error = &ResponseError{Code: code, Message: err.Error()}
 			} else {
 				resp.Result = result
 			}
@@ -129,7 +136,7 @@ func (s *Server) dispatch(ctx context.Context, method string, params json.RawMes
 	case "shutdown":
 		return nil, nil
 	default:
-		return nil, fmt.Errorf("method not found: %s", method)
+		return nil, fmt.Errorf("%w: %s", errMethodNotFound, method)
 	}
 }
 
@@ -151,6 +158,8 @@ func (s *Server) dispatchNotification(ctx context.Context, method string, params
 		s.handleDidCreateFiles(ctx, params)
 	case "workspace/didDeleteFiles":
 		s.handleDidDeleteFiles(ctx, params)
+	case "$/cancelRequest", "$/setTrace":
+		// silently ignored
 	case "exit":
 		// handled by caller
 	}

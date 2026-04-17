@@ -216,4 +216,190 @@ func TestLSPUnknownMethod(t *testing.T) {
 	if !strings.Contains(out, "method not found") {
 		t.Error("expected error for unknown method")
 	}
+	if !strings.Contains(out, "-32601") {
+		t.Error("expected LSP error code -32601 (MethodNotFound)")
+	}
+}
+
+func TestLSPDocumentHighlight(t *testing.T) {
+	var input bytes.Buffer
+	var output bytes.Buffer
+
+	input.WriteString(buildMessage("initialize", intPtr(1), map[string]any{
+		"capabilities": map[string]any{},
+		"rootUri":      "file:///tmp/lsp-test-hl",
+	}))
+	input.WriteString(buildMessage("initialized", nil, nil))
+	input.WriteString(buildMessage("textDocument/didOpen", nil, map[string]any{
+		"textDocument": map[string]any{
+			"uri":     "file:///tmp/lsp-test-hl/doc.md",
+			"version": 1,
+			"text":    "# Title\n\n## Section\n\nSee [[#Section]].\n",
+		},
+	}))
+	input.WriteString(buildMessage("textDocument/documentHighlight", intPtr(2), map[string]any{
+		"textDocument": map[string]any{"uri": "file:///tmp/lsp-test-hl/doc.md"},
+		"position":     map[string]any{"line": 2, "character": 3},
+	}))
+	input.WriteString(buildMessage("shutdown", intPtr(3), nil))
+
+	s := NewServer()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s.Serve(ctx, &input, &output)
+
+	out := output.String()
+	if !strings.Contains(out, "\"id\":2") {
+		t.Error("missing highlight response")
+	}
+	if !strings.Contains(out, "\"kind\"") {
+		t.Error("expected highlight results with kind field")
+	}
+}
+
+func TestLSPCodeAction(t *testing.T) {
+	var input bytes.Buffer
+	var output bytes.Buffer
+
+	input.WriteString(buildMessage("initialize", intPtr(1), map[string]any{
+		"capabilities": map[string]any{},
+		"rootUri":      "file:///tmp/lsp-test-ca",
+	}))
+	input.WriteString(buildMessage("initialized", nil, nil))
+	input.WriteString(buildMessage("textDocument/didOpen", nil, map[string]any{
+		"textDocument": map[string]any{
+			"uri":     "file:///tmp/lsp-test-ca/doc.md",
+			"version": 1,
+			"text":    "# Title\n\n## Section\n\nContent.\n",
+		},
+	}))
+	input.WriteString(buildMessage("textDocument/codeAction", intPtr(2), map[string]any{
+		"textDocument": map[string]any{"uri": "file:///tmp/lsp-test-ca/doc.md"},
+		"range": map[string]any{
+			"start": map[string]any{"line": 0, "character": 0},
+			"end":   map[string]any{"line": 5, "character": 0},
+		},
+	}))
+	input.WriteString(buildMessage("shutdown", intPtr(3), nil))
+
+	s := NewServer()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s.Serve(ctx, &input, &output)
+
+	out := output.String()
+	if !strings.Contains(out, "\"id\":2") {
+		t.Error("missing code action response")
+	}
+	if !strings.Contains(out, "Generate table of contents") {
+		t.Error("expected ToC code action")
+	}
+}
+
+func TestLSPDefinition(t *testing.T) {
+	var input bytes.Buffer
+	var output bytes.Buffer
+
+	input.WriteString(buildMessage("initialize", intPtr(1), map[string]any{
+		"capabilities": map[string]any{},
+		"rootUri":      "file:///tmp/lsp-test-def",
+	}))
+	input.WriteString(buildMessage("initialized", nil, nil))
+	input.WriteString(buildMessage("textDocument/didOpen", nil, map[string]any{
+		"textDocument": map[string]any{
+			"uri":     "file:///tmp/lsp-test-def/doc.md",
+			"version": 1,
+			"text":    "# Title\n\n## Section\n\nSee [[#Section]].\n",
+		},
+	}))
+	input.WriteString(buildMessage("textDocument/definition", intPtr(2), map[string]any{
+		"textDocument": map[string]any{"uri": "file:///tmp/lsp-test-def/doc.md"},
+		"position":     map[string]any{"line": 4, "character": 7},
+	}))
+	input.WriteString(buildMessage("shutdown", intPtr(3), nil))
+
+	s := NewServer()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s.Serve(ctx, &input, &output)
+
+	out := output.String()
+	if !strings.Contains(out, "\"id\":2") {
+		t.Error("missing definition response")
+	}
+}
+
+func TestLSPSemanticTokens(t *testing.T) {
+	var input bytes.Buffer
+	var output bytes.Buffer
+
+	input.WriteString(buildMessage("initialize", intPtr(1), map[string]any{
+		"capabilities": map[string]any{},
+		"rootUri":      "file:///tmp/lsp-test-sem",
+	}))
+	input.WriteString(buildMessage("initialized", nil, nil))
+	input.WriteString(buildMessage("textDocument/didOpen", nil, map[string]any{
+		"textDocument": map[string]any{
+			"uri":     "file:///tmp/lsp-test-sem/doc.md",
+			"version": 1,
+			"text":    "# Title\n\n[[other]] link.\n",
+		},
+	}))
+	input.WriteString(buildMessage("textDocument/semanticTokens/full", intPtr(2), map[string]any{
+		"textDocument": map[string]any{"uri": "file:///tmp/lsp-test-sem/doc.md"},
+	}))
+	input.WriteString(buildMessage("shutdown", intPtr(3), nil))
+
+	s := NewServer()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s.Serve(ctx, &input, &output)
+
+	out := output.String()
+	if !strings.Contains(out, "\"id\":2") {
+		t.Error("missing semantic tokens response")
+	}
+	if !strings.Contains(out, "\"data\"") {
+		t.Error("expected data field in semantic tokens response")
+	}
+}
+
+func TestLSPFoldingRange(t *testing.T) {
+	var input bytes.Buffer
+	var output bytes.Buffer
+
+	input.WriteString(buildMessage("initialize", intPtr(1), map[string]any{
+		"capabilities": map[string]any{},
+		"rootUri":      "file:///tmp/lsp-test-fold",
+	}))
+	input.WriteString(buildMessage("initialized", nil, nil))
+	input.WriteString(buildMessage("textDocument/didOpen", nil, map[string]any{
+		"textDocument": map[string]any{
+			"uri":     "file:///tmp/lsp-test-fold/doc.md",
+			"version": 1,
+			"text":    "# Title\n\nParagraph.\n\n## Section\n\nContent.\n",
+		},
+	}))
+	input.WriteString(buildMessage("textDocument/foldingRange", intPtr(2), map[string]any{
+		"textDocument": map[string]any{"uri": "file:///tmp/lsp-test-fold/doc.md"},
+	}))
+	input.WriteString(buildMessage("shutdown", intPtr(3), nil))
+
+	s := NewServer()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s.Serve(ctx, &input, &output)
+
+	out := output.String()
+	if !strings.Contains(out, "\"id\":2") {
+		t.Error("missing folding range response")
+	}
+	if !strings.Contains(out, "startLine") {
+		t.Error("expected folding ranges with startLine")
+	}
 }

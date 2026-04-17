@@ -209,6 +209,52 @@ func TestFixFootnoteRefNotOfferedWhenDefExists(t *testing.T) {
 	}
 }
 
+func TestFixHeadingHierarchyAction(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\n#### Skipped\n\nContent.\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+
+	actions := GetActions(doc, document.Rng(2, 0, 2, 15), f)
+	found := false
+	for _, a := range actions {
+		if a.Title == "Fix heading level" {
+			found = true
+			if a.Kind != "quickfix" {
+				t.Error("expected quickfix kind")
+			}
+			if a.Edit == nil {
+				t.Fatal("expected edit")
+			}
+			if !strings.HasPrefix(a.Edit.NewText, "## ") {
+				t.Errorf("expected h2 fix, got %q", a.Edit.NewText)
+			}
+			if len(a.Diagnostics) != 1 || a.Diagnostics[0].Code != "6" {
+				t.Error("expected diagnostic with code 6")
+			}
+		}
+	}
+	if !found {
+		t.Error("missing heading hierarchy quickfix action")
+	}
+}
+
+func TestFixHeadingHierarchyNoSkip(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\n## Section\n\n### Sub\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+
+	actions := GetActions(doc, document.Rng(0, 0, 5, 0), f)
+	for _, a := range actions {
+		if a.Title == "Fix heading level" {
+			t.Error("should not offer fix when hierarchy is valid")
+		}
+	}
+}
+
 func TestAddToMapAction(t *testing.T) {
 	doc := document.New("file:///project/doc.md", 1,
 		"# My Doc\n\nContent.\n")
