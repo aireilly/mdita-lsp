@@ -49,3 +49,92 @@ func TestGetActions(t *testing.T) {
 		t.Error("missing ToC action")
 	}
 }
+
+func TestConvertWikiLinkAction(t *testing.T) {
+	source := document.New("file:///project/index.md", 1,
+		"# Index\n\nSee [[install]] for details.\n")
+	target := document.New("file:///project/install.md", 1,
+		"# Install\n\nContent.\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(source)
+	f.AddDoc(target)
+
+	actions := GetActions(source, document.Rng(2, 4, 2, 15), f)
+	found := false
+	for _, a := range actions {
+		if a.Title == "Convert to markdown link" {
+			found = true
+			if a.Edit == nil {
+				t.Error("expected edit")
+			} else if !strings.Contains(a.Edit.NewText, "install.md") {
+				t.Errorf("expected markdown link, got %s", a.Edit.NewText)
+			}
+		}
+	}
+	if !found {
+		t.Error("missing convert wiki link action")
+	}
+}
+
+func TestAddFrontMatterAction(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\nContent.\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+
+	actions := GetActions(doc, document.Rng(0, 0, 5, 0), f)
+	found := false
+	for _, a := range actions {
+		if a.Title == "Add MDITA YAML front matter" {
+			found = true
+			if a.Edit == nil || !strings.Contains(a.Edit.NewText, "$schema") {
+				t.Error("expected front matter with $schema")
+			}
+		}
+	}
+	if !found {
+		t.Error("missing add front matter action")
+	}
+}
+
+func TestNoFrontMatterActionWhenPresent(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"---\n$schema: \"urn:oasis:names:tc:mdita:rng:topic.rng\"\n---\n\n# Title\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+
+	actions := GetActions(doc, document.Rng(0, 0, 5, 0), f)
+	for _, a := range actions {
+		if a.Title == "Add MDITA YAML front matter" {
+			t.Error("should not offer front matter action when schema already present")
+		}
+	}
+}
+
+func TestAddToMapAction(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# My Doc\n\nContent.\n")
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"# My Map\n\n- [Other](other.md)\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	f.AddDoc(mapDoc)
+
+	actions := GetActions(doc, document.Rng(0, 0, 3, 0), f)
+	found := false
+	for _, a := range actions {
+		if strings.HasPrefix(a.Title, "Add to ") {
+			found = true
+			if a.Command == nil || a.Command.Command != "mdita-lsp.addToMap" {
+				t.Error("expected addToMap command")
+			}
+		}
+	}
+	if !found {
+		t.Error("missing add to map action")
+	}
+}

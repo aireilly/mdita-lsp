@@ -82,6 +82,8 @@ type ServerCapabilities struct {
 	LinkedEditingRangeProvider   bool                   `json:"linkedEditingRangeProvider"`
 	DocumentFormattingProvider   bool                   `json:"documentFormattingProvider"`
 	InlayHintProvider            bool                   `json:"inlayHintProvider"`
+	DocumentRangeFormattingProvider bool                `json:"documentRangeFormattingProvider"`
+	ExecuteCommandProvider       *ExecuteCommandOptions `json:"executeCommandProvider,omitempty"`
 	SemanticTokensProvider       *SemanticTokensOptions `json:"semanticTokensProvider,omitempty"`
 	Workspace               *WorkspaceCapabilities `json:"workspace,omitempty"`
 }
@@ -115,6 +117,10 @@ type CompletionOptions struct {
 
 type CodeLensOptions struct {
 	ResolveProvider bool `json:"resolveProvider"`
+}
+
+type ExecuteCommandOptions struct {
+	Commands []string `json:"commands"`
 }
 
 type RenameOptions struct {
@@ -254,7 +260,15 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			SelectionRangeProvider:     true,
 			LinkedEditingRangeProvider:  true,
 			DocumentFormattingProvider: true,
-			InlayHintProvider:          true,
+			InlayHintProvider:                  true,
+			DocumentRangeFormattingProvider:     true,
+			ExecuteCommandProvider: &ExecuteCommandOptions{
+				Commands: []string{
+					"mdita-lsp.createFile",
+					"mdita-lsp.findReferences",
+					"mdita-lsp.addToMap",
+				},
+			},
 			SemanticTokensProvider: &SemanticTokensOptions{
 				Full:  true,
 				Range: true,
@@ -969,6 +983,144 @@ func (s *Server) handleInlayHint(_ context.Context, rawParams json.RawMessage) (
 	}
 
 	return inlayhint.GetHints(doc, params.Range, folder), nil
+}
+
+func (s *Server) handleRangeFormatting(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+	var params struct {
+		TextDocument TextDocumentIdentifier `json:"textDocument"`
+		Range        document.Range         `json:"range"`
+		Options      struct {
+			TabSize      int  `json:"tabSize"`
+			InsertSpaces bool `json:"insertSpaces"`
+		} `json:"options"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	doc, _ := s.workspace.FindDoc(params.TextDocument.URI)
+	if doc == nil {
+		return nil, nil
+	}
+
+	allEdits := formatting.Format(doc, formatting.Options{
+		TabSize:      params.Options.TabSize,
+		InsertSpaces: params.Options.InsertSpaces,
+	})
+
+	var results []TextEditResult
+	for _, e := range allEdits {
+		if e.Range.End.Line < params.Range.Start.Line || e.Range.Start.Line > params.Range.End.Line {
+			continue
+		}
+		results = append(results, TextEditResult{
+			Range:   e.Range,
+			NewText: e.NewText,
+		})
+	}
+	return results, nil
+}
+
+func (s *Server) handleExecuteCommand(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+	var params struct {
+		Command   string   `json:"command"`
+		Arguments []string `json:"arguments"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	switch params.Command {
+	case "mdita-lsp.createFile":
+		return s.executeCreateFile(params.Arguments)
+	case "mdita-lsp.addToMap":
+		return s.executeAddToMap(params.Arguments)
+	}
+	return nil, nil
+}
+
+func (s *Server) executeCreateFile(args []string) (interface{}, error) {
+	if len(args) < 1 {
+		return nil, nil
+	}
+	filename := args[0]
+
+	var folder *workspace.Folder
+	for _, f := range s.workspace.Folders() {
+		folder = f
+		break
+	}
+	if folder == nil {
+		return nil, nil
+	}
+
+	rootPath := folder.RootPath()
+	filePath := filepath.Join(rootPath, filename)
+
+	if _, err := os.Stat(filePath); err == nil {
+		return nil, nil
+	}
+
+	stem := filepath.Base(filename)
+	ext := filepath.Ext(stem)
+	title := stem[:len(stem)-len(ext)]
+
+	content := "# " + title + "\n"
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		return nil, err
+	}
+
+	uri := paths.PathToURI(filePath)
+	doc := document.New(uri, 0, content)
+	folder.AddDoc(doc)
+	s.graph.AddDefs(uri, doc.Defs())
+	s.graph.AddRefs(uri, doc.Refs())
+
+	s.notify("window/showMessage", map[string]interface{}{
+		"type":    3,
+		"message": "Created " + filename,
+	})
+	return nil, nil
+}
+
+func (s *Server) executeAddToMap(args []string) (interface{}, error) {
+	if len(args) < 2 {
+		return nil, nil
+	}
+	docURI := args[0]
+	mapURI := args[1]
+
+	doc, _ := s.workspace.FindDoc(docURI)
+	mapDoc, _ := s.workspace.FindDoc(mapURI)
+	if doc == nil || mapDoc == nil {
+		return nil, nil
+	}
+
+	title := ""
+	if t := doc.Index.Title(); t != nil {
+		title = t.Text
+	}
+	docID := doc.DocID(s.workspace.FolderForURI(docURI).RootURI)
+
+	newEntry := "- [" + title + "](" + docID.RelPath + ")\n"
+
+	lastLine := len(mapDoc.Lines) - 1
+	if lastLine < 0 {
+		lastLine = 0
+	}
+
+	s.notify("workspace/applyEdit", map[string]interface{}{
+		"label": "Add to map",
+		"edit": map[string]interface{}{
+			"changes": map[string][]TextEditResult{
+				mapURI: {{
+					Range:   document.Rng(lastLine, 0, lastLine, 0),
+					NewText: newEntry,
+				}},
+			},
+		},
+	})
+	return nil, nil
 }
 
 func (s *Server) scheduleDiagnostics(uri string, folder *workspace.Folder) {
