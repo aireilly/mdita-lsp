@@ -1,17 +1,28 @@
 package codeaction
 
 import (
+	"strings"
+
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/paths"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
+type DiagnosticInfo struct {
+	Range    document.Range
+	Severity int
+	Code     string
+	Source   string
+	Message  string
+}
+
 type CodeAction struct {
-	Title   string
-	Kind    string
-	DocURI  string
-	Edit    *TextEdit
-	Command *Command
+	Title       string
+	Kind        string
+	DocURI      string
+	Edit        *TextEdit
+	Command     *Command
+	Diagnostics []DiagnosticInfo
 }
 
 type TextEdit struct {
@@ -72,6 +83,8 @@ func GetActions(doc *document.Document, rng document.Range, folder *workspace.Fo
 	actions = append(actions, convertWikiLinkActions(doc, rng, folder)...)
 	actions = append(actions, addFrontMatterAction(doc)...)
 	actions = append(actions, addToMapActions(doc, folder)...)
+	actions = append(actions, fixNBSPActions(doc, rng)...)
+	actions = append(actions, fixFootnoteRefActions(doc, rng)...)
 
 	return actions
 }
@@ -155,6 +168,77 @@ func mapTitle(doc *document.Document) string {
 		return t.Text
 	}
 	return "map"
+}
+
+func fixNBSPActions(doc *document.Document, rng document.Range) []CodeAction {
+	var actions []CodeAction
+	for _, h := range doc.Index.Headings() {
+		if !rangesOverlap(rng, h.Range) {
+			continue
+		}
+		if !strings.ContainsRune(h.Text, '\u00A0') {
+			continue
+		}
+		prefix := strings.Repeat("#", h.Level) + " "
+		fixed := strings.ReplaceAll(h.Text, "\u00A0", " ")
+		actions = append(actions, CodeAction{
+			Title:  "Replace non-breaking whitespace",
+			Kind:   "quickfix",
+			DocURI: doc.URI,
+			Edit: &TextEdit{
+				Range:   h.Range,
+				NewText: prefix + fixed,
+			},
+			Diagnostics: []DiagnosticInfo{{
+				Range:    h.Range,
+				Severity: 2,
+				Code:     "3",
+				Source:   "mdita-lsp",
+				Message:  "Heading contains non-breaking whitespace",
+			}},
+		})
+	}
+	return actions
+}
+
+func fixFootnoteRefActions(doc *document.Document, rng document.Range) []CodeAction {
+	var actions []CodeAction
+	bf := doc.Index.Features
+	defLabels := make(map[string]bool)
+	for _, def := range bf.FootnoteDefLabels {
+		defLabels[def.Label] = true
+	}
+
+	for _, ref := range bf.FootnoteRefLabels {
+		if defLabels[ref.Label] {
+			continue
+		}
+		if !rangesOverlap(rng, ref.Range) {
+			continue
+		}
+		lastLine := len(doc.Lines) - 1
+		if lastLine < 0 {
+			lastLine = 0
+		}
+		newText := "\n[^" + ref.Label + "]: \n"
+		actions = append(actions, CodeAction{
+			Title:  "Add footnote definition for '" + ref.Label + "'",
+			Kind:   "quickfix",
+			DocURI: doc.URI,
+			Edit: &TextEdit{
+				Range:   document.Rng(lastLine, 0, lastLine, 0),
+				NewText: newText,
+			},
+			Diagnostics: []DiagnosticInfo{{
+				Range:    ref.Range,
+				Severity: 2,
+				Code:     "13",
+				Source:   "mdita-lsp",
+				Message:  "Footnote reference without definition: " + ref.Label,
+			}},
+		})
+	}
+	return actions
 }
 
 func rangesOverlap(a, b document.Range) bool {

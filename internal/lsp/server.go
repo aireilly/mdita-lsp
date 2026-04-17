@@ -229,10 +229,11 @@ type WorkspaceEditResult struct {
 }
 
 type CodeActionResult struct {
-	Title   string               `json:"title"`
-	Kind    string               `json:"kind"`
-	Edit    *WorkspaceEditResult `json:"edit,omitempty"`
-	Command *CommandResult       `json:"command,omitempty"`
+	Title       string               `json:"title"`
+	Kind        string               `json:"kind"`
+	Edit        *WorkspaceEditResult `json:"edit,omitempty"`
+	Command     *CommandResult       `json:"command,omitempty"`
+	Diagnostics []DiagnosticResult   `json:"diagnostics,omitempty"`
 }
 
 type CommandResult struct {
@@ -780,6 +781,15 @@ func (s *Server) handleCodeAction(_ context.Context, rawParams json.RawMessage) 
 				Command:   a.Command.Command,
 				Arguments: a.Command.Arguments,
 			}
+		}
+		for _, d := range a.Diagnostics {
+			entry.Diagnostics = append(entry.Diagnostics, DiagnosticResult{
+				Range:    d.Range,
+				Severity: d.Severity,
+				Code:     d.Code,
+				Source:   d.Source,
+				Message:  d.Message,
+			})
 		}
 		results = append(results, entry)
 	}

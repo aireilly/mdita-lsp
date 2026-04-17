@@ -114,6 +114,101 @@ func TestNoFrontMatterActionWhenPresent(t *testing.T) {
 	}
 }
 
+func TestFixNBSPAction(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\n## Section\u00A0One\n\nContent.\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+
+	actions := GetActions(doc, document.Rng(2, 0, 2, 20), f)
+	found := false
+	for _, a := range actions {
+		if a.Title == "Replace non-breaking whitespace" {
+			found = true
+			if a.Kind != "quickfix" {
+				t.Error("expected quickfix kind")
+			}
+			if a.Edit == nil {
+				t.Fatal("expected edit")
+			}
+			if strings.ContainsRune(a.Edit.NewText, '\u00A0') {
+				t.Error("edit should not contain NBSP")
+			}
+			if !strings.Contains(a.Edit.NewText, "## Section One") {
+				t.Errorf("expected '## Section One', got %q", a.Edit.NewText)
+			}
+			if len(a.Diagnostics) != 1 || a.Diagnostics[0].Code != "3" {
+				t.Error("expected diagnostic with code 3")
+			}
+		}
+	}
+	if !found {
+		t.Error("missing NBSP quickfix action")
+	}
+}
+
+func TestFixNBSPActionNotOffered(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\n## Normal Heading\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+
+	actions := GetActions(doc, document.Rng(2, 0, 2, 20), f)
+	for _, a := range actions {
+		if a.Title == "Replace non-breaking whitespace" {
+			t.Error("should not offer NBSP fix when no NBSP present")
+		}
+	}
+}
+
+func TestFixFootnoteRefAction(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\nSee footnote[^1].\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+
+	actions := GetActions(doc, document.Rng(2, 0, 2, 20), f)
+	found := false
+	for _, a := range actions {
+		if strings.HasPrefix(a.Title, "Add footnote definition") {
+			found = true
+			if a.Kind != "quickfix" {
+				t.Error("expected quickfix kind")
+			}
+			if a.Edit == nil {
+				t.Fatal("expected edit")
+			}
+			if !strings.Contains(a.Edit.NewText, "[^1]:") {
+				t.Errorf("expected footnote def, got %q", a.Edit.NewText)
+			}
+			if len(a.Diagnostics) != 1 || a.Diagnostics[0].Code != "13" {
+				t.Error("expected diagnostic with code 13")
+			}
+		}
+	}
+	if !found {
+		t.Error("missing footnote ref quickfix action")
+	}
+}
+
+func TestFixFootnoteRefNotOfferedWhenDefExists(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\nSee footnote[^1].\n\n[^1]: The definition.\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+
+	actions := GetActions(doc, document.Rng(2, 0, 2, 20), f)
+	for _, a := range actions {
+		if strings.HasPrefix(a.Title, "Add footnote definition") {
+			t.Error("should not offer footnote def action when def exists")
+		}
+	}
+}
+
 func TestAddToMapAction(t *testing.T) {
 	doc := document.New("file:///project/doc.md", 1,
 		"# My Doc\n\nContent.\n")
