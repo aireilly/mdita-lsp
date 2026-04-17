@@ -2,54 +2,67 @@
 
 ## Project overview
 
-mdita-lsp is an LSP server for MDITA (Markdown DITA) documents, written in Go.
+mdita-lsp is an LSP server for MDITA (Markdown DITA) documents, written in Go. It is the Go rewrite of [mdita-marksman](https://github.com/aireilly/mdita-marksman) (F#), with full feature parity plus additional capabilities.
 
 - **Language:** Go
 - **Repository:** `git@github.com:aireilly/mdita-lsp.git`
 - **Binary name:** `mdita-lsp`
+- **Dependencies:** goldmark, yaml.v3 (2 total)
 
 ## Build and test
 
 ```bash
 make build      # Build the binary
-make test       # Run tests with race detection
+make test       # Run tests with race detection (118 tests across 20 packages)
 make lint       # Run golangci-lint
 make install    # Build and install to ~/.local/bin
-make publish    # Cross-compile for all platforms
+make publish    # Cross-compile for 5 platforms (3.5 MB binary)
 make clean      # Clean build artifacts
 ```
 
 ## Project structure
 
 ```
-cmd/mdita-lsp/          # Entry point
+cmd/mdita-lsp/          # Entry point (stdio JSON-RPC server)
 internal/
   paths/                # URI/path utilities, slug generation
-  config/               # YAML config loading and merging
+  config/               # YAML config loading with 3-level merging
   document/             # Document parsing, indexing, symbol extraction
-    types.go            # Element types, symbols, DITA schemas
-    parser.go           # goldmark-based parser with wiki link extension
-    wikilink_ext.go     # Custom goldmark inline parser for [[wiki links]]
-    index.go            # Heading/link index with lookup methods
-    document.go         # Document type with parse/reparse/symbol extraction
-  ditamap/              # .mditamap parsing (nested markdown lists)
+    types.go            # Element types, symbols, DITA schemas, footnote labels
+    parser.go           # goldmark parser with wiki link extension, footnote/admonition regex
+    wikilink_ext.go     # Custom goldmark inline parser for [[doc#heading|title]]
+    index.go            # Heading/link index with slug-based lookups
+    document.go         # Document type with incremental change support
+  ditamap/              # .mditamap parsing (nested markdown lists → TopicRef tree)
   workspace/            # Folder/workspace management, file scanning
   symbols/              # Symbol graph with bidirectional ref/def resolution
-  diagnostic/           # 19 diagnostic codes, MDITA compliance, link/map validation
-  keyref/               # Key extraction and resolution from ditamaps
-  definition/           # Go-to-definition for wiki links and markdown links
-  hover/                # Hover content for links and headings
-  references/           # Find references to headings
-  completion/           # Completion for wiki links, inline links, YAML keys
-  rename/               # Heading rename with cross-doc ref updates
-  codeaction/           # ToC generation, create missing file
+  diagnostic/           # 19 diagnostic codes, MDITA compliance, link/map/keyref validation
+  keyref/               # Key extraction, resolution, cursor detection for keyrefs
+  definition/           # Go-to-definition for wiki links, markdown links, and keyrefs
+  hover/                # Hover for wiki links, markdown links, keyrefs, and headings
+  references/           # Find references to headings via symbol graph
+  completion/           # Completion: wiki links, inline links, YAML keys, keyrefs
+  rename/               # Heading rename with cross-doc wiki link ref updates
+  codeaction/           # ToC generation (with edit), create missing file (with command)
   codelens/             # Reference count lenses on headings
-  docsymbols/           # Document symbol outline tree
-  semantic/             # Semantic token encoding for wiki links
-  lsp/                  # LSP server, JSON-RPC handler, all LSP method handlers
+  docsymbols/           # Hierarchical document symbol outline, workspace symbol search
+  folding/              # Folding ranges for headings, YAML front matter, ToC markers
+  semantic/             # Semantic token encoding (full + range) for wiki links
+  lsp/                  # LSP server, JSON-RPC handler, diagnostic debouncing
 testdata/               # Test fixtures
 .github/workflows/      # CI and Release workflows
 ```
+
+## LSP capabilities
+
+- TextDocumentSync: Incremental (mode 2) with 200ms diagnostic debouncing
+- Completion (wiki links, inline links, YAML keys, keyrefs)
+- Definition (wiki links, markdown links, keyrefs)
+- Hover (wiki links, markdown links, keyrefs, headings)
+- References, Rename (with prepare), Code Actions, Code Lens
+- Document Links, Folding Ranges, Document Symbols, Workspace Symbols
+- Semantic Tokens (full + range)
+- File Operations (didCreate, didDelete)
 
 ## Key files
 
