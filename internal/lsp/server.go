@@ -268,6 +268,16 @@ type PrepareRenameResult struct {
 	Placeholder string         `json:"placeholder"`
 }
 
+type ShowMessageParams struct {
+	Type    int    `json:"type"`
+	Message string `json:"message"`
+}
+
+type ApplyWorkspaceEditParams struct {
+	Label string              `json:"label"`
+	Edit  WorkspaceEditResult `json:"edit"`
+}
+
 func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
 	var params InitializeParams
 	if err := json.Unmarshal(rawParams, &params); err != nil {
@@ -1133,9 +1143,9 @@ func (s *Server) executeCreateFile(args []string) (interface{}, error) {
 	s.graph.AddDefs(uri, doc.Defs())
 	s.graph.AddRefs(uri, doc.Refs())
 
-	s.notify("window/showMessage", map[string]interface{}{
-		"type":    3,
-		"message": "Created " + filename,
+	s.notify("window/showMessage", ShowMessageParams{
+		Type:    3,
+		Message: "Created " + filename,
 	})
 	return nil, nil
 }
@@ -1166,10 +1176,10 @@ func (s *Server) executeAddToMap(args []string) (interface{}, error) {
 		lastLine = 0
 	}
 
-	s.notify("workspace/applyEdit", map[string]interface{}{
-		"label": "Add to map",
-		"edit": map[string]interface{}{
-			"changes": map[string][]TextEditResult{
+	s.notify("workspace/applyEdit", ApplyWorkspaceEditParams{
+		Label: "Add to map",
+		Edit: WorkspaceEditResult{
+			Changes: map[string][]TextEditResult{
 				mapURI: {{
 					Range:   document.Rng(lastLine, 0, lastLine, 0),
 					NewText: newEntry,
