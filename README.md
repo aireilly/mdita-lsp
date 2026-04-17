@@ -98,21 +98,26 @@ diagnostics:
 | Feature | Description |
 |---------|-------------|
 | Diagnostics | 19 codes: MDITA compliance, link validation, heading hierarchy, footnotes, keyrefs, ditamap validation, map heading consistency |
-| Completion | Wiki links (`[[`), inline links (`](`), YAML keys, heading anchors (`#`), keyrefs (`[`) |
+| Completion | Wiki links (`[[`), inline links (`](`), YAML keys, heading anchors (`#`), keyrefs (`[`) with lazy documentation resolve |
 | Go to Definition | Wiki links, markdown links, and keyref shortcut references |
 | Hover | Document titles, heading text, keyref targets with href/title |
 | Find References | All references to a heading across the workspace |
 | Rename | Heading rename with cross-document wiki link updates |
-| Code Actions | Generate table of contents (with edit), create missing files |
+| Code Actions | Generate ToC, create missing files, convert wiki→markdown links, add YAML front matter, add to mditamap |
 | Code Lens | Reference counts on headings |
 | Document Links | Clickable links for wiki links and markdown links |
 | Document Symbols | Hierarchical heading outline tree |
 | Workspace Symbols | Search headings across all documents |
 | Folding Ranges | Fold headings, YAML front matter, and ToC markers |
 | Selection Ranges | Progressive selection expansion by line/element/section |
+| Linked Editing | Simultaneous rename of headings and their `[[#heading]]` references |
+| Formatting | Trim trailing whitespace, normalize headings, align tables, ensure trailing newline (full + range) |
+| Inlay Hints | Show resolved wiki link titles and keyref targets inline |
 | Semantic Tokens | Syntax highlighting for wiki links (full + range) |
+| File Rename | Auto-update wiki links, markdown links, and map references on file rename |
+| Execute Command | Create files, add documents to map |
 | Text Sync | Incremental (mode 2) with 200ms diagnostic debouncing |
-| File Operations | Auto-index created/deleted files |
+| File Operations | Auto-index created/deleted files, cross-document diagnostic refresh |
 
 ### Diagnostic codes
 
@@ -157,7 +162,7 @@ Keys are derived from filenames (e.g., `install.md` → key `install`). Use `[in
 
 ```bash
 make build     # Build binary
-make test      # Run 121 tests with race detection
+make test      # Run 177 tests with race detection
 make lint      # Run golangci-lint
 make publish   # Cross-compile for 5 platforms (~3.5 MB each)
 make clean     # Remove build artifacts

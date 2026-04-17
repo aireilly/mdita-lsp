@@ -13,7 +13,7 @@ mdita-lsp is an LSP server for MDITA (Markdown DITA) documents, written in Go. I
 
 ```bash
 make build      # Build the binary
-make test       # Run tests with race detection (118 tests across 20 packages)
+make test       # Run tests with race detection (177 tests across 24 packages)
 make lint       # Run golangci-lint
 make install    # Build and install to ~/.local/bin
 make publish    # Cross-compile for 5 platforms (3.5 MB binary)
@@ -43,12 +43,17 @@ internal/
   references/           # Find references to headings via symbol graph
   completion/           # Completion: wiki links, inline links, YAML keys, keyrefs
   rename/               # Heading rename with cross-doc wiki link ref updates
-  codeaction/           # ToC generation (with edit), create missing file (with command)
+  codeaction/           # ToC generation, create missing file, convert wiki→md links, add front matter, add to map
   codelens/             # Reference count lenses on headings
   docsymbols/           # Hierarchical document symbol outline, workspace symbol search
   folding/              # Folding ranges for headings, YAML front matter, ToC markers
+  selection/            # Progressive selection expansion (line → element → section)
+  linkededit/           # Linked editing of headings and their intra-doc wiki link refs
+  formatting/           # Table alignment, trailing whitespace, heading spacing, trailing newline
+  inlayhint/            # Inline hints showing resolved wiki link titles and keyref targets
+  filerename/           # Cross-reference updates on file rename (wiki links, md links, map refs)
   semantic/             # Semantic token encoding (full + range) for wiki links
-  lsp/                  # LSP server, JSON-RPC handler, diagnostic debouncing
+  lsp/                  # LSP server, JSON-RPC handler, diagnostic debouncing, execute command
 testdata/               # Test fixtures
 .github/workflows/      # CI and Release workflows
 ```
@@ -56,13 +61,16 @@ testdata/               # Test fixtures
 ## LSP capabilities
 
 - TextDocumentSync: Incremental (mode 2) with 200ms diagnostic debouncing
-- Completion (wiki links, inline links, YAML keys, keyrefs)
+- Completion (wiki links, inline links, YAML keys, keyrefs) with resolve
 - Definition (wiki links, markdown links, keyrefs)
 - Hover (wiki links, markdown links, keyrefs, headings)
 - References, Rename (with prepare), Code Actions, Code Lens
 - Document Links, Folding Ranges, Document Symbols, Workspace Symbols
+- Selection Ranges, Linked Editing Ranges
+- Formatting (full + range), Inlay Hints
 - Semantic Tokens (full + range)
-- File Operations (didCreate, didDelete)
+- File Operations (didCreate, didDelete, willRename)
+- Execute Command (createFile, addToMap)
 
 ## Key files
 
