@@ -11,10 +11,12 @@ import (
 )
 
 type CompletionItem struct {
-	Label      string
-	Detail     string
-	InsertText string
-	Kind       int // 1=text, 6=variable, 17=keyword, 18=snippet
+	Label         string
+	Detail        string
+	InsertText    string
+	Kind          int // 1=text, 6=variable, 17=keyword, 18=snippet
+	Documentation string
+	Data          map[string]string
 }
 
 var yamlKeys = []string{
@@ -63,6 +65,7 @@ func completeWikiDoc(input string, doc *document.Document, folder *workspace.Fol
 				Detail:     title,
 				InsertText: id.Stem,
 				Kind:       17,
+				Data:       map[string]string{"kind": "wiki-doc"},
 			})
 		}
 	}
@@ -81,6 +84,10 @@ func completeWikiHeading(docPart, input string, doc *document.Document, folder *
 	}
 
 	inputSlug := paths.SlugOf(input)
+	docStem := ""
+	if docPart != "" {
+		docStem = docPart
+	}
 	var items []CompletionItem
 	for _, h := range target.Index.Headings() {
 		if inputSlug == "" || h.Slug.Contains(inputSlug) {
@@ -89,6 +96,7 @@ func completeWikiHeading(docPart, input string, doc *document.Document, folder *
 				Detail:     h.Text,
 				InsertText: h.ID,
 				Kind:       17,
+				Data:       map[string]string{"kind": "heading", "doc": docStem},
 			})
 		}
 	}
@@ -139,6 +147,7 @@ func completeKeyref(input string, folder *workspace.Folder) []CompletionItem {
 				Detail:     detail,
 				InsertText: key + "]",
 				Kind:       18,
+				Data:       map[string]string{"kind": "keyref"},
 			})
 		}
 	}

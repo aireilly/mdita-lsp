@@ -108,6 +108,7 @@ type FileOperationPattern struct {
 
 type CompletionOptions struct {
 	TriggerCharacters []string `json:"triggerCharacters"`
+	ResolveProvider   bool     `json:"resolveProvider,omitempty"`
 }
 
 type CodeLensOptions struct {
@@ -166,10 +167,17 @@ type DidCloseParams struct {
 }
 
 type CompletionItemResult struct {
-	Label      string `json:"label"`
-	Detail     string `json:"detail,omitempty"`
-	InsertText string `json:"insertText,omitempty"`
-	Kind       int    `json:"kind"`
+	Label         string            `json:"label"`
+	Detail        string            `json:"detail,omitempty"`
+	InsertText    string            `json:"insertText,omitempty"`
+	Kind          int               `json:"kind"`
+	Documentation *MarkupContent    `json:"documentation,omitempty"`
+	Data          map[string]string `json:"data,omitempty"`
+}
+
+type MarkupContent struct {
+	Kind  string `json:"kind"`
+	Value string `json:"value"`
 }
 
 type LocationResult struct {
@@ -229,6 +237,7 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			TextDocumentSync: 2,
 			CompletionProvider: &CompletionOptions{
 				TriggerCharacters: []string{"[", "#", "("},
+				ResolveProvider:   true,
 			},
 			DefinitionProvider:      true,
 			HoverProvider:           true,
@@ -520,9 +529,35 @@ func (s *Server) handleCompletion(_ context.Context, rawParams json.RawMessage) 
 			Detail:     item.Detail,
 			InsertText: item.InsertText,
 			Kind:       item.Kind,
+			Data:       item.Data,
 		})
 	}
 	return results, nil
+}
+
+func (s *Server) handleCompletionResolve(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+	var item CompletionItemResult
+	if err := json.Unmarshal(rawParams, &item); err != nil {
+		return nil, err
+	}
+
+	var folder *workspace.Folder
+	for _, f := range s.workspace.Folders() {
+		folder = f
+		break
+	}
+	if folder == nil {
+		return item, nil
+	}
+
+	docs := completion.Resolve(item.Label, item.Data, folder)
+	if docs != "" {
+		item.Documentation = &MarkupContent{
+			Kind:  "markdown",
+			Value: docs,
+		}
+	}
+	return item, nil
 }
 
 func (s *Server) handleDefinition(_ context.Context, rawParams json.RawMessage) (interface{}, error) {

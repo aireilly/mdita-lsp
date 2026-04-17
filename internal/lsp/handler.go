@@ -80,6 +80,8 @@ func (s *Server) dispatch(ctx context.Context, method string, params json.RawMes
 		return s.handleInitialize(ctx, params)
 	case "textDocument/completion":
 		return s.handleCompletion(ctx, params)
+	case "completionItem/resolve":
+		return s.handleCompletionResolve(ctx, params)
 	case "textDocument/definition":
 		return s.handleDefinition(ctx, params)
 	case "textDocument/hover":
