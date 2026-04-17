@@ -3,16 +3,18 @@ package lsp
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"time"
 
 	"github.com/aireilly/mdita-lsp/internal/codeaction"
 	"github.com/aireilly/mdita-lsp/internal/codelens"
 	"github.com/aireilly/mdita-lsp/internal/completion"
-	"github.com/aireilly/mdita-lsp/internal/folding"
 	"github.com/aireilly/mdita-lsp/internal/config"
 	"github.com/aireilly/mdita-lsp/internal/definition"
 	"github.com/aireilly/mdita-lsp/internal/diagnostic"
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/docsymbols"
+	"github.com/aireilly/mdita-lsp/internal/folding"
 	"github.com/aireilly/mdita-lsp/internal/hover"
 	"github.com/aireilly/mdita-lsp/internal/paths"
 	"github.com/aireilly/mdita-lsp/internal/references"
@@ -23,16 +25,18 @@ import (
 )
 
 type Server struct {
-	workspace *workspace.Workspace
-	graph     *symbols.Graph
-	notify    func(method string, params interface{})
+	workspace  *workspace.Workspace
+	graph      *symbols.Graph
+	notify     func(method string, params interface{})
+	diagBounce *debouncer
 }
 
 func NewServer() *Server {
 	return &Server{
-		workspace: workspace.New(),
-		graph:     symbols.NewGraph(),
-		notify:    func(string, interface{}) {},
+		workspace:  workspace.New(),
+		graph:      symbols.NewGraph(),
+		notify:     func(string, interface{}) {},
+		diagBounce: newDebouncer(200 * time.Millisecond),
 	}
 }
 
@@ -61,14 +65,36 @@ type ServerCapabilities struct {
 	DefinitionProvider      bool                   `json:"definitionProvider"`
 	HoverProvider           bool                   `json:"hoverProvider"`
 	ReferencesProvider      bool                   `json:"referencesProvider"`
-	RenameProvider          *RenameOptions          `json:"renameProvider,omitempty"`
+	RenameProvider          *RenameOptions         `json:"renameProvider,omitempty"`
 	CodeActionProvider      bool                   `json:"codeActionProvider"`
-	CodeLensProvider        *CodeLensOptions        `json:"codeLensProvider,omitempty"`
+	CodeLensProvider        *CodeLensOptions       `json:"codeLensProvider,omitempty"`
 	DocumentLinkProvider    bool                   `json:"documentLinkProvider"`
 	FoldingRangeProvider    bool                   `json:"foldingRangeProvider"`
 	DocumentSymbolProvider  bool                   `json:"documentSymbolProvider"`
 	WorkspaceSymbolProvider bool                   `json:"workspaceSymbolProvider"`
 	SemanticTokensProvider  *SemanticTokensOptions `json:"semanticTokensProvider,omitempty"`
+	Workspace               *WorkspaceCapabilities `json:"workspace,omitempty"`
+}
+
+type WorkspaceCapabilities struct {
+	FileOperations *FileOperationCapabilities `json:"fileOperations,omitempty"`
+}
+
+type FileOperationCapabilities struct {
+	DidCreate *FileOperationRegistration `json:"didCreate,omitempty"`
+	DidDelete *FileOperationRegistration `json:"didDelete,omitempty"`
+}
+
+type FileOperationRegistration struct {
+	Filters []FileOperationFilter `json:"filters"`
+}
+
+type FileOperationFilter struct {
+	Pattern FileOperationPattern `json:"pattern"`
+}
+
+type FileOperationPattern struct {
+	Glob string `json:"glob"`
 }
 
 type CompletionOptions struct {
@@ -84,7 +110,8 @@ type RenameOptions struct {
 }
 
 type SemanticTokensOptions struct {
-	Full   bool                  `json:"full"`
+	Full   bool                 `json:"full"`
+	Range  bool                 `json:"range"`
 	Legend SemanticTokensLegend `json:"legend"`
 }
 
@@ -117,9 +144,12 @@ type DidChangeParams struct {
 		URI     string `json:"uri"`
 		Version int    `json:"version"`
 	} `json:"textDocument"`
-	ContentChanges []struct {
-		Text string `json:"text"`
-	} `json:"contentChanges"`
+	ContentChanges []ContentChange `json:"contentChanges"`
+}
+
+type ContentChange struct {
+	Range *document.Range `json:"range,omitempty"`
+	Text  string          `json:"text"`
 }
 
 type DidCloseParams struct {
@@ -178,7 +208,7 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 
 	return InitializeResult{
 		Capabilities: ServerCapabilities{
-			TextDocumentSync: 1,
+			TextDocumentSync: 2,
 			CompletionProvider: &CompletionOptions{
 				TriggerCharacters: []string{"[", "#", "("},
 			},
@@ -193,10 +223,27 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			DocumentSymbolProvider:  true,
 			WorkspaceSymbolProvider: true,
 			SemanticTokensProvider: &SemanticTokensOptions{
-				Full: true,
+				Full:  true,
+				Range: true,
 				Legend: SemanticTokensLegend{
 					TokenTypes:     semantic.TokenTypes,
 					TokenModifiers: []string{},
+				},
+			},
+			Workspace: &WorkspaceCapabilities{
+				FileOperations: &FileOperationCapabilities{
+					DidCreate: &FileOperationRegistration{
+						Filters: []FileOperationFilter{
+							{Pattern: FileOperationPattern{Glob: "**/*.md"}},
+							{Pattern: FileOperationPattern{Glob: "**/*.mditamap"}},
+						},
+					},
+					DidDelete: &FileOperationRegistration{
+						Filters: []FileOperationFilter{
+							{Pattern: FileOperationPattern{Glob: "**/*.md"}},
+							{Pattern: FileOperationPattern{Glob: "**/*.mditamap"}},
+						},
+					},
 				},
 			},
 		},
@@ -234,7 +281,7 @@ func (s *Server) handleDidOpen(_ context.Context, rawParams json.RawMessage) err
 	folder.AddDoc(doc)
 	s.graph.AddDefs(doc.URI, doc.Defs())
 	s.graph.AddRefs(doc.URI, doc.Refs())
-	s.publishDiagnostics(doc, folder)
+	s.publishDiagnosticsNow(doc, folder)
 
 	return nil
 }
@@ -250,13 +297,20 @@ func (s *Server) handleDidChange(_ context.Context, rawParams json.RawMessage) e
 		return nil
 	}
 
-	if len(params.ContentChanges) > 0 {
-		newDoc := doc.ApplyChange(params.TextDocument.Version, params.ContentChanges[0].Text)
-		folder.AddDoc(newDoc)
-		s.graph.AddDefs(newDoc.URI, newDoc.Defs())
-		s.graph.AddRefs(newDoc.URI, newDoc.Refs())
-		s.publishDiagnostics(newDoc, folder)
+	text := doc.Text
+	for _, change := range params.ContentChanges {
+		if change.Range == nil {
+			text = change.Text
+		} else {
+			text = applyIncrementalChange(text, doc.Lines, *change.Range, change.Text)
+		}
 	}
+
+	newDoc := doc.ApplyChange(params.TextDocument.Version, text)
+	folder.AddDoc(newDoc)
+	s.graph.AddDefs(newDoc.URI, newDoc.Defs())
+	s.graph.AddRefs(newDoc.URI, newDoc.Refs())
+	s.scheduleDiagnostics(newDoc.URI, folder)
 	return nil
 }
 
@@ -276,9 +330,11 @@ func (s *Server) handleDidSave(_ context.Context, rawParams json.RawMessage) err
 		return err
 	}
 
+	s.diagBounce.Flush(params.TextDocument.URI)
+
 	doc, folder := s.workspace.FindDoc(params.TextDocument.URI)
 	if doc != nil && folder != nil {
-		s.publishDiagnostics(doc, folder)
+		s.publishDiagnosticsNow(doc, folder)
 	}
 	return nil
 }
@@ -301,6 +357,66 @@ func (s *Server) handleDidChangeWorkspaceFolders(_ context.Context, rawParams js
 		s.addWorkspaceFolder(f.URI)
 	}
 	return nil
+}
+
+func (s *Server) handleDidCreateFiles(_ context.Context, rawParams json.RawMessage) error {
+	var params struct {
+		Files []struct {
+			URI string `json:"uri"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return err
+	}
+
+	for _, f := range params.Files {
+		if !paths.IsMarkdownURI(f.URI) {
+			continue
+		}
+		folder := s.workspace.FolderForURI(f.URI)
+		if folder == nil {
+			continue
+		}
+		filePath, err := paths.URIToPath(f.URI)
+		if err != nil {
+			continue
+		}
+		data, err := readFileBytes(filePath)
+		if err != nil {
+			continue
+		}
+		doc := document.New(f.URI, 0, string(data))
+		folder.AddDoc(doc)
+		s.graph.AddDefs(doc.URI, doc.Defs())
+		s.graph.AddRefs(doc.URI, doc.Refs())
+		s.publishDiagnosticsNow(doc, folder)
+	}
+	return nil
+}
+
+func (s *Server) handleDidDeleteFiles(_ context.Context, rawParams json.RawMessage) error {
+	var params struct {
+		Files []struct {
+			URI string `json:"uri"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return err
+	}
+
+	for _, f := range params.Files {
+		folder := s.workspace.FolderForURI(f.URI)
+		if folder == nil {
+			continue
+		}
+		folder.RemoveDoc(f.URI)
+		s.graph.RemoveDoc(f.URI)
+	}
+	return nil
+}
+
+func readFileBytes(path string) ([]byte, error) {
+	return os.ReadFile(path)
 }
 
 func (s *Server) handleCompletion(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
@@ -604,7 +720,38 @@ func (s *Server) handleSemanticTokensFull(_ context.Context, rawParams json.RawM
 	return map[string]interface{}{"data": data}, nil
 }
 
-func (s *Server) publishDiagnostics(doc *document.Document, folder *workspace.Folder) {
+func (s *Server) handleSemanticTokensRange(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+	var params struct {
+		TextDocument TextDocumentIdentifier `json:"textDocument"`
+		Range        document.Range         `json:"range"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	doc, _ := s.workspace.FindDoc(params.TextDocument.URI)
+	if doc == nil {
+		return nil, nil
+	}
+
+	data := semantic.EncodeRange(doc, params.Range)
+	return map[string]interface{}{"data": data}, nil
+}
+
+func (s *Server) scheduleDiagnostics(uri string, folder *workspace.Folder) {
+	s.diagBounce.Schedule(uri, func() {
+		doc, f := s.workspace.FindDoc(uri)
+		if doc == nil {
+			doc = folder.DocByURI(uri)
+			f = folder
+		}
+		if doc != nil && f != nil {
+			s.publishDiagnosticsNow(doc, f)
+		}
+	})
+}
+
+func (s *Server) publishDiagnosticsNow(doc *document.Document, folder *workspace.Folder) {
 	diags := diagnostic.Check(doc, folder)
 	var results []DiagnosticResult
 	for _, d := range diags {
@@ -620,6 +767,28 @@ func (s *Server) publishDiagnostics(doc *document.Document, folder *workspace.Fo
 		URI:         doc.URI,
 		Diagnostics: results,
 	})
+}
+
+func applyIncrementalChange(text string, lineMap []int, rng document.Range, newText string) string {
+	startOff := offsetFromPosition(lineMap, rng.Start)
+	endOff := offsetFromPosition(lineMap, rng.End)
+	if startOff < 0 {
+		startOff = 0
+	}
+	if endOff > len(text) {
+		endOff = len(text)
+	}
+	return text[:startOff] + newText + text[endOff:]
+}
+
+func offsetFromPosition(lineMap []int, pos document.Position) int {
+	if pos.Line < 0 || pos.Line >= len(lineMap) {
+		if pos.Line >= len(lineMap) && len(lineMap) > 0 {
+			return lineMap[len(lineMap)-1] + pos.Character
+		}
+		return 0
+	}
+	return lineMap[pos.Line] + pos.Character
 }
 
 func parentURI(uri string) string {

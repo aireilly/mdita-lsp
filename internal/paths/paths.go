@@ -71,3 +71,12 @@ func IsMarkdownFile(path string, mdExts []string) bool {
 	}
 	return false
 }
+
+func IsMarkdownURI(uri string) bool {
+	path, err := URIToPath(uri)
+	if err != nil {
+		return false
+	}
+	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(path), "."))
+	return ext == "md" || ext == "markdown" || ext == "mditamap"
+}

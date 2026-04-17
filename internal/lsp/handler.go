@@ -102,6 +102,8 @@ func (s *Server) dispatch(ctx context.Context, method string, params json.RawMes
 		return s.handleDocumentSymbol(ctx, params)
 	case "textDocument/semanticTokens/full":
 		return s.handleSemanticTokensFull(ctx, params)
+	case "textDocument/semanticTokens/range":
+		return s.handleSemanticTokensRange(ctx, params)
 	case "workspace/symbol":
 		return s.handleWorkspaceSymbol(ctx, params)
 	case "shutdown":
@@ -125,6 +127,10 @@ func (s *Server) dispatchNotification(ctx context.Context, method string, params
 		s.handleDidSave(ctx, params)
 	case "workspace/didChangeWorkspaceFolders":
 		s.handleDidChangeWorkspaceFolders(ctx, params)
+	case "workspace/didCreateFiles":
+		s.handleDidCreateFiles(ctx, params)
+	case "workspace/didDeleteFiles":
+		s.handleDidDeleteFiles(ctx, params)
 	case "exit":
 		// handled by caller
 	}

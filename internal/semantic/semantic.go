@@ -21,6 +21,21 @@ type token struct {
 }
 
 func Encode(doc *document.Document) []uint32 {
+	return encodeTokens(collectTokens(doc))
+}
+
+func EncodeRange(doc *document.Document, rng document.Range) []uint32 {
+	all := collectTokens(doc)
+	var filtered []token
+	for _, tok := range all {
+		if tok.line >= rng.Start.Line && tok.line <= rng.End.Line {
+			filtered = append(filtered, tok)
+		}
+	}
+	return encodeTokens(filtered)
+}
+
+func collectTokens(doc *document.Document) []token {
 	var tokens []token
 
 	for _, wl := range doc.Index.WikiLinks() {
@@ -42,6 +57,10 @@ func Encode(doc *document.Document) []uint32 {
 		return tokens[i].char < tokens[j].char
 	})
 
+	return tokens
+}
+
+func encodeTokens(tokens []token) []uint32 {
 	var data []uint32
 	prevLine := 0
 	prevChar := 0
