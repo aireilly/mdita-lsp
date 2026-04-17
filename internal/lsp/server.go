@@ -17,6 +17,7 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/filerename"
 	"github.com/aireilly/mdita-lsp/internal/docsymbols"
 	"github.com/aireilly/mdita-lsp/internal/folding"
+	"github.com/aireilly/mdita-lsp/internal/formatting"
 	"github.com/aireilly/mdita-lsp/internal/hover"
 	"github.com/aireilly/mdita-lsp/internal/linkededit"
 	"github.com/aireilly/mdita-lsp/internal/paths"
@@ -78,6 +79,7 @@ type ServerCapabilities struct {
 	WorkspaceSymbolProvider bool                   `json:"workspaceSymbolProvider"`
 	SelectionRangeProvider       bool                   `json:"selectionRangeProvider"`
 	LinkedEditingRangeProvider   bool                   `json:"linkedEditingRangeProvider"`
+	DocumentFormattingProvider   bool                   `json:"documentFormattingProvider"`
 	SemanticTokensProvider       *SemanticTokensOptions `json:"semanticTokensProvider,omitempty"`
 	Workspace               *WorkspaceCapabilities `json:"workspace,omitempty"`
 }
@@ -239,7 +241,8 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			DocumentSymbolProvider:  true,
 			WorkspaceSymbolProvider: true,
 			SelectionRangeProvider:     true,
-			LinkedEditingRangeProvider: true,
+			LinkedEditingRangeProvider:  true,
+			DocumentFormattingProvider: true,
 			SemanticTokensProvider: &SemanticTokensOptions{
 				Full:  true,
 				Range: true,
@@ -879,6 +882,38 @@ func (s *Server) handleLinkedEditingRange(_ context.Context, rawParams json.RawM
 	}
 
 	return linkededit.GetLinkedRanges(doc, params.Position), nil
+}
+
+func (s *Server) handleFormatting(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+	var params struct {
+		TextDocument TextDocumentIdentifier `json:"textDocument"`
+		Options      struct {
+			TabSize      int  `json:"tabSize"`
+			InsertSpaces bool `json:"insertSpaces"`
+		} `json:"options"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	doc, _ := s.workspace.FindDoc(params.TextDocument.URI)
+	if doc == nil {
+		return nil, nil
+	}
+
+	edits := formatting.Format(doc, formatting.Options{
+		TabSize:      params.Options.TabSize,
+		InsertSpaces: params.Options.InsertSpaces,
+	})
+
+	var results []TextEditResult
+	for _, e := range edits {
+		results = append(results, TextEditResult{
+			Range:   e.Range,
+			NewText: e.NewText,
+		})
+	}
+	return results, nil
 }
 
 func (s *Server) scheduleDiagnostics(uri string, folder *workspace.Folder) {

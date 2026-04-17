@@ -110,6 +110,8 @@ func (s *Server) dispatch(ctx context.Context, method string, params json.RawMes
 		return s.handleLinkedEditingRange(ctx, params)
 	case "workspace/symbol":
 		return s.handleWorkspaceSymbol(ctx, params)
+	case "textDocument/formatting":
+		return s.handleFormatting(ctx, params)
 	case "workspace/willRenameFiles":
 		return s.handleWillRenameFiles(ctx, params)
 	case "shutdown":
