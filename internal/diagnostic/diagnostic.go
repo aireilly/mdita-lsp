@@ -60,5 +60,9 @@ func Check(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 		diags = append(diags, CheckDitamap(doc, folder)...)
 	}
 
+	if cfg.Diagnostics.KeyrefResolution {
+		diags = append(diags, CheckKeyrefs(doc, folder)...)
+	}
+
 	return diags
 }
