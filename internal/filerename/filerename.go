@@ -38,8 +38,6 @@ func computeOneRename(r FileRename, folder *workspace.Folder) []DocumentEdit {
 	oldStem := stemOf(oldPath)
 	newStem := stemOf(newPath)
 	oldSlug := paths.SlugOf(oldStem)
-	rootPath := folder.RootPath()
-
 	editsByURI := make(map[string][]TextEdit)
 
 	for _, doc := range folder.AllDocs() {
@@ -56,8 +54,8 @@ func computeOneRename(r FileRename, folder *workspace.Folder) []DocumentEdit {
 					})
 				}
 			case *document.MdLink:
-				if matchesMdLink(el, oldPath, doc.URI, rootPath) {
-					newRel := computeRelPath(doc.URI, newPath, rootPath)
+				if matchesMdLink(el, oldPath, doc.URI) {
+					newRel := computeRelPath(doc.URI, newPath)
 					newURL := newRel
 					if el.Anchor != "" {
 						newURL += "#" + el.Anchor
@@ -79,7 +77,7 @@ func computeOneRename(r FileRename, folder *workspace.Folder) []DocumentEdit {
 	return result
 }
 
-func matchesMdLink(link *document.MdLink, oldPath, docURI, rootPath string) bool {
+func matchesMdLink(link *document.MdLink, oldPath, docURI string) bool {
 	if link.URL == "" || strings.HasPrefix(link.URL, "http://") || strings.HasPrefix(link.URL, "https://") {
 		return false
 	}
@@ -89,7 +87,7 @@ func matchesMdLink(link *document.MdLink, oldPath, docURI, rootPath string) bool
 	return resolved == oldPath
 }
 
-func computeRelPath(docURI, targetPath, rootPath string) string {
+func computeRelPath(docURI, targetPath string) string {
 	docPath, _ := paths.URIToPath(docURI)
 	docDir := filepath.Dir(docPath)
 	rel, err := filepath.Rel(docDir, targetPath)
