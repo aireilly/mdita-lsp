@@ -14,6 +14,7 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/definition"
 	"github.com/aireilly/mdita-lsp/internal/diagnostic"
 	"github.com/aireilly/mdita-lsp/internal/document"
+	"github.com/aireilly/mdita-lsp/internal/filerename"
 	"github.com/aireilly/mdita-lsp/internal/docsymbols"
 	"github.com/aireilly/mdita-lsp/internal/folding"
 	"github.com/aireilly/mdita-lsp/internal/hover"
@@ -86,8 +87,9 @@ type WorkspaceCapabilities struct {
 }
 
 type FileOperationCapabilities struct {
-	DidCreate *FileOperationRegistration `json:"didCreate,omitempty"`
-	DidDelete *FileOperationRegistration `json:"didDelete,omitempty"`
+	DidCreate  *FileOperationRegistration `json:"didCreate,omitempty"`
+	DidDelete  *FileOperationRegistration `json:"didDelete,omitempty"`
+	WillRename *FileOperationRegistration `json:"willRename,omitempty"`
 }
 
 type FileOperationRegistration struct {
@@ -197,6 +199,15 @@ type DiagnosticResult struct {
 	Message  string         `json:"message"`
 }
 
+type TextEditResult struct {
+	Range   document.Range `json:"range"`
+	NewText string         `json:"newText"`
+}
+
+type WorkspaceEditResult struct {
+	Changes map[string][]TextEditResult `json:"changes"`
+}
+
 func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
 	var params InitializeParams
 	if err := json.Unmarshal(rawParams, &params); err != nil {
@@ -246,6 +257,12 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 						},
 					},
 					DidDelete: &FileOperationRegistration{
+						Filters: []FileOperationFilter{
+							{Pattern: FileOperationPattern{Glob: "**/*.md"}},
+							{Pattern: FileOperationPattern{Glob: "**/*.mditamap"}},
+						},
+					},
+					WillRename: &FileOperationRegistration{
 						Filters: []FileOperationFilter{
 							{Pattern: FileOperationPattern{Glob: "**/*.md"}},
 							{Pattern: FileOperationPattern{Glob: "**/*.mditamap"}},
@@ -430,6 +447,51 @@ func (s *Server) handleDidDeleteFiles(_ context.Context, rawParams json.RawMessa
 		s.refreshRelatedDiagnostics(folder)
 	}
 	return nil
+}
+
+func (s *Server) handleWillRenameFiles(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+	var params struct {
+		Files []struct {
+			OldURI string `json:"oldUri"`
+			NewURI string `json:"newUri"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	var renames []filerename.FileRename
+	var folder *workspace.Folder
+	for _, f := range params.Files {
+		renames = append(renames, filerename.FileRename{
+			OldURI: f.OldURI,
+			NewURI: f.NewURI,
+		})
+		if folder == nil {
+			folder = s.workspace.FolderForURI(f.OldURI)
+		}
+	}
+
+	if folder == nil || len(renames) == 0 {
+		return nil, nil
+	}
+
+	docEdits := filerename.ComputeEdits(renames, folder)
+	if len(docEdits) == 0 {
+		return nil, nil
+	}
+
+	changes := make(map[string][]TextEditResult)
+	for _, de := range docEdits {
+		for _, e := range de.Edits {
+			changes[de.URI] = append(changes[de.URI], TextEditResult{
+				Range:   e.Range,
+				NewText: e.NewText,
+			})
+		}
+	}
+
+	return WorkspaceEditResult{Changes: changes}, nil
 }
 
 func readFileBytes(path string) ([]byte, error) {
