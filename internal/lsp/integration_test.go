@@ -159,6 +159,42 @@ func TestLSPFormatting(t *testing.T) {
 	}
 }
 
+func TestLSPPullDiagnostics(t *testing.T) {
+	var input bytes.Buffer
+	var output bytes.Buffer
+
+	input.WriteString(buildMessage("initialize", intPtr(1), map[string]any{
+		"capabilities": map[string]any{},
+		"rootUri":      "file:///tmp/lsp-test-diag",
+	}))
+	input.WriteString(buildMessage("initialized", nil, nil))
+	input.WriteString(buildMessage("textDocument/didOpen", nil, map[string]any{
+		"textDocument": map[string]any{
+			"uri":     "file:///tmp/lsp-test-diag/doc.md",
+			"version": 1,
+			"text":    "# Title\n\n[[nonexistent]].\n",
+		},
+	}))
+	input.WriteString(buildMessage("textDocument/diagnostic", intPtr(2), map[string]any{
+		"textDocument": map[string]any{"uri": "file:///tmp/lsp-test-diag/doc.md"},
+	}))
+	input.WriteString(buildMessage("shutdown", intPtr(3), nil))
+
+	s := NewServer()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s.Serve(ctx, &input, &output)
+
+	out := output.String()
+	if !strings.Contains(out, "\"id\":2") {
+		t.Error("missing pull diagnostics response")
+	}
+	if !strings.Contains(out, "\"kind\":\"full\"") {
+		t.Error("expected full diagnostic report")
+	}
+}
+
 func TestLSPUnknownMethod(t *testing.T) {
 	var input bytes.Buffer
 	var output bytes.Buffer

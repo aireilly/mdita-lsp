@@ -85,6 +85,7 @@ type ServerCapabilities struct {
 	DocumentFormattingProvider      bool                   `json:"documentFormattingProvider"`
 	InlayHintProvider               bool                   `json:"inlayHintProvider"`
 	DocumentRangeFormattingProvider bool                   `json:"documentRangeFormattingProvider"`
+	DiagnosticProvider              *DiagnosticOptions     `json:"diagnosticProvider,omitempty"`
 	ExecuteCommandProvider          *ExecuteCommandOptions `json:"executeCommandProvider,omitempty"`
 	SemanticTokensProvider          *SemanticTokensOptions `json:"semanticTokensProvider,omitempty"`
 	Workspace                       *WorkspaceCapabilities `json:"workspace,omitempty"`
@@ -110,6 +111,11 @@ type FileOperationFilter struct {
 
 type FileOperationPattern struct {
 	Glob string `json:"glob"`
+}
+
+type DiagnosticOptions struct {
+	InterFileDependencies bool `json:"interFileDependencies"`
+	WorkspaceDiagnostics  bool `json:"workspaceDiagnostics"`
 }
 
 type CompletionOptions struct {
@@ -279,6 +285,11 @@ type ApplyWorkspaceEditParams struct {
 	Edit  WorkspaceEditResult `json:"edit"`
 }
 
+type DocumentDiagnosticReport struct {
+	Kind  string             `json:"kind"`
+	Items []DiagnosticResult `json:"items"`
+}
+
 func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params InitializeParams
 	if err := json.Unmarshal(rawParams, &params); err != nil {
@@ -316,6 +327,10 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			DocumentFormattingProvider:      true,
 			InlayHintProvider:               true,
 			DocumentRangeFormattingProvider: true,
+			DiagnosticProvider: &DiagnosticOptions{
+				InterFileDependencies: true,
+				WorkspaceDiagnostics:  false,
+			},
 			ExecuteCommandProvider: &ExecuteCommandOptions{
 				Commands: []string{
 					"mdita-lsp.createFile",
@@ -1060,6 +1075,33 @@ func (s *Server) handleInlayHint(_ context.Context, rawParams json.RawMessage) (
 	}
 
 	return inlayhint.GetHints(doc, params.Range, folder), nil
+}
+
+func (s *Server) handlePullDiagnostics(_ context.Context, rawParams json.RawMessage) (any, error) {
+	var params struct {
+		TextDocument TextDocumentIdentifier `json:"textDocument"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	doc, folder := s.workspace.FindDoc(params.TextDocument.URI)
+	if doc == nil || folder == nil {
+		return DocumentDiagnosticReport{Kind: "full", Items: []DiagnosticResult{}}, nil
+	}
+
+	diags := diagnostic.Check(doc, folder)
+	var items []DiagnosticResult
+	for _, d := range diags {
+		items = append(items, DiagnosticResult{
+			Range:    d.Range,
+			Severity: int(d.Severity),
+			Code:     d.Code,
+			Source:   d.Source,
+			Message:  d.Message,
+		})
+	}
+	return DocumentDiagnosticReport{Kind: "full", Items: items}, nil
 }
 
 func (s *Server) handleRangeFormatting(_ context.Context, rawParams json.RawMessage) (any, error) {

@@ -120,6 +120,8 @@ func (s *Server) dispatch(ctx context.Context, method string, params json.RawMes
 		return s.handleRangeFormatting(ctx, params)
 	case "textDocument/inlayHint":
 		return s.handleInlayHint(ctx, params)
+	case "textDocument/diagnostic":
+		return s.handlePullDiagnostics(ctx, params)
 	case "workspace/executeCommand":
 		return s.handleExecuteCommand(ctx, params)
 	case "workspace/willRenameFiles":
