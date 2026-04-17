@@ -86,6 +86,8 @@ func (s *Server) dispatch(ctx context.Context, method string, params json.RawMes
 		return s.handleDefinition(ctx, params)
 	case "textDocument/hover":
 		return s.handleHover(ctx, params)
+	case "textDocument/documentHighlight":
+		return s.handleDocumentHighlight(ctx, params)
 	case "textDocument/references":
 		return s.handleReferences(ctx, params)
 	case "textDocument/prepareRename":

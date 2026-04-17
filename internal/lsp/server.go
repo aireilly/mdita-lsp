@@ -18,6 +18,7 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/filerename"
 	"github.com/aireilly/mdita-lsp/internal/folding"
 	"github.com/aireilly/mdita-lsp/internal/formatting"
+	"github.com/aireilly/mdita-lsp/internal/highlight"
 	"github.com/aireilly/mdita-lsp/internal/hover"
 	"github.com/aireilly/mdita-lsp/internal/inlayhint"
 	"github.com/aireilly/mdita-lsp/internal/linkededit"
@@ -74,6 +75,7 @@ type ServerCapabilities struct {
 	RenameProvider                  *RenameOptions         `json:"renameProvider,omitempty"`
 	CodeActionProvider              bool                   `json:"codeActionProvider"`
 	CodeLensProvider                *CodeLensOptions       `json:"codeLensProvider,omitempty"`
+	DocumentHighlightProvider       bool                   `json:"documentHighlightProvider"`
 	DocumentLinkProvider            bool                   `json:"documentLinkProvider"`
 	FoldingRangeProvider            bool                   `json:"foldingRangeProvider"`
 	DocumentSymbolProvider          bool                   `json:"documentSymbolProvider"`
@@ -253,6 +255,7 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			RenameProvider:                  &RenameOptions{PrepareProvider: true},
 			CodeActionProvider:              true,
 			CodeLensProvider:                &CodeLensOptions{},
+			DocumentHighlightProvider:       true,
 			DocumentLinkProvider:            true,
 			FoldingRangeProvider:            true,
 			DocumentSymbolProvider:          true,
@@ -612,6 +615,20 @@ func (s *Server) handleHover(_ context.Context, rawParams json.RawMessage) (inte
 		return nil, nil
 	}
 	return HoverResult{Contents: content}, nil
+}
+
+func (s *Server) handleDocumentHighlight(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+	var params TextDocumentPositionParams
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	doc, _ := s.workspace.FindDoc(params.TextDocument.URI)
+	if doc == nil {
+		return nil, nil
+	}
+
+	return highlight.GetHighlights(doc, params.Position), nil
 }
 
 func (s *Server) handleReferences(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
