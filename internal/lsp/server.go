@@ -20,6 +20,7 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/paths"
 	"github.com/aireilly/mdita-lsp/internal/references"
 	"github.com/aireilly/mdita-lsp/internal/rename"
+	"github.com/aireilly/mdita-lsp/internal/selection"
 	"github.com/aireilly/mdita-lsp/internal/semantic"
 	"github.com/aireilly/mdita-lsp/internal/symbols"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
@@ -73,6 +74,7 @@ type ServerCapabilities struct {
 	FoldingRangeProvider    bool                   `json:"foldingRangeProvider"`
 	DocumentSymbolProvider  bool                   `json:"documentSymbolProvider"`
 	WorkspaceSymbolProvider bool                   `json:"workspaceSymbolProvider"`
+	SelectionRangeProvider  bool                   `json:"selectionRangeProvider"`
 	SemanticTokensProvider  *SemanticTokensOptions `json:"semanticTokensProvider,omitempty"`
 	Workspace               *WorkspaceCapabilities `json:"workspace,omitempty"`
 }
@@ -223,6 +225,7 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			FoldingRangeProvider:    true,
 			DocumentSymbolProvider:  true,
 			WorkspaceSymbolProvider: true,
+			SelectionRangeProvider: true,
 			SemanticTokensProvider: &SemanticTokensOptions{
 				Full:  true,
 				Range: true,
@@ -774,6 +777,24 @@ func (s *Server) handleSemanticTokensRange(_ context.Context, rawParams json.Raw
 
 	data := semantic.EncodeRange(doc, params.Range)
 	return map[string]interface{}{"data": data}, nil
+}
+
+func (s *Server) handleSelectionRange(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+	var params struct {
+		TextDocument TextDocumentIdentifier `json:"textDocument"`
+		Positions    []document.Position    `json:"positions"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	doc, _ := s.workspace.FindDoc(params.TextDocument.URI)
+	if doc == nil {
+		return nil, nil
+	}
+
+	ranges := selection.GetRanges(doc, params.Positions)
+	return ranges, nil
 }
 
 func (s *Server) scheduleDiagnostics(uri string, folder *workspace.Folder) {

@@ -104,6 +104,8 @@ func (s *Server) dispatch(ctx context.Context, method string, params json.RawMes
 		return s.handleSemanticTokensFull(ctx, params)
 	case "textDocument/semanticTokens/range":
 		return s.handleSemanticTokensRange(ctx, params)
+	case "textDocument/selectionRange":
+		return s.handleSelectionRange(ctx, params)
 	case "workspace/symbol":
 		return s.handleWorkspaceSymbol(ctx, params)
 	case "shutdown":
