@@ -34,7 +34,7 @@ func TestInitializeResponse(t *testing.T) {
 	if !initResult.Capabilities.ReferencesProvider {
 		t.Error("missing references provider")
 	}
-	if !initResult.Capabilities.RenameProvider {
+	if initResult.Capabilities.RenameProvider == nil {
 		t.Error("missing rename provider")
 	}
 }

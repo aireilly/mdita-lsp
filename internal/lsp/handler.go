@@ -86,6 +86,8 @@ func (s *Server) dispatch(ctx context.Context, method string, params json.RawMes
 		return s.handleHover(ctx, params)
 	case "textDocument/references":
 		return s.handleReferences(ctx, params)
+	case "textDocument/prepareRename":
+		return s.handlePrepareRename(ctx, params)
 	case "textDocument/rename":
 		return s.handleRename(ctx, params)
 	case "textDocument/codeAction":
@@ -96,6 +98,8 @@ func (s *Server) dispatch(ctx context.Context, method string, params json.RawMes
 		return s.handleDocumentSymbol(ctx, params)
 	case "textDocument/semanticTokens/full":
 		return s.handleSemanticTokensFull(ctx, params)
+	case "workspace/symbol":
+		return s.handleWorkspaceSymbol(ctx, params)
 	case "shutdown":
 		return nil, nil
 	default:
@@ -113,6 +117,10 @@ func (s *Server) dispatchNotification(ctx context.Context, method string, params
 		s.handleDidChange(ctx, params)
 	case "textDocument/didClose":
 		s.handleDidClose(ctx, params)
+	case "textDocument/didSave":
+		s.handleDidSave(ctx, params)
+	case "workspace/didChangeWorkspaceFolders":
+		s.handleDidChangeWorkspaceFolders(ctx, params)
 	case "exit":
 		// handled by caller
 	}

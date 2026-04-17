@@ -1,3 +1,5 @@
 /mdita-lsp
 *.exe
 /dist/
+*.log
+.DS_Store

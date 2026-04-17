@@ -13,6 +13,7 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/docsymbols"
 	"github.com/aireilly/mdita-lsp/internal/hover"
+	"github.com/aireilly/mdita-lsp/internal/paths"
 	"github.com/aireilly/mdita-lsp/internal/references"
 	"github.com/aireilly/mdita-lsp/internal/rename"
 	"github.com/aireilly/mdita-lsp/internal/semantic"
@@ -39,8 +40,14 @@ func (s *Server) SetNotify(fn func(method string, params interface{})) {
 }
 
 type InitializeParams struct {
-	RootURI      string          `json:"rootUri"`
-	Capabilities json.RawMessage `json:"capabilities"`
+	RootURI          string            `json:"rootUri"`
+	Capabilities     json.RawMessage   `json:"capabilities"`
+	WorkspaceFolders []WorkspaceFolder `json:"workspaceFolders"`
+}
+
+type WorkspaceFolder struct {
+	URI  string `json:"uri"`
+	Name string `json:"name"`
 }
 
 type InitializeResult struct {
@@ -53,7 +60,7 @@ type ServerCapabilities struct {
 	DefinitionProvider      bool                   `json:"definitionProvider"`
 	HoverProvider           bool                   `json:"hoverProvider"`
 	ReferencesProvider      bool                   `json:"referencesProvider"`
-	RenameProvider          bool                   `json:"renameProvider"`
+	RenameProvider          *RenameOptions          `json:"renameProvider,omitempty"`
 	CodeActionProvider      bool                   `json:"codeActionProvider"`
 	CodeLensProvider        *CodeLensOptions        `json:"codeLensProvider,omitempty"`
 	DocumentSymbolProvider  bool                   `json:"documentSymbolProvider"`
@@ -67,6 +74,10 @@ type CompletionOptions struct {
 
 type CodeLensOptions struct {
 	ResolveProvider bool `json:"resolveProvider"`
+}
+
+type RenameOptions struct {
+	PrepareProvider bool `json:"prepareProvider"`
 }
 
 type SemanticTokensOptions struct {
@@ -154,16 +165,12 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 		return nil, err
 	}
 
-	if params.RootURI != "" {
-		cfg := config.Default()
-		folder := workspace.NewFolder(params.RootURI, cfg)
-		folder.ScanFiles()
-		s.workspace.AddFolder(folder)
-
-		for _, doc := range folder.AllDocs() {
-			s.graph.AddDefs(doc.URI, doc.Defs())
-			s.graph.AddRefs(doc.URI, doc.Refs())
-		}
+	roots := params.WorkspaceFolders
+	if len(roots) == 0 && params.RootURI != "" {
+		roots = []WorkspaceFolder{{URI: params.RootURI}}
+	}
+	for _, wf := range roots {
+		s.addWorkspaceFolder(wf.URI)
 	}
 
 	return InitializeResult{
@@ -175,7 +182,7 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			DefinitionProvider:      true,
 			HoverProvider:           true,
 			ReferencesProvider:      true,
-			RenameProvider:          true,
+			RenameProvider:          &RenameOptions{PrepareProvider: true},
 			CodeActionProvider:      true,
 			CodeLensProvider:        &CodeLensOptions{},
 			DocumentSymbolProvider:  true,
@@ -189,6 +196,19 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			},
 		},
 	}, nil
+}
+
+func (s *Server) addWorkspaceFolder(uri string) {
+	rootPath, _ := paths.URIToPath(uri)
+	cfg := config.LoadMerged(rootPath)
+	folder := workspace.NewFolder(uri, cfg)
+	folder.ScanFiles()
+	s.workspace.AddFolder(folder)
+
+	for _, doc := range folder.AllDocs() {
+		s.graph.AddDefs(doc.URI, doc.Defs())
+		s.graph.AddRefs(doc.URI, doc.Refs())
+	}
 }
 
 func (s *Server) handleDidOpen(_ context.Context, rawParams json.RawMessage) error {
@@ -239,6 +259,41 @@ func (s *Server) handleDidClose(_ context.Context, rawParams json.RawMessage) er
 	var params DidCloseParams
 	if err := json.Unmarshal(rawParams, &params); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (s *Server) handleDidSave(_ context.Context, rawParams json.RawMessage) error {
+	var params struct {
+		TextDocument TextDocumentIdentifier `json:"textDocument"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return err
+	}
+
+	doc, folder := s.workspace.FindDoc(params.TextDocument.URI)
+	if doc != nil && folder != nil {
+		s.publishDiagnostics(doc, folder)
+	}
+	return nil
+}
+
+func (s *Server) handleDidChangeWorkspaceFolders(_ context.Context, rawParams json.RawMessage) error {
+	var params struct {
+		Event struct {
+			Added   []WorkspaceFolder `json:"added"`
+			Removed []WorkspaceFolder `json:"removed"`
+		} `json:"event"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return err
+	}
+
+	for _, f := range params.Event.Removed {
+		s.workspace.RemoveFolder(f.URI)
+	}
+	for _, f := range params.Event.Added {
+		s.addWorkspaceFolder(f.URI)
 	}
 	return nil
 }
@@ -321,6 +376,27 @@ func (s *Server) handleReferences(_ context.Context, rawParams json.RawMessage) 
 		results = append(results, LocationResult{URI: loc.URI, Range: loc.Range})
 	}
 	return results, nil
+}
+
+func (s *Server) handlePrepareRename(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+	var params TextDocumentPositionParams
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	doc, _ := s.workspace.FindDoc(params.TextDocument.URI)
+	if doc == nil {
+		return nil, nil
+	}
+
+	result := rename.Prepare(doc, params.Position)
+	if result == nil {
+		return nil, nil
+	}
+	return map[string]interface{}{
+		"range":       result.Range,
+		"placeholder": result.Text,
+	}, nil
 }
 
 func (s *Server) handleRename(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
@@ -411,6 +487,23 @@ func (s *Server) handleDocumentSymbol(_ context.Context, rawParams json.RawMessa
 	}
 
 	syms := docsymbols.GetSymbols(doc)
+	return syms, nil
+}
+
+func (s *Server) handleWorkspaceSymbol(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+	var params struct {
+		Query string `json:"query"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	var allDocs []*document.Document
+	for _, f := range s.workspace.Folders() {
+		allDocs = append(allDocs, f.AllDocs()...)
+	}
+
+	syms := docsymbols.SearchWorkspace(allDocs, params.Query)
 	return syms, nil
 }
 
