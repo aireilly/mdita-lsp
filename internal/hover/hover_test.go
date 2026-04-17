@@ -1,6 +1,7 @@
 package hover
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/aireilly/mdita-lsp/internal/config"
@@ -28,6 +29,27 @@ func TestHoverWikiLink(t *testing.T) {
 	}
 	if result != "**Introduction**" {
 		t.Errorf("hover = %q, want %q", result, "**Introduction**")
+	}
+}
+
+func TestHoverKeyref(t *testing.T) {
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"# Map\n\n- [Install Guide](install.md)\n")
+	topicDoc := document.New("file:///project/topic.md", 1,
+		"# Topic\n\nSee [install] for details.\n")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(mapDoc)
+	f.AddDoc(topicDoc)
+	g := symbols.NewGraph()
+
+	result := GetHover(topicDoc, document.Position{Line: 2, Character: 6}, f, g)
+	if result == "" {
+		t.Fatal("expected hover content for keyref")
+	}
+	if !strings.Contains(result, "install") {
+		t.Errorf("hover = %q, expected to contain 'install'", result)
 	}
 }
 

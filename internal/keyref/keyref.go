@@ -51,3 +51,20 @@ func AllKeys(table KeyTable) []string {
 	}
 	return keys
 }
+
+func BuildMergedTable(mapTexts []string) KeyTable {
+	merged := make(KeyTable)
+	for _, text := range mapTexts {
+		m, err := ditamap.ParseMap(text)
+		if err != nil {
+			continue
+		}
+		table := ExtractKeys(m)
+		for k, v := range table {
+			if _, exists := merged[k]; !exists {
+				merged[k] = v
+			}
+		}
+	}
+	return merged
+}

@@ -51,6 +51,20 @@ func TestDetectPartialYamlKey(t *testing.T) {
 	}
 }
 
+func TestDetectPartialKeyref(t *testing.T) {
+	text := "# Title\n\nSee [inst"
+	pe := DetectPartial(text, document.Position{Line: 2, Character: 9})
+	if pe == nil {
+		t.Fatal("expected partial element")
+	}
+	if pe.Kind != PartialKeyref {
+		t.Errorf("Kind = %v, want PartialKeyref", pe.Kind)
+	}
+	if pe.Input != "inst" {
+		t.Errorf("Input = %q, want %q", pe.Input, "inst")
+	}
+}
+
 func TestDetectNoPartial(t *testing.T) {
 	text := "# Title\n\nPlain text."
 	pe := DetectPartial(text, document.Position{Line: 2, Character: 5})
@@ -101,5 +115,29 @@ func TestCompleteYamlKey(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected 'author' in YAML key completions")
+	}
+}
+
+func TestCompleteKeyref(t *testing.T) {
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"# Map\n\n- [Install Guide](install.md)\n- [Config](config.md)\n")
+	topicDoc := document.New("file:///project/topic.md", 1,
+		"# Topic\n\nSee [inst")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(mapDoc)
+	f.AddDoc(topicDoc)
+	g := symbols.NewGraph()
+
+	items := Complete(topicDoc, document.Position{Line: 2, Character: 9}, f, g)
+	found := false
+	for _, item := range items {
+		if item.Label == "install" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected 'install' keyref completion, got %v", items)
 	}
 }

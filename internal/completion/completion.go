@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/aireilly/mdita-lsp/internal/document"
+	"github.com/aireilly/mdita-lsp/internal/keyref"
 	"github.com/aireilly/mdita-lsp/internal/paths"
 	"github.com/aireilly/mdita-lsp/internal/symbols"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
@@ -38,6 +39,8 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 		return completeInlineAnchor(pe.DocPart, pe.Input, doc, folder)
 	case PartialYamlKey:
 		return completeYamlKey(pe.Input)
+	case PartialKeyref:
+		return completeKeyref(pe.Input, folder)
 	}
 	return nil
 }
@@ -113,6 +116,33 @@ func completeInlineDoc(input string, doc *document.Document, folder *workspace.F
 
 func completeInlineAnchor(docPart, input string, doc *document.Document, folder *workspace.Folder) []CompletionItem {
 	return completeWikiHeading(docPart, input, doc, folder)
+}
+
+func completeKeyref(input string, folder *workspace.Folder) []CompletionItem {
+	var mapTexts []string
+	for _, d := range folder.AllDocs() {
+		if d.Kind == document.Map {
+			mapTexts = append(mapTexts, d.Text)
+		}
+	}
+	table := keyref.BuildMergedTable(mapTexts)
+	var items []CompletionItem
+	for _, key := range keyref.AllKeys(table) {
+		if input == "" || strings.Contains(strings.ToLower(key), strings.ToLower(input)) {
+			entry := table[key]
+			detail := entry.Href
+			if entry.Title != "" {
+				detail = entry.Title + " (" + entry.Href + ")"
+			}
+			items = append(items, CompletionItem{
+				Label:      key,
+				Detail:     detail,
+				InsertText: key + "]",
+				Kind:       18,
+			})
+		}
+	}
+	return items
 }
 
 func completeYamlKey(input string) []CompletionItem {

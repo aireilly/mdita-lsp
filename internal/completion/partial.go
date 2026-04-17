@@ -15,6 +15,7 @@ const (
 	PartialInlineAnchor
 	PartialRefLink
 	PartialYamlKey
+	PartialKeyref
 )
 
 type PartialElement struct {
@@ -77,6 +78,18 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 			return &PartialElement{
 				Kind:  PartialInlineLink,
 				Input: content,
+			}
+		}
+	}
+
+	if idx := strings.LastIndex(prefix, "["); idx >= 0 {
+		if !strings.Contains(prefix[idx:], "]") && !strings.HasPrefix(prefix[idx:], "[[") {
+			content := prefix[idx+1:]
+			if !strings.HasPrefix(content, "^") {
+				return &PartialElement{
+					Kind:  PartialKeyref,
+					Input: content,
+				}
 			}
 		}
 	}

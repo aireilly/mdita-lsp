@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/aireilly/mdita-lsp/internal/codeaction"
@@ -559,10 +560,28 @@ func (s *Server) handleCodeAction(_ context.Context, rawParams json.RawMessage) 
 	actions := codeaction.GetActions(doc, params.Range, folder)
 	var results []map[string]interface{}
 	for _, a := range actions {
-		results = append(results, map[string]interface{}{
+		entry := map[string]interface{}{
 			"title": a.Title,
 			"kind":  a.Kind,
-		})
+		}
+		if a.Edit != nil {
+			entry["edit"] = map[string]interface{}{
+				"changes": map[string][]map[string]interface{}{
+					a.DocURI: {{
+						"range":   a.Edit.Range,
+						"newText": a.Edit.NewText,
+					}},
+				},
+			}
+		}
+		if a.Command != nil {
+			entry["command"] = map[string]interface{}{
+				"title":     a.Command.Title,
+				"command":   a.Command.Command,
+				"arguments": a.Command.Arguments,
+			}
+		}
+		results = append(results, entry)
 	}
 	return results, nil
 }
@@ -623,6 +642,17 @@ func (s *Server) handleDocumentLink(_ context.Context, rawParams json.RawMessage
 	}
 	for _, ml := range doc.Index.MdLinks() {
 		if ml.URL != "" && !isExternalURL(ml.URL) {
+			docPath, _ := paths.URIToPath(doc.URI)
+			docDir := filepath.Dir(docPath)
+			targetPath := filepath.Join(docDir, ml.URL)
+			targetURI := paths.PathToURI(targetPath)
+			if target := folder.DocByURI(targetURI); target != nil {
+				results = append(results, map[string]interface{}{
+					"range":  ml.Range,
+					"target": target.URI,
+				})
+				continue
+			}
 			for _, d := range folder.AllDocs() {
 				id := d.DocID(folder.RootURI)
 				if id.RelPath == ml.URL || id.Stem+".md" == ml.URL {

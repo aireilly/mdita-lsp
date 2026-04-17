@@ -30,11 +30,23 @@ func GetActions(doc *document.Document, rng document.Range, folder *workspace.Fo
 	cfg := folder.Config
 
 	if cfg.CodeActions.ToC.Enable {
-		actions = append(actions, CodeAction{
-			Title:  "Generate table of contents",
-			Kind:   "source",
-			DocURI: doc.URI,
-		})
+		toc := GenerateToC(doc, cfg.CodeActions.ToC.IncludeLevels)
+		if toc != "" {
+			insertLine := 0
+			title := doc.Index.Title()
+			if title != nil {
+				insertLine = title.Range.End.Line + 1
+			}
+			actions = append(actions, CodeAction{
+				Title:  "Generate table of contents",
+				Kind:   "source",
+				DocURI: doc.URI,
+				Edit: &TextEdit{
+					Range:   document.Rng(insertLine, 0, insertLine, 0),
+					NewText: "\n" + toc + "\n",
+				},
+			})
+		}
 	}
 
 	if cfg.CodeActions.CreateMissingFile.Enable {
