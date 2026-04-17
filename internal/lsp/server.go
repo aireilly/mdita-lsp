@@ -17,6 +17,7 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/docsymbols"
 	"github.com/aireilly/mdita-lsp/internal/folding"
 	"github.com/aireilly/mdita-lsp/internal/hover"
+	"github.com/aireilly/mdita-lsp/internal/linkededit"
 	"github.com/aireilly/mdita-lsp/internal/paths"
 	"github.com/aireilly/mdita-lsp/internal/references"
 	"github.com/aireilly/mdita-lsp/internal/rename"
@@ -74,8 +75,9 @@ type ServerCapabilities struct {
 	FoldingRangeProvider    bool                   `json:"foldingRangeProvider"`
 	DocumentSymbolProvider  bool                   `json:"documentSymbolProvider"`
 	WorkspaceSymbolProvider bool                   `json:"workspaceSymbolProvider"`
-	SelectionRangeProvider  bool                   `json:"selectionRangeProvider"`
-	SemanticTokensProvider  *SemanticTokensOptions `json:"semanticTokensProvider,omitempty"`
+	SelectionRangeProvider       bool                   `json:"selectionRangeProvider"`
+	LinkedEditingRangeProvider   bool                   `json:"linkedEditingRangeProvider"`
+	SemanticTokensProvider       *SemanticTokensOptions `json:"semanticTokensProvider,omitempty"`
 	Workspace               *WorkspaceCapabilities `json:"workspace,omitempty"`
 }
 
@@ -225,7 +227,8 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			FoldingRangeProvider:    true,
 			DocumentSymbolProvider:  true,
 			WorkspaceSymbolProvider: true,
-			SelectionRangeProvider: true,
+			SelectionRangeProvider:     true,
+			LinkedEditingRangeProvider: true,
 			SemanticTokensProvider: &SemanticTokensOptions{
 				Full:  true,
 				Range: true,
@@ -797,6 +800,23 @@ func (s *Server) handleSelectionRange(_ context.Context, rawParams json.RawMessa
 
 	ranges := selection.GetRanges(doc, params.Positions)
 	return ranges, nil
+}
+
+func (s *Server) handleLinkedEditingRange(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+	var params struct {
+		TextDocument TextDocumentIdentifier `json:"textDocument"`
+		Position     document.Position      `json:"position"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	doc, _ := s.workspace.FindDoc(params.TextDocument.URI)
+	if doc == nil {
+		return nil, nil
+	}
+
+	return linkededit.GetLinkedRanges(doc, params.Position), nil
 }
 
 func (s *Server) scheduleDiagnostics(uri string, folder *workspace.Folder) {
