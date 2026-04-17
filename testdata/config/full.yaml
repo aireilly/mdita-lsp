@@ -1,0 +1,21 @@
+core:
+  markdown:
+    file_extensions: [md, markdown, mditamap]
+    text_sync: incremental
+    title_from_heading: true
+  mdita:
+    enable: true
+    map_extensions: [mditamap]
+completion:
+  wiki_style: file-stem
+  max_candidates: 100
+code_actions:
+  toc:
+    enable: true
+    include_levels: [1, 2, 3]
+  create_missing_file:
+    enable: true
+diagnostics:
+  mdita_compliance: true
+  ditamap_validation: true
+  keyref_resolution: true
