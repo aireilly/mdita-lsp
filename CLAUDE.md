@@ -13,7 +13,7 @@ mdita-lsp is an LSP server for MDITA (Markdown DITA) documents, written in Go. I
 
 ```bash
 make build      # Build the binary
-make test       # Run tests with race detection (198 tests across 25 packages)
+make test       # Run tests with race detection (203 tests across 25 packages)
 make lint       # Run golangci-lint
 make install    # Build and install to ~/.local/bin
 make publish    # Cross-compile for 5 platforms (3.5 MB binary)
@@ -70,8 +70,10 @@ testdata/               # Test fixtures
 - Selection Ranges, Linked Editing Ranges
 - Formatting (full + range), Inlay Hints
 - Semantic Tokens (full + range)
+- Pull Diagnostics (textDocument/diagnostic, LSP 3.17)
 - File Operations (didCreate, didDelete, willRename)
 - Execute Command (createFile, addToMap)
+- Diagnostic quick-fixes (NBSP replacement, missing footnote definitions)
 
 ## Key files
 
