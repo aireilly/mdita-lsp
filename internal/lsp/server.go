@@ -7,6 +7,7 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/codeaction"
 	"github.com/aireilly/mdita-lsp/internal/codelens"
 	"github.com/aireilly/mdita-lsp/internal/completion"
+	"github.com/aireilly/mdita-lsp/internal/folding"
 	"github.com/aireilly/mdita-lsp/internal/config"
 	"github.com/aireilly/mdita-lsp/internal/definition"
 	"github.com/aireilly/mdita-lsp/internal/diagnostic"
@@ -63,6 +64,8 @@ type ServerCapabilities struct {
 	RenameProvider          *RenameOptions          `json:"renameProvider,omitempty"`
 	CodeActionProvider      bool                   `json:"codeActionProvider"`
 	CodeLensProvider        *CodeLensOptions        `json:"codeLensProvider,omitempty"`
+	DocumentLinkProvider    bool                   `json:"documentLinkProvider"`
+	FoldingRangeProvider    bool                   `json:"foldingRangeProvider"`
 	DocumentSymbolProvider  bool                   `json:"documentSymbolProvider"`
 	WorkspaceSymbolProvider bool                   `json:"workspaceSymbolProvider"`
 	SemanticTokensProvider  *SemanticTokensOptions `json:"semanticTokensProvider,omitempty"`
@@ -185,6 +188,8 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			RenameProvider:          &RenameOptions{PrepareProvider: true},
 			CodeActionProvider:      true,
 			CodeLensProvider:        &CodeLensOptions{},
+			DocumentLinkProvider:    true,
+			FoldingRangeProvider:    true,
 			DocumentSymbolProvider:  true,
 			WorkspaceSymbolProvider: true,
 			SemanticTokensProvider: &SemanticTokensOptions{
@@ -468,6 +473,81 @@ func (s *Server) handleCodeLens(_ context.Context, rawParams json.RawMessage) (i
 				"title":   l.Title,
 				"command": l.Command,
 			},
+		})
+	}
+	return results, nil
+}
+
+func (s *Server) handleDocumentLink(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+	var params struct {
+		TextDocument TextDocumentIdentifier `json:"textDocument"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	doc, folder := s.workspace.FindDoc(params.TextDocument.URI)
+	if doc == nil || folder == nil {
+		return nil, nil
+	}
+
+	var results []map[string]interface{}
+	for _, wl := range doc.Index.WikiLinks() {
+		if wl.Doc == "" {
+			continue
+		}
+		targetSlug := paths.SlugOf(wl.Doc)
+		target := folder.DocBySlug(targetSlug)
+		if target != nil {
+			results = append(results, map[string]interface{}{
+				"range":  wl.Range,
+				"target": target.URI,
+			})
+		}
+	}
+	for _, ml := range doc.Index.MdLinks() {
+		if ml.URL != "" && !isExternalURL(ml.URL) {
+			for _, d := range folder.AllDocs() {
+				id := d.DocID(folder.RootURI)
+				if id.RelPath == ml.URL || id.Stem+".md" == ml.URL {
+					results = append(results, map[string]interface{}{
+						"range":  ml.Range,
+						"target": d.URI,
+					})
+					break
+				}
+			}
+		}
+	}
+	return results, nil
+}
+
+func isExternalURL(url string) bool {
+	return len(url) > 4 && (url[:4] == "http" || url[:2] == "//")
+}
+
+func (s *Server) handleFoldingRange(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+	var params struct {
+		TextDocument TextDocumentIdentifier `json:"textDocument"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	doc, _ := s.workspace.FindDoc(params.TextDocument.URI)
+	if doc == nil {
+		return nil, nil
+	}
+
+	ranges := folding.GetRanges(doc)
+	var results []map[string]interface{}
+	for _, r := range ranges {
+		results = append(results, map[string]interface{}{
+			"startLine":      r.StartLine,
+			"startCharacter": r.StartCharacter,
+			"endLine":        r.EndLine,
+			"endCharacter":   r.EndCharacter,
+			"kind":           r.Kind,
 		})
 	}
 	return results, nil
