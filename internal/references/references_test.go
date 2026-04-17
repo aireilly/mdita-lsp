@@ -47,3 +47,34 @@ func TestFindRefsNoRefs(t *testing.T) {
 		t.Errorf("FindRefs returned %d, want 0", len(locs))
 	}
 }
+
+func TestFindRefsNonHeading(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1, "# Title\n\nPlain text.\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	g := symbols.NewGraph()
+	g.AddDefs(doc.URI, doc.Defs())
+
+	locs := FindRefs(doc, document.Position{Line: 2, Character: 3}, f, g)
+	if locs != nil {
+		t.Errorf("FindRefs on non-heading returned %d locs", len(locs))
+	}
+}
+
+func TestCountRefs(t *testing.T) {
+	doc1 := document.New("file:///project/intro.md", 1, "# Introduction\n")
+	doc2 := document.New("file:///project/a.md", 1, "# A\n\n[[intro#introduction]]\n")
+
+	g := symbols.NewGraph()
+	for _, d := range []*document.Document{doc1, doc2} {
+		g.AddDefs(d.URI, d.Defs())
+		g.AddRefs(d.URI, d.Refs())
+	}
+
+	heading := doc1.Index.Title()
+	count := CountRefs(heading, g)
+	if count != 1 {
+		t.Errorf("CountRefs = %d, want 1", count)
+	}
+}
