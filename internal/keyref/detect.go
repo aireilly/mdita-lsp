@@ -14,6 +14,38 @@ type KeyrefAtPos struct {
 	Range document.Range
 }
 
+type KeyrefLocation struct {
+	Key     string
+	Line    int
+	EndChar int
+}
+
+func DetectAll(text string) []KeyrefLocation {
+	lines := strings.Split(text, "\n")
+	var locs []KeyrefLocation
+	for i, line := range lines {
+		matches := shortcutRefRe.FindAllStringSubmatchIndex(line, -1)
+		for _, m := range matches {
+			bracketStart := m[0]
+			labelStart := m[2]
+			labelEnd := m[3]
+			if bracketStart > 0 && line[bracketStart-1] == '[' {
+				continue
+			}
+			label := line[labelStart:labelEnd]
+			if strings.HasPrefix(label, "^") {
+				continue
+			}
+			locs = append(locs, KeyrefLocation{
+				Key:     label,
+				Line:    i,
+				EndChar: labelEnd + 1,
+			})
+		}
+	}
+	return locs
+}
+
 func DetectAtPosition(text string, pos document.Position) *KeyrefAtPos {
 	lines := strings.Split(text, "\n")
 	if pos.Line >= len(lines) {

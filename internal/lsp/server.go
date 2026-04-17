@@ -19,6 +19,7 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/folding"
 	"github.com/aireilly/mdita-lsp/internal/formatting"
 	"github.com/aireilly/mdita-lsp/internal/hover"
+	"github.com/aireilly/mdita-lsp/internal/inlayhint"
 	"github.com/aireilly/mdita-lsp/internal/linkededit"
 	"github.com/aireilly/mdita-lsp/internal/paths"
 	"github.com/aireilly/mdita-lsp/internal/references"
@@ -80,6 +81,7 @@ type ServerCapabilities struct {
 	SelectionRangeProvider       bool                   `json:"selectionRangeProvider"`
 	LinkedEditingRangeProvider   bool                   `json:"linkedEditingRangeProvider"`
 	DocumentFormattingProvider   bool                   `json:"documentFormattingProvider"`
+	InlayHintProvider            bool                   `json:"inlayHintProvider"`
 	SemanticTokensProvider       *SemanticTokensOptions `json:"semanticTokensProvider,omitempty"`
 	Workspace               *WorkspaceCapabilities `json:"workspace,omitempty"`
 }
@@ -252,6 +254,7 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			SelectionRangeProvider:     true,
 			LinkedEditingRangeProvider:  true,
 			DocumentFormattingProvider: true,
+			InlayHintProvider:          true,
 			SemanticTokensProvider: &SemanticTokensOptions{
 				Full:  true,
 				Range: true,
@@ -949,6 +952,23 @@ func (s *Server) handleFormatting(_ context.Context, rawParams json.RawMessage) 
 		})
 	}
 	return results, nil
+}
+
+func (s *Server) handleInlayHint(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+	var params struct {
+		TextDocument TextDocumentIdentifier `json:"textDocument"`
+		Range        document.Range         `json:"range"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	doc, folder := s.workspace.FindDoc(params.TextDocument.URI)
+	if doc == nil || folder == nil {
+		return nil, nil
+	}
+
+	return inlayhint.GetHints(doc, params.Range, folder), nil
 }
 
 func (s *Server) scheduleDiagnostics(uri string, folder *workspace.Folder) {

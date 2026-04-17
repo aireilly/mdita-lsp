@@ -114,6 +114,8 @@ func (s *Server) dispatch(ctx context.Context, method string, params json.RawMes
 		return s.handleWorkspaceSymbol(ctx, params)
 	case "textDocument/formatting":
 		return s.handleFormatting(ctx, params)
+	case "textDocument/inlayHint":
+		return s.handleInlayHint(ctx, params)
 	case "workspace/willRenameFiles":
 		return s.handleWillRenameFiles(ctx, params)
 	case "shutdown":
