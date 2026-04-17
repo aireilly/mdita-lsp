@@ -402,6 +402,7 @@ func (s *Server) handleDidCreateFiles(_ context.Context, rawParams json.RawMessa
 		s.graph.AddDefs(doc.URI, doc.Defs())
 		s.graph.AddRefs(doc.URI, doc.Refs())
 		s.publishDiagnosticsNow(doc, folder)
+		s.refreshRelatedDiagnostics(folder)
 	}
 	return nil
 }
@@ -423,6 +424,7 @@ func (s *Server) handleDidDeleteFiles(_ context.Context, rawParams json.RawMessa
 		}
 		folder.RemoveDoc(f.URI)
 		s.graph.RemoveDoc(f.URI)
+		s.refreshRelatedDiagnostics(folder)
 	}
 	return nil
 }
@@ -826,6 +828,12 @@ func (s *Server) publishDiagnosticsNow(doc *document.Document, folder *workspace
 		URI:         doc.URI,
 		Diagnostics: results,
 	})
+}
+
+func (s *Server) refreshRelatedDiagnostics(folder *workspace.Folder) {
+	for _, doc := range folder.AllDocs() {
+		s.scheduleDiagnostics(doc.URI, folder)
+	}
 }
 
 func applyIncrementalChange(text string, lineMap []int, rng document.Range, newText string) string {
