@@ -228,6 +228,46 @@ type WorkspaceEditResult struct {
 	Changes map[string][]TextEditResult `json:"changes"`
 }
 
+type CodeActionResult struct {
+	Title   string               `json:"title"`
+	Kind    string               `json:"kind"`
+	Edit    *WorkspaceEditResult `json:"edit,omitempty"`
+	Command *CommandResult       `json:"command,omitempty"`
+}
+
+type CommandResult struct {
+	Title     string   `json:"title"`
+	Command   string   `json:"command"`
+	Arguments []string `json:"arguments,omitempty"`
+}
+
+type CodeLensResult struct {
+	Range   document.Range `json:"range"`
+	Command CommandResult  `json:"command"`
+}
+
+type DocumentLinkResult struct {
+	Range  document.Range `json:"range"`
+	Target string         `json:"target"`
+}
+
+type FoldingRangeResult struct {
+	StartLine      int    `json:"startLine"`
+	StartCharacter int    `json:"startCharacter,omitempty"`
+	EndLine        int    `json:"endLine"`
+	EndCharacter   int    `json:"endCharacter,omitempty"`
+	Kind           string `json:"kind,omitempty"`
+}
+
+type SemanticTokensResult struct {
+	Data []uint32 `json:"data"`
+}
+
+type PrepareRenameResult struct {
+	Range       document.Range `json:"range"`
+	Placeholder string         `json:"placeholder"`
+}
+
 func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
 	var params InitializeParams
 	if err := json.Unmarshal(rawParams, &params); err != nil {
@@ -665,9 +705,9 @@ func (s *Server) handlePrepareRename(_ context.Context, rawParams json.RawMessag
 	if result == nil {
 		return nil, nil
 	}
-	return map[string]interface{}{
-		"range":       result.Range,
-		"placeholder": result.Text,
+	return PrepareRenameResult{
+		Range:       result.Range,
+		Placeholder: result.Text,
 	}, nil
 }
 
@@ -683,14 +723,14 @@ func (s *Server) handleRename(_ context.Context, rawParams json.RawMessage) (int
 	}
 
 	edits := rename.DoRename(doc, params.Position, params.NewName, folder, s.graph)
-	result := make(map[string][]map[string]interface{})
+	changes := make(map[string][]TextEditResult)
 	for _, edit := range edits {
-		result[edit.URI] = append(result[edit.URI], map[string]interface{}{
-			"range":   edit.Range,
-			"newText": edit.NewText,
+		changes[edit.URI] = append(changes[edit.URI], TextEditResult{
+			Range:   edit.Range,
+			NewText: edit.NewText,
 		})
 	}
-	return map[string]interface{}{"changes": result}, nil
+	return WorkspaceEditResult{Changes: changes}, nil
 }
 
 func (s *Server) handleCodeAction(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
@@ -708,27 +748,27 @@ func (s *Server) handleCodeAction(_ context.Context, rawParams json.RawMessage) 
 	}
 
 	actions := codeaction.GetActions(doc, params.Range, folder)
-	var results []map[string]interface{}
+	var results []CodeActionResult
 	for _, a := range actions {
-		entry := map[string]interface{}{
-			"title": a.Title,
-			"kind":  a.Kind,
+		entry := CodeActionResult{
+			Title: a.Title,
+			Kind:  a.Kind,
 		}
 		if a.Edit != nil {
-			entry["edit"] = map[string]interface{}{
-				"changes": map[string][]map[string]interface{}{
+			entry.Edit = &WorkspaceEditResult{
+				Changes: map[string][]TextEditResult{
 					a.DocURI: {{
-						"range":   a.Edit.Range,
-						"newText": a.Edit.NewText,
+						Range:   a.Edit.Range,
+						NewText: a.Edit.NewText,
 					}},
 				},
 			}
 		}
 		if a.Command != nil {
-			entry["command"] = map[string]interface{}{
-				"title":     a.Command.Title,
-				"command":   a.Command.Command,
-				"arguments": a.Command.Arguments,
+			entry.Command = &CommandResult{
+				Title:     a.Command.Title,
+				Command:   a.Command.Command,
+				Arguments: a.Command.Arguments,
 			}
 		}
 		results = append(results, entry)
@@ -750,13 +790,13 @@ func (s *Server) handleCodeLens(_ context.Context, rawParams json.RawMessage) (i
 	}
 
 	lenses := codelens.GetLenses(doc, s.graph)
-	var results []map[string]interface{}
+	var results []CodeLensResult
 	for _, l := range lenses {
-		results = append(results, map[string]interface{}{
-			"range": l.Range,
-			"command": map[string]interface{}{
-				"title":   l.Title,
-				"command": l.Command,
+		results = append(results, CodeLensResult{
+			Range: l.Range,
+			Command: CommandResult{
+				Title:   l.Title,
+				Command: l.Command,
 			},
 		})
 	}
@@ -776,7 +816,7 @@ func (s *Server) handleDocumentLink(_ context.Context, rawParams json.RawMessage
 		return nil, nil
 	}
 
-	var results []map[string]interface{}
+	var results []DocumentLinkResult
 	for _, wl := range doc.Index.WikiLinks() {
 		if wl.Doc == "" {
 			continue
@@ -784,9 +824,9 @@ func (s *Server) handleDocumentLink(_ context.Context, rawParams json.RawMessage
 		targetSlug := paths.SlugOf(wl.Doc)
 		target := folder.DocBySlug(targetSlug)
 		if target != nil {
-			results = append(results, map[string]interface{}{
-				"range":  wl.Range,
-				"target": target.URI,
+			results = append(results, DocumentLinkResult{
+				Range:  wl.Range,
+				Target: target.URI,
 			})
 		}
 	}
@@ -797,18 +837,18 @@ func (s *Server) handleDocumentLink(_ context.Context, rawParams json.RawMessage
 			targetPath := filepath.Join(docDir, ml.URL)
 			targetURI := paths.PathToURI(targetPath)
 			if target := folder.DocByURI(targetURI); target != nil {
-				results = append(results, map[string]interface{}{
-					"range":  ml.Range,
-					"target": target.URI,
+				results = append(results, DocumentLinkResult{
+					Range:  ml.Range,
+					Target: target.URI,
 				})
 				continue
 			}
 			for _, d := range folder.AllDocs() {
 				id := d.DocID(folder.RootURI)
 				if id.RelPath == ml.URL || id.Stem+".md" == ml.URL {
-					results = append(results, map[string]interface{}{
-						"range":  ml.Range,
-						"target": d.URI,
+					results = append(results, DocumentLinkResult{
+						Range:  ml.Range,
+						Target: d.URI,
 					})
 					break
 				}
@@ -836,14 +876,14 @@ func (s *Server) handleFoldingRange(_ context.Context, rawParams json.RawMessage
 	}
 
 	ranges := folding.GetRanges(doc)
-	var results []map[string]interface{}
+	var results []FoldingRangeResult
 	for _, r := range ranges {
-		results = append(results, map[string]interface{}{
-			"startLine":      r.StartLine,
-			"startCharacter": r.StartCharacter,
-			"endLine":        r.EndLine,
-			"endCharacter":   r.EndCharacter,
-			"kind":           r.Kind,
+		results = append(results, FoldingRangeResult{
+			StartLine:      r.StartLine,
+			StartCharacter: r.StartCharacter,
+			EndLine:        r.EndLine,
+			EndCharacter:   r.EndCharacter,
+			Kind:           r.Kind,
 		})
 	}
 	return results, nil
@@ -897,7 +937,7 @@ func (s *Server) handleSemanticTokensFull(_ context.Context, rawParams json.RawM
 	}
 
 	data := semantic.Encode(doc)
-	return map[string]interface{}{"data": data}, nil
+	return SemanticTokensResult{Data: data}, nil
 }
 
 func (s *Server) handleSemanticTokensRange(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
@@ -915,7 +955,7 @@ func (s *Server) handleSemanticTokensRange(_ context.Context, rawParams json.Raw
 	}
 
 	data := semantic.EncodeRange(doc, params.Range)
-	return map[string]interface{}{"data": data}, nil
+	return SemanticTokensResult{Data: data}, nil
 }
 
 func (s *Server) handleSelectionRange(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
