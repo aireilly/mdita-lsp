@@ -147,7 +147,7 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 func parseYAMLMeta(yamlContent string) *YAMLMetadata {
 	meta := &YAMLMetadata{OtherMeta: make(map[string]string)}
 
-	var raw map[string]interface{}
+	var raw map[string]any
 	if err := yaml.Unmarshal([]byte(yamlContent), &raw); err != nil {
 		return meta
 	}
@@ -188,11 +188,11 @@ func parseYAMLMeta(yamlContent string) *YAMLMetadata {
 	return meta
 }
 
-func parseKeywords(val interface{}) []string {
+func parseKeywords(val any) []string {
 	switch v := val.(type) {
 	case string:
 		return []string{v}
-	case []interface{}:
+	case []any:
 		var result []string
 		for _, item := range v {
 			if s, ok := item.(string); ok {

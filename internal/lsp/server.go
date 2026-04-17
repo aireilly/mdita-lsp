@@ -34,7 +34,7 @@ import (
 type Server struct {
 	workspace  *workspace.Workspace
 	graph      *symbols.Graph
-	notify     func(method string, params interface{})
+	notify     func(method string, params any)
 	diagBounce *debouncer
 }
 
@@ -42,12 +42,12 @@ func NewServer() *Server {
 	return &Server{
 		workspace:  workspace.New(),
 		graph:      symbols.NewGraph(),
-		notify:     func(string, interface{}) {},
+		notify:     func(string, any) {},
 		diagBounce: newDebouncer(200 * time.Millisecond),
 	}
 }
 
-func (s *Server) SetNotify(fn func(method string, params interface{})) {
+func (s *Server) SetNotify(fn func(method string, params any)) {
 	s.notify = fn
 }
 
@@ -278,7 +278,7 @@ type ApplyWorkspaceEditParams struct {
 	Edit  WorkspaceEditResult `json:"edit"`
 }
 
-func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params InitializeParams
 	if err := json.Unmarshal(rawParams, &params); err != nil {
 		return nil, err
@@ -531,7 +531,7 @@ func (s *Server) handleDidDeleteFiles(_ context.Context, rawParams json.RawMessa
 	return nil
 }
 
-func (s *Server) handleWillRenameFiles(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleWillRenameFiles(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		Files []struct {
 			OldURI string `json:"oldUri"`
@@ -580,7 +580,7 @@ func readFileBytes(path string) ([]byte, error) {
 	return os.ReadFile(path)
 }
 
-func (s *Server) handleCompletion(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleCompletion(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params TextDocumentPositionParams
 	if err := json.Unmarshal(rawParams, &params); err != nil {
 		return nil, err
@@ -605,7 +605,7 @@ func (s *Server) handleCompletion(_ context.Context, rawParams json.RawMessage) 
 	return results, nil
 }
 
-func (s *Server) handleCompletionResolve(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleCompletionResolve(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var item CompletionItemResult
 	if err := json.Unmarshal(rawParams, &item); err != nil {
 		return nil, err
@@ -630,7 +630,7 @@ func (s *Server) handleCompletionResolve(_ context.Context, rawParams json.RawMe
 	return item, nil
 }
 
-func (s *Server) handleDefinition(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleDefinition(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params TextDocumentPositionParams
 	if err := json.Unmarshal(rawParams, &params); err != nil {
 		return nil, err
@@ -649,7 +649,7 @@ func (s *Server) handleDefinition(_ context.Context, rawParams json.RawMessage) 
 	return results, nil
 }
 
-func (s *Server) handleHover(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleHover(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params TextDocumentPositionParams
 	if err := json.Unmarshal(rawParams, &params); err != nil {
 		return nil, err
@@ -667,7 +667,7 @@ func (s *Server) handleHover(_ context.Context, rawParams json.RawMessage) (inte
 	return HoverResult{Contents: content}, nil
 }
 
-func (s *Server) handleDocumentHighlight(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleDocumentHighlight(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params TextDocumentPositionParams
 	if err := json.Unmarshal(rawParams, &params); err != nil {
 		return nil, err
@@ -681,7 +681,7 @@ func (s *Server) handleDocumentHighlight(_ context.Context, rawParams json.RawMe
 	return highlight.GetHighlights(doc, params.Position), nil
 }
 
-func (s *Server) handleReferences(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleReferences(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params TextDocumentPositionParams
 	if err := json.Unmarshal(rawParams, &params); err != nil {
 		return nil, err
@@ -700,7 +700,7 @@ func (s *Server) handleReferences(_ context.Context, rawParams json.RawMessage) 
 	return results, nil
 }
 
-func (s *Server) handlePrepareRename(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handlePrepareRename(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params TextDocumentPositionParams
 	if err := json.Unmarshal(rawParams, &params); err != nil {
 		return nil, err
@@ -721,7 +721,7 @@ func (s *Server) handlePrepareRename(_ context.Context, rawParams json.RawMessag
 	}, nil
 }
 
-func (s *Server) handleRename(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleRename(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params RenameParams
 	if err := json.Unmarshal(rawParams, &params); err != nil {
 		return nil, err
@@ -743,7 +743,7 @@ func (s *Server) handleRename(_ context.Context, rawParams json.RawMessage) (int
 	return WorkspaceEditResult{Changes: changes}, nil
 }
 
-func (s *Server) handleCodeAction(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleCodeAction(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		TextDocument TextDocumentIdentifier `json:"textDocument"`
 		Range        document.Range         `json:"range"`
@@ -786,7 +786,7 @@ func (s *Server) handleCodeAction(_ context.Context, rawParams json.RawMessage) 
 	return results, nil
 }
 
-func (s *Server) handleCodeLens(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleCodeLens(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		TextDocument TextDocumentIdentifier `json:"textDocument"`
 	}
@@ -813,7 +813,7 @@ func (s *Server) handleCodeLens(_ context.Context, rawParams json.RawMessage) (i
 	return results, nil
 }
 
-func (s *Server) handleDocumentLink(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleDocumentLink(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		TextDocument TextDocumentIdentifier `json:"textDocument"`
 	}
@@ -872,7 +872,7 @@ func isExternalURL(url string) bool {
 	return len(url) > 4 && (url[:4] == "http" || url[:2] == "//")
 }
 
-func (s *Server) handleFoldingRange(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleFoldingRange(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		TextDocument TextDocumentIdentifier `json:"textDocument"`
 	}
@@ -899,7 +899,7 @@ func (s *Server) handleFoldingRange(_ context.Context, rawParams json.RawMessage
 	return results, nil
 }
 
-func (s *Server) handleDocumentSymbol(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleDocumentSymbol(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		TextDocument TextDocumentIdentifier `json:"textDocument"`
 	}
@@ -916,7 +916,7 @@ func (s *Server) handleDocumentSymbol(_ context.Context, rawParams json.RawMessa
 	return syms, nil
 }
 
-func (s *Server) handleWorkspaceSymbol(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleWorkspaceSymbol(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		Query string `json:"query"`
 	}
@@ -933,7 +933,7 @@ func (s *Server) handleWorkspaceSymbol(_ context.Context, rawParams json.RawMess
 	return syms, nil
 }
 
-func (s *Server) handleSemanticTokensFull(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleSemanticTokensFull(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		TextDocument TextDocumentIdentifier `json:"textDocument"`
 	}
@@ -950,7 +950,7 @@ func (s *Server) handleSemanticTokensFull(_ context.Context, rawParams json.RawM
 	return SemanticTokensResult{Data: data}, nil
 }
 
-func (s *Server) handleSemanticTokensRange(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleSemanticTokensRange(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		TextDocument TextDocumentIdentifier `json:"textDocument"`
 		Range        document.Range         `json:"range"`
@@ -968,7 +968,7 @@ func (s *Server) handleSemanticTokensRange(_ context.Context, rawParams json.Raw
 	return SemanticTokensResult{Data: data}, nil
 }
 
-func (s *Server) handleSelectionRange(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleSelectionRange(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		TextDocument TextDocumentIdentifier `json:"textDocument"`
 		Positions    []document.Position    `json:"positions"`
@@ -986,7 +986,7 @@ func (s *Server) handleSelectionRange(_ context.Context, rawParams json.RawMessa
 	return ranges, nil
 }
 
-func (s *Server) handleLinkedEditingRange(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleLinkedEditingRange(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		TextDocument TextDocumentIdentifier `json:"textDocument"`
 		Position     document.Position      `json:"position"`
@@ -1003,7 +1003,7 @@ func (s *Server) handleLinkedEditingRange(_ context.Context, rawParams json.RawM
 	return linkededit.GetLinkedRanges(doc, params.Position), nil
 }
 
-func (s *Server) handleFormatting(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleFormatting(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		TextDocument TextDocumentIdentifier `json:"textDocument"`
 		Options      struct {
@@ -1035,7 +1035,7 @@ func (s *Server) handleFormatting(_ context.Context, rawParams json.RawMessage) 
 	return results, nil
 }
 
-func (s *Server) handleInlayHint(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleInlayHint(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		TextDocument TextDocumentIdentifier `json:"textDocument"`
 		Range        document.Range         `json:"range"`
@@ -1052,7 +1052,7 @@ func (s *Server) handleInlayHint(_ context.Context, rawParams json.RawMessage) (
 	return inlayhint.GetHints(doc, params.Range, folder), nil
 }
 
-func (s *Server) handleRangeFormatting(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleRangeFormatting(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		TextDocument TextDocumentIdentifier `json:"textDocument"`
 		Range        document.Range         `json:"range"`
@@ -1088,7 +1088,7 @@ func (s *Server) handleRangeFormatting(_ context.Context, rawParams json.RawMess
 	return results, nil
 }
 
-func (s *Server) handleExecuteCommand(_ context.Context, rawParams json.RawMessage) (interface{}, error) {
+func (s *Server) handleExecuteCommand(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		Command   string   `json:"command"`
 		Arguments []string `json:"arguments"`
@@ -1106,7 +1106,7 @@ func (s *Server) handleExecuteCommand(_ context.Context, rawParams json.RawMessa
 	return nil, nil
 }
 
-func (s *Server) executeCreateFile(args []string) (interface{}, error) {
+func (s *Server) executeCreateFile(args []string) (any, error) {
 	if len(args) < 1 {
 		return nil, nil
 	}
@@ -1150,7 +1150,7 @@ func (s *Server) executeCreateFile(args []string) (interface{}, error) {
 	return nil, nil
 }
 
-func (s *Server) executeAddToMap(args []string) (interface{}, error) {
+func (s *Server) executeAddToMap(args []string) (any, error) {
 	if len(args) < 2 {
 		return nil, nil
 	}

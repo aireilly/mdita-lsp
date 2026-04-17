@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-func buildMessage(method string, id *int, params interface{}) string {
-	req := map[string]interface{}{
+func buildMessage(method string, id *int, params any) string {
+	req := map[string]any{
 		"jsonrpc": "2.0",
 		"method":  method,
 	}
@@ -31,15 +31,15 @@ func TestFullLSPLifecycle(t *testing.T) {
 	var input bytes.Buffer
 	var output bytes.Buffer
 
-	input.WriteString(buildMessage("initialize", intPtr(1), map[string]interface{}{
-		"capabilities": map[string]interface{}{},
+	input.WriteString(buildMessage("initialize", intPtr(1), map[string]any{
+		"capabilities": map[string]any{},
 		"rootUri":      "file:///tmp/lsp-test",
 	}))
 
 	input.WriteString(buildMessage("initialized", nil, nil))
 
-	input.WriteString(buildMessage("textDocument/didOpen", nil, map[string]interface{}{
-		"textDocument": map[string]interface{}{
+	input.WriteString(buildMessage("textDocument/didOpen", nil, map[string]any{
+		"textDocument": map[string]any{
 			"uri":        "file:///tmp/lsp-test/doc.md",
 			"languageId": "markdown",
 			"version":    1,
@@ -47,13 +47,13 @@ func TestFullLSPLifecycle(t *testing.T) {
 		},
 	}))
 
-	input.WriteString(buildMessage("textDocument/hover", intPtr(2), map[string]interface{}{
-		"textDocument": map[string]interface{}{"uri": "file:///tmp/lsp-test/doc.md"},
-		"position":     map[string]interface{}{"line": 0, "character": 3},
+	input.WriteString(buildMessage("textDocument/hover", intPtr(2), map[string]any{
+		"textDocument": map[string]any{"uri": "file:///tmp/lsp-test/doc.md"},
+		"position":     map[string]any{"line": 0, "character": 3},
 	}))
 
-	input.WriteString(buildMessage("textDocument/documentSymbol", intPtr(3), map[string]interface{}{
-		"textDocument": map[string]interface{}{"uri": "file:///tmp/lsp-test/doc.md"},
+	input.WriteString(buildMessage("textDocument/documentSymbol", intPtr(3), map[string]any{
+		"textDocument": map[string]any{"uri": "file:///tmp/lsp-test/doc.md"},
 	}))
 
 	input.WriteString(buildMessage("shutdown", intPtr(4), nil))
@@ -92,21 +92,21 @@ func TestLSPCompletion(t *testing.T) {
 	var input bytes.Buffer
 	var output bytes.Buffer
 
-	input.WriteString(buildMessage("initialize", intPtr(1), map[string]interface{}{
-		"capabilities": map[string]interface{}{},
+	input.WriteString(buildMessage("initialize", intPtr(1), map[string]any{
+		"capabilities": map[string]any{},
 		"rootUri":      "file:///tmp/lsp-test-comp",
 	}))
 	input.WriteString(buildMessage("initialized", nil, nil))
-	input.WriteString(buildMessage("textDocument/didOpen", nil, map[string]interface{}{
-		"textDocument": map[string]interface{}{
+	input.WriteString(buildMessage("textDocument/didOpen", nil, map[string]any{
+		"textDocument": map[string]any{
 			"uri":     "file:///tmp/lsp-test-comp/doc.md",
 			"version": 1,
 			"text":    "# Title\n\n[[\n",
 		},
 	}))
-	input.WriteString(buildMessage("textDocument/completion", intPtr(2), map[string]interface{}{
-		"textDocument": map[string]interface{}{"uri": "file:///tmp/lsp-test-comp/doc.md"},
-		"position":     map[string]interface{}{"line": 2, "character": 2},
+	input.WriteString(buildMessage("textDocument/completion", intPtr(2), map[string]any{
+		"textDocument": map[string]any{"uri": "file:///tmp/lsp-test-comp/doc.md"},
+		"position":     map[string]any{"line": 2, "character": 2},
 	}))
 	input.WriteString(buildMessage("shutdown", intPtr(3), nil))
 
@@ -126,21 +126,21 @@ func TestLSPFormatting(t *testing.T) {
 	var input bytes.Buffer
 	var output bytes.Buffer
 
-	input.WriteString(buildMessage("initialize", intPtr(1), map[string]interface{}{
-		"capabilities": map[string]interface{}{},
+	input.WriteString(buildMessage("initialize", intPtr(1), map[string]any{
+		"capabilities": map[string]any{},
 		"rootUri":      "file:///tmp/lsp-test-fmt",
 	}))
 	input.WriteString(buildMessage("initialized", nil, nil))
-	input.WriteString(buildMessage("textDocument/didOpen", nil, map[string]interface{}{
-		"textDocument": map[string]interface{}{
+	input.WriteString(buildMessage("textDocument/didOpen", nil, map[string]any{
+		"textDocument": map[string]any{
 			"uri":     "file:///tmp/lsp-test-fmt/doc.md",
 			"version": 1,
 			"text":    "#Title  \n\nContent   \n",
 		},
 	}))
-	input.WriteString(buildMessage("textDocument/formatting", intPtr(2), map[string]interface{}{
-		"textDocument": map[string]interface{}{"uri": "file:///tmp/lsp-test-fmt/doc.md"},
-		"options":      map[string]interface{}{"tabSize": 4, "insertSpaces": true},
+	input.WriteString(buildMessage("textDocument/formatting", intPtr(2), map[string]any{
+		"textDocument": map[string]any{"uri": "file:///tmp/lsp-test-fmt/doc.md"},
+		"options":      map[string]any{"tabSize": 4, "insertSpaces": true},
 	}))
 	input.WriteString(buildMessage("shutdown", intPtr(3), nil))
 
@@ -163,8 +163,8 @@ func TestLSPUnknownMethod(t *testing.T) {
 	var input bytes.Buffer
 	var output bytes.Buffer
 
-	input.WriteString(buildMessage("initialize", intPtr(1), map[string]interface{}{
-		"capabilities": map[string]interface{}{},
+	input.WriteString(buildMessage("initialize", intPtr(1), map[string]any{
+		"capabilities": map[string]any{},
 		"rootUri":      "file:///tmp/lsp-test-unk",
 	}))
 	input.WriteString(buildMessage("unknownMethod/foo", intPtr(2), nil))

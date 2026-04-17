@@ -21,7 +21,7 @@ type Request struct {
 type Response struct {
 	JSONRPC string           `json:"jsonrpc"`
 	ID      *json.RawMessage `json:"id"`
-	Result  interface{}      `json:"result,omitempty"`
+	Result  any      `json:"result,omitempty"`
 	Error   *ResponseError   `json:"error,omitempty"`
 }
 
@@ -33,7 +33,7 @@ type ResponseError struct {
 type Notification struct {
 	JSONRPC string      `json:"jsonrpc"`
 	Method  string      `json:"method"`
-	Params  interface{} `json:"params,omitempty"`
+	Params  any `json:"params,omitempty"`
 }
 
 func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
@@ -41,7 +41,7 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
 	scanner.Split(scanLSPMessages)
 
-	s.SetNotify(func(method string, params interface{}) {
+	s.SetNotify(func(method string, params any) {
 		notif := Notification{
 			JSONRPC: "2.0",
 			Method:  method,
@@ -74,7 +74,7 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 	return scanner.Err()
 }
 
-func (s *Server) dispatch(ctx context.Context, method string, params json.RawMessage) (interface{}, error) {
+func (s *Server) dispatch(ctx context.Context, method string, params json.RawMessage) (any, error) {
 	switch method {
 	case "initialize":
 		return s.handleInitialize(ctx, params)
@@ -154,7 +154,7 @@ func (s *Server) dispatchNotification(ctx context.Context, method string, params
 	}
 }
 
-func writeMessage(w io.Writer, msg interface{}) error {
+func writeMessage(w io.Writer, msg any) error {
 	body, err := json.Marshal(msg)
 	if err != nil {
 		return err
