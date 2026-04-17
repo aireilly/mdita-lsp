@@ -159,6 +159,16 @@ func extractSymbols(doc *Document) []Symbol {
 				DocURI:  doc.URI,
 				Range:   el.Range,
 			})
+			if el.Heading != "" {
+				syms = append(syms, Symbol{
+					Kind:    RefKind,
+					RefType: RefWikiLink,
+					Name:    el.Heading,
+					Slug:    paths.SlugOf(el.Heading),
+					DocURI:  doc.URI,
+					Range:   el.Range,
+				})
+			}
 
 		case *MdLink:
 			syms = append(syms, Symbol{
