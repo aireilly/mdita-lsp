@@ -320,6 +320,14 @@ func (s *Server) handleDidClose(_ context.Context, rawParams json.RawMessage) er
 	if err := json.Unmarshal(rawParams, &params); err != nil {
 		return err
 	}
+
+	s.diagBounce.Flush(params.TextDocument.URI)
+
+	s.notify("textDocument/publishDiagnostics", DiagnosticParams{
+		URI:         params.TextDocument.URI,
+		Diagnostics: []DiagnosticResult{},
+	})
+
 	return nil
 }
 
