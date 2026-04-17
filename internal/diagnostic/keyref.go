@@ -4,23 +4,26 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/aireilly/mdita-lsp/internal/ditamap"
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
-var shortcutRefRe = regexp.MustCompile(`\[([^\[\]]+)\](?:[^(\[])`)
+var shortcutRefRe = regexp.MustCompile(`\[([^\[\]]+)\][^(\[]`)
 
 func CheckKeyrefs(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 	var diags []Diagnostic
 
-	tables := buildKeyTables(folder)
-	if len(tables) == 0 {
+	var mapTexts []string
+	for _, d := range folder.AllDocs() {
+		if d.Kind == document.Map {
+			mapTexts = append(mapTexts, d.Text)
+		}
+	}
+	merged := keyref.BuildMergedTable(mapTexts)
+	if len(merged) == 0 {
 		return nil
 	}
-
-	merged := mergeKeyTables(tables)
 
 	lines := strings.Split(doc.Text, "\n")
 	for lineNum, line := range lines {
@@ -46,34 +49,4 @@ func CheckKeyrefs(doc *document.Document, folder *workspace.Folder) []Diagnostic
 	}
 
 	return diags
-}
-
-func buildKeyTables(folder *workspace.Folder) []keyref.KeyTable {
-	var tables []keyref.KeyTable
-	for _, doc := range folder.AllDocs() {
-		if doc.Kind != document.Map {
-			continue
-		}
-		m, err := ditamap.ParseMap(doc.Text)
-		if err != nil {
-			continue
-		}
-		table := keyref.ExtractKeys(m)
-		if len(table) > 0 {
-			tables = append(tables, table)
-		}
-	}
-	return tables
-}
-
-func mergeKeyTables(tables []keyref.KeyTable) keyref.KeyTable {
-	merged := make(keyref.KeyTable)
-	for _, t := range tables {
-		for k, v := range t {
-			if _, exists := merged[k]; !exists {
-				merged[k] = v
-			}
-		}
-	}
-	return merged
 }
