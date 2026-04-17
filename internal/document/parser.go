@@ -15,6 +15,9 @@ import (
 )
 
 var admonitionRegex = regexp.MustCompile(`(?m)^!!!\s+(\w+)`)
+var footnoteRefRegex = regexp.MustCompile(`\[\^([^\]]+)\][^:]`)
+var footnoteDefRegex = regexp.MustCompile(`(?m)^\[\^([^\]]+)\]:`)
+
 
 func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 	src := []byte(source)
@@ -135,6 +138,8 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 
 	elements = append(elements, parseLinkDefs(mdContent, yamlEnd)...)
 	bf.Admonitions = parseAdmonitions(source)
+	bf.FootnoteRefLabels = parseFootnoteRefs(source)
+	bf.FootnoteDefLabels = parseFootnoteDefs(source)
 
 	_ = mdContent
 	return elements, bf, meta
@@ -281,6 +286,28 @@ func offsetToLineCol(source string, offset int) (int, int) {
 		}
 	}
 	return line, col
+}
+
+func parseFootnoteRefs(source string) []FootnoteLabel {
+	var labels []FootnoteLabel
+	matches := footnoteRefRegex.FindAllStringSubmatchIndex(source, -1)
+	for _, m := range matches {
+		label := source[m[2]:m[3]]
+		rng := rangeFromOffset(source, m[0], m[1])
+		labels = append(labels, FootnoteLabel{Label: label, Range: rng})
+	}
+	return labels
+}
+
+func parseFootnoteDefs(source string) []FootnoteLabel {
+	var labels []FootnoteLabel
+	matches := footnoteDefRegex.FindAllStringSubmatchIndex(source, -1)
+	for _, m := range matches {
+		label := source[m[2]:m[3]]
+		rng := rangeFromOffset(source, m[0], m[1])
+		labels = append(labels, FootnoteLabel{Label: label, Range: rng})
+	}
+	return labels
 }
 
 func isExternalURL(url string) bool {

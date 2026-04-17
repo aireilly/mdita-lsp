@@ -174,6 +174,61 @@ func TestUnknownAdmonitionType(t *testing.T) {
 	}
 }
 
+func TestFootnoteRefWithoutDef(t *testing.T) {
+	doc := makeDoc("file:///project/doc.md",
+		"---", "author: Test", "---",
+		"# Title", "", "Short desc.", "",
+		"See this[^missing] for details.")
+	f := makeFolder(doc)
+	diags := Check(doc, f)
+
+	found := false
+	for _, d := range diags {
+		if d.Code == CodeFootnoteRefWithoutDef {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected FootnoteRefWithoutDef diagnostic")
+	}
+}
+
+func TestFootnoteDefWithoutRef(t *testing.T) {
+	doc := makeDoc("file:///project/doc.md",
+		"---", "author: Test", "---",
+		"# Title", "", "Short desc.", "",
+		"Some text.", "",
+		"[^orphan]: This definition is never referenced")
+	f := makeFolder(doc)
+	diags := Check(doc, f)
+
+	found := false
+	for _, d := range diags {
+		if d.Code == CodeFootnoteDefWithoutRef {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected FootnoteDefWithoutRef diagnostic")
+	}
+}
+
+func TestMatchedFootnotesNoDiagnostic(t *testing.T) {
+	doc := makeDoc("file:///project/doc.md",
+		"---", "author: Test", "---",
+		"# Title", "", "Short desc.", "",
+		"See this[^note] for details.", "",
+		"[^note]: A valid footnote")
+	f := makeFolder(doc)
+	diags := Check(doc, f)
+
+	for _, d := range diags {
+		if d.Code == CodeFootnoteRefWithoutDef || d.Code == CodeFootnoteDefWithoutRef {
+			t.Errorf("should not report footnote diagnostics for matched pairs, got: %s", d.Message)
+		}
+	}
+}
+
 func TestMditaDisabled(t *testing.T) {
 	cfg := config.Default()
 	cfg.Core.Mdita.Enable = false

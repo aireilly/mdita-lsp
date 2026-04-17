@@ -51,6 +51,7 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 	diags = append(diags, checkSchemaSpecific(doc)...)
 	diags = append(diags, checkExtendedFeatures(doc)...)
 	diags = append(diags, checkAdmonitions(doc)...)
+	diags = append(diags, checkFootnotes(doc)...)
 
 	return diags
 }
@@ -173,6 +174,47 @@ func checkExtendedFeatures(doc *document.Document) []Diagnostic {
 			Code: CodeExtendedFeatureInCoreProfile, Source: source,
 			Message: "Admonitions are an extended profile feature",
 		})
+	}
+
+	return diags
+}
+
+func checkFootnotes(doc *document.Document) []Diagnostic {
+	var diags []Diagnostic
+	bf := doc.Index.Features
+
+	defLabels := make(map[string]bool)
+	for _, def := range bf.FootnoteDefLabels {
+		defLabels[def.Label] = true
+	}
+
+	refLabels := make(map[string]bool)
+	for _, ref := range bf.FootnoteRefLabels {
+		refLabels[ref.Label] = true
+	}
+
+	for _, ref := range bf.FootnoteRefLabels {
+		if !defLabels[ref.Label] {
+			diags = append(diags, Diagnostic{
+				Range:    ref.Range,
+				Severity: SeverityWarning,
+				Code:     CodeFootnoteRefWithoutDef,
+				Source:   source,
+				Message:  "Footnote reference without definition: " + ref.Label,
+			})
+		}
+	}
+
+	for _, def := range bf.FootnoteDefLabels {
+		if !refLabels[def.Label] {
+			diags = append(diags, Diagnostic{
+				Range:    def.Range,
+				Severity: SeverityInfo,
+				Code:     CodeFootnoteDefWithoutRef,
+				Source:   source,
+				Message:  "Footnote definition without reference: " + def.Label,
+			})
+		}
 	}
 
 	return diags

@@ -141,6 +141,11 @@ type YAMLMetadata struct {
 	Range       Range
 }
 
+type FootnoteLabel struct {
+	Label string
+	Range Range
+}
+
 type BlockFeatures struct {
 	HasOrderedList    bool
 	HasUnorderedList  bool
@@ -150,6 +155,8 @@ type BlockFeatures struct {
 	HasFootnoteDefs   bool
 	HasStrikethrough  bool
 	HasAttributes     bool
+	FootnoteRefLabels []FootnoteLabel
+	FootnoteDefLabels []FootnoteLabel
 	Admonitions       []Admonition
 }
 
