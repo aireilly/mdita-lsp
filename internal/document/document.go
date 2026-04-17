@@ -98,6 +98,10 @@ func posInRange(pos Position, r Range) bool {
 	return true
 }
 
+func BuildLineMap(text string) []int {
+	return buildLineMap(text)
+}
+
 func buildLineMap(text string) []int {
 	lines := []int{0}
 	for i, ch := range text {

@@ -420,12 +420,14 @@ func (s *Server) handleDidChange(_ context.Context, rawParams json.RawMessage) e
 	}
 
 	text := doc.Text
+	lineMap := doc.Lines
 	for _, change := range params.ContentChanges {
 		if change.Range == nil {
 			text = change.Text
 		} else {
-			text = applyIncrementalChange(text, doc.Lines, *change.Range, change.Text)
+			text = applyIncrementalChange(text, lineMap, *change.Range, change.Text)
 		}
+		lineMap = document.BuildLineMap(text)
 	}
 
 	newDoc := doc.ApplyChange(params.TextDocument.Version, text)

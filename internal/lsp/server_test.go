@@ -107,3 +107,35 @@ func TestCompletion(t *testing.T) {
 		t.Error("expected completion items")
 	}
 }
+
+func TestMultiChangeIncremental(t *testing.T) {
+	s := NewServer()
+	s.handleInitialize(context.Background(), json.RawMessage(`{
+		"capabilities": {},
+		"rootUri": "file:///tmp/test-mc"
+	}`))
+
+	s.handleDidOpen(context.Background(), json.RawMessage(`{
+		"textDocument": {
+			"uri": "file:///tmp/test-mc/doc.md",
+			"version": 1,
+			"text": "# Title\n\nLine A\nLine B\n"
+		}
+	}`))
+
+	s.handleDidChange(context.Background(), json.RawMessage(`{
+		"textDocument": {"uri": "file:///tmp/test-mc/doc.md", "version": 2},
+		"contentChanges": [
+			{"range": {"start": {"line": 2, "character": 5}, "end": {"line": 2, "character": 6}}, "text": "1"},
+			{"range": {"start": {"line": 3, "character": 5}, "end": {"line": 3, "character": 6}}, "text": "2"}
+		]
+	}`))
+
+	doc, _ := s.workspace.FindDoc("file:///tmp/test-mc/doc.md")
+	if doc == nil {
+		t.Fatal("document not found")
+	}
+	if doc.Text != "# Title\n\nLine 1\nLine 2\n" {
+		t.Errorf("multi-change sync failed, got %q", doc.Text)
+	}
+}
