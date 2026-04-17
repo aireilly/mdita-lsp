@@ -2,7 +2,7 @@
 
 An LSP server for [MDITA](https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=dita) (Markdown DITA) documents.
 
-Provides diagnostics, completion, go-to-definition, hover, references, rename, code actions, code lens, document symbols, and semantic tokens for `.md` and `.mditamap` files.
+Provides comprehensive language support for `.md` and `.mditamap` files with 19 diagnostic codes, keyref resolution, incremental text sync, and full IDE integration.
 
 ## Install
 
@@ -28,15 +28,7 @@ make install   # installs to ~/.local/bin
 
 ### VS Code
 
-Add to your `settings.json`:
-
-```json
-{
-  "mdita-lsp.path": "mdita-lsp"
-}
-```
-
-Or use any generic LSP client extension (e.g., [vscode-langservers](https://github.com/AriPerkkio/vscode-lsp-sample)) with:
+Use any generic LSP client extension with:
 
 ```json
 {
@@ -86,12 +78,12 @@ core:
     map_extensions: [mditamap]
 
 completion:
-  wiki_style: file-stem
+  wiki_style: title-slug
 
 code_actions:
   toc:
     enable: true
-    include_levels: [1, 2, 3]
+    include_levels: [2, 3, 4]
   create_missing_file:
     enable: true
 
@@ -105,16 +97,46 @@ diagnostics:
 
 | Feature | Description |
 |---------|-------------|
-| Diagnostics | 19 diagnostic codes: MDITA compliance, link validation, heading hierarchy, schema-specific checks, ditamap validation |
-| Completion | Wiki links (`[[`), inline links (`](`), YAML front matter keys, heading anchors (`#`) |
-| Go to Definition | Navigate to linked documents and headings via wiki links and markdown links |
-| Hover | Preview target document titles and headings |
-| Find References | Find all references to a heading across the workspace |
-| Rename | Rename headings with cross-document reference updates |
-| Code Actions | Generate table of contents, create missing files |
+| Diagnostics | 19 codes: MDITA compliance, link validation, heading hierarchy, footnotes, keyrefs, ditamap validation, map heading consistency |
+| Completion | Wiki links (`[[`), inline links (`](`), YAML keys, heading anchors (`#`), keyrefs (`[`) |
+| Go to Definition | Wiki links, markdown links, and keyref shortcut references |
+| Hover | Document titles, heading text, keyref targets with href/title |
+| Find References | All references to a heading across the workspace |
+| Rename | Heading rename with cross-document wiki link updates |
+| Code Actions | Generate table of contents (with edit), create missing files |
 | Code Lens | Reference counts on headings |
-| Document Symbols | Heading outline tree |
-| Semantic Tokens | Syntax highlighting for wiki links |
+| Document Links | Clickable links for wiki links and markdown links |
+| Document Symbols | Hierarchical heading outline tree |
+| Workspace Symbols | Search headings across all documents |
+| Folding Ranges | Fold headings, YAML front matter, and ToC markers |
+| Selection Ranges | Progressive selection expansion by line/element/section |
+| Semantic Tokens | Syntax highlighting for wiki links (full + range) |
+| Text Sync | Incremental (mode 2) with 200ms diagnostic debouncing |
+| File Operations | Auto-index created/deleted files |
+
+### Diagnostic codes
+
+| Code | Name | Severity |
+|------|------|----------|
+| 1 | Ambiguous link | Warning |
+| 2 | Broken link | Error |
+| 3 | Non-breaking whitespace | Warning |
+| 4 | Missing YAML front matter | Warning |
+| 5 | Missing short description | Warning |
+| 6 | Invalid heading hierarchy | Warning |
+| 7 | Unrecognized schema | Warning |
+| 8 | Task missing procedure | Warning |
+| 9 | Concept has procedure | Info |
+| 10 | Reference missing table | Info |
+| 11 | Map has body content | Info |
+| 12 | Extended feature in core profile | Warning |
+| 13 | Footnote ref without def | Warning |
+| 14 | Footnote def without ref | Info |
+| 15 | Unknown admonition type | Warning |
+| 16 | Unresolved keyref | Warning |
+| 17 | Broken map reference | Error |
+| 18 | Circular map reference | Error |
+| 19 | Inconsistent map heading hierarchy | Info |
 
 ## MDITA map format
 
@@ -129,13 +151,15 @@ diagnostics:
 - [User Guide](user-guide.md)
 ```
 
+Keys are derived from filenames (e.g., `install.md` → key `install`). Use `[install]` in topic files to create keyref shortcut references.
+
 ## Development
 
 ```bash
 make build     # Build binary
-make test      # Run tests with race detection
+make test      # Run 121 tests with race detection
 make lint      # Run golangci-lint
-make publish   # Cross-compile for all platforms
+make publish   # Cross-compile for 5 platforms (~3.5 MB each)
 make clean     # Remove build artifacts
 ```
 

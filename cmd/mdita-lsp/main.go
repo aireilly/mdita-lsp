@@ -12,15 +12,17 @@ import (
 var version = "dev"
 
 func main() {
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
+	for _, arg := range os.Args[1:] {
+		switch arg {
 		case "--version", "-v":
-			fmt.Println(version)
+			fmt.Println("mdita-lsp " + version)
 			os.Exit(0)
 		case "--help", "-h":
-			fmt.Fprintln(os.Stderr, "Usage: mdita-lsp [--version] [--help]")
+			fmt.Fprintln(os.Stderr, "Usage: mdita-lsp [--version] [--help] [--stdio]")
 			fmt.Fprintln(os.Stderr, "  Runs as an LSP server over stdio.")
 			os.Exit(0)
+		case "--stdio":
+			// default mode, accepted for compatibility
 		}
 	}
 

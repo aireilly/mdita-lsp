@@ -5,6 +5,8 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
@@ -22,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version-file: go.mod
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
@@ -31,7 +33,7 @@ jobs:
         run: |
           EXT=""
           if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
-          go build -ldflags "-X main.version=${{ github.ref_name }}" \
+          go build -ldflags "-s -w -X main.version=${{ github.ref_name }}" \
             -o "mdita-lsp-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" \
             ./cmd/mdita-lsp
       - name: Upload
