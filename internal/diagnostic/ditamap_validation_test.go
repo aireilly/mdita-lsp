@@ -61,3 +61,30 @@ func TestCircularMapReference(t *testing.T) {
 		t.Error("expected CircularMapReference diagnostic")
 	}
 }
+
+func TestInconsistentMapHeadingHierarchy(t *testing.T) {
+	parent := document.New("file:///project/parent.md", 1,
+		"# Parent Topic\n\nSome content.\n")
+	child := document.New("file:///project/child.md", 1,
+		"# Child Topic\n\nChild content.\n")
+
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"# My Map\n\n- [Parent](parent.md)\n  - [Child](child.md)\n")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(parent)
+	f.AddDoc(child)
+	f.AddDoc(mapDoc)
+
+	diags := CheckDitamap(mapDoc, f)
+	found := false
+	for _, d := range diags {
+		if d.Code == CodeInconsistentMapHeadingHierarchy {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected InconsistentMapHeadingHierarchy diagnostic for nested H1")
+	}
+}
