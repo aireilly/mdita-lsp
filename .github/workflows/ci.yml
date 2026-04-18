@@ -25,3 +25,32 @@ jobs:
       - uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+  integration:
+    runs-on: ubuntu-latest
+    env:
+      DITA_OT_VERSION: "4.2.3"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Cache DITA OT
+        id: cache-dita-ot
+        uses: actions/cache@v4
+        with:
+          path: /opt/dita-ot
+          key: dita-ot-${{ env.DITA_OT_VERSION }}
+      - name: Install DITA OT
+        if: steps.cache-dita-ot.outputs.cache-hit != 'true'
+        run: |
+          curl -sL "https://github.com/dita-ot/dita-ot/releases/download/${DITA_OT_VERSION}/dita-ot-${DITA_OT_VERSION}.zip" -o dita-ot.zip
+          unzip -q dita-ot.zip -d /opt
+          mv /opt/dita-ot-${DITA_OT_VERSION} /opt/dita-ot
+      - name: Run integration tests
+        env:
+          DITA_OT_PATH: /opt/dita-ot
+        run: go test ./internal/ditaot/ -run TestIntegration -v -timeout 300s
