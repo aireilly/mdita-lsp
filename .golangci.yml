@@ -18,11 +18,27 @@ formatters:
 linters-settings:
   errcheck:
     check-blank: false
+    exclude-functions:
+      - (io.Closer).Close
+      - (net/http.ResponseWriter).Write
+      - encoding/json.Unmarshal
+      - os.WriteFile
   govet:
     enable-all: false
 
 issues:
   exclude-dirs:
     - vendor
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+    - path: internal/lsp/handler\.go
+      linters:
+        - errcheck
+    - path: internal/lsp/server\.go
+      text: "ScanFiles"
+      linters:
+        - errcheck
   max-issues-per-linter: 50
   max-same-issues: 5

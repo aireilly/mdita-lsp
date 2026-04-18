@@ -116,4 +116,3 @@ func resolveKeyref(kr *keyref.KeyrefAtPos, doc *document.Document, folder *works
 	}
 	return nil
 }
-

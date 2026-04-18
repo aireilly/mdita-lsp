@@ -103,4 +103,3 @@ func keyrefHints(doc *document.Document, rng document.Range, table keyref.KeyTab
 	}
 	return hints
 }
-

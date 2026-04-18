@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/aireilly/mdita-lsp/internal/codeaction"
-	"github.com/aireilly/mdita-lsp/internal/ditaot"
 	"github.com/aireilly/mdita-lsp/internal/codelens"
 	"github.com/aireilly/mdita-lsp/internal/completion"
 	"github.com/aireilly/mdita-lsp/internal/config"
 	"github.com/aireilly/mdita-lsp/internal/definition"
 	"github.com/aireilly/mdita-lsp/internal/diagnostic"
+	"github.com/aireilly/mdita-lsp/internal/ditaot"
 	"github.com/aireilly/mdita-lsp/internal/docsymbols"
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/filerename"

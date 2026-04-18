@@ -39,7 +39,7 @@ var yamlKeyDocs = map[string]string{
 	"author":      "Topic author name",
 	"source":      "Original source of the content",
 	"publisher":   "Publisher of the content",
-	"permissions":  "Access permissions for this topic",
+	"permissions": "Access permissions for this topic",
 	"audience":    "Intended audience for this topic",
 	"category":    "Topic category for classification",
 	"keyword":     "Keywords for indexing and search (comma-separated or YAML list)",
