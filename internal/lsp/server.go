@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aireilly/mdita-lsp/internal/codeaction"
+	"github.com/aireilly/mdita-lsp/internal/ditaot"
 	"github.com/aireilly/mdita-lsp/internal/codelens"
 	"github.com/aireilly/mdita-lsp/internal/completion"
 	"github.com/aireilly/mdita-lsp/internal/config"
@@ -33,20 +34,22 @@ import (
 )
 
 type Server struct {
-	workspace  *workspace.Workspace
-	graph      *symbols.Graph
-	notify     func(method string, params any)
-	diagBounce *debouncer
-	version    string
+	workspace   *workspace.Workspace
+	graph       *symbols.Graph
+	notify      func(method string, params any)
+	diagBounce  *debouncer
+	version     string
+	ditaBuilder *ditaot.Builder
 }
 
 func NewServer() *Server {
 	return &Server{
-		workspace:  workspace.New(),
-		graph:      symbols.NewGraph(),
-		notify:     func(string, any) {},
-		diagBounce: newDebouncer(200 * time.Millisecond),
-		version:    "dev",
+		workspace:   workspace.New(),
+		graph:       symbols.NewGraph(),
+		notify:      func(string, any) {},
+		diagBounce:  newDebouncer(200 * time.Millisecond),
+		version:     "dev",
+		ditaBuilder: &ditaot.Builder{},
 	}
 }
 
@@ -370,6 +373,7 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 					"mdita-lsp.createFile",
 					"mdita-lsp.findReferences",
 					"mdita-lsp.addToMap",
+					"mdita-lsp.ditaOtBuild",
 				},
 			},
 			SemanticTokensProvider: &SemanticTokensOptions{
@@ -1230,6 +1234,8 @@ func (s *Server) handleExecuteCommand(_ context.Context, rawParams json.RawMessa
 		return s.executeCreateFile(params.Arguments)
 	case "mdita-lsp.addToMap":
 		return s.executeAddToMap(params.Arguments)
+	case "mdita-lsp.ditaOtBuild":
+		return s.executeDitaOtBuild(params.Arguments)
 	}
 	return nil, nil
 }
@@ -1316,6 +1322,87 @@ func (s *Server) executeAddToMap(args []string) (any, error) {
 			},
 		},
 	})
+	return nil, nil
+}
+
+func (s *Server) executeDitaOtBuild(args []string) (any, error) {
+	if len(args) < 2 {
+		return nil, nil
+	}
+	mapURI := args[0]
+	format := args[1]
+
+	folder := s.workspace.FolderForURI(mapURI)
+	if folder == nil {
+		s.notify("window/showMessage", ShowMessageParams{
+			Type:    LogError,
+			Message: "DITA OT build: no workspace folder found",
+		})
+		return nil, nil
+	}
+
+	ditaPath, err := ditaot.ResolveDitaPath(folder.Config.Build.DitaOT.DitaPath)
+	if err != nil {
+		s.notify("window/showMessage", ShowMessageParams{
+			Type:    LogError,
+			Message: err.Error(),
+		})
+		return nil, nil
+	}
+
+	mapPath, err := paths.URIToPath(mapURI)
+	if err != nil {
+		return nil, nil
+	}
+
+	outputDir := folder.Config.Build.DitaOT.OutputDir
+	if outputDir == "" {
+		outputDir = "out"
+	}
+	if !filepath.IsAbs(outputDir) {
+		outputDir = filepath.Join(folder.RootPath(), outputDir)
+	}
+
+	if !s.ditaBuilder.TryAcquire() {
+		s.notify("window/showMessage", ShowMessageParams{
+			Type:    LogWarning,
+			Message: "DITA OT build already in progress",
+		})
+		return nil, nil
+	}
+
+	mapName := filepath.Base(mapPath)
+	s.logMessage(LogInfo, fmt.Sprintf("DITA OT build started: %s (format: %s)", mapName, format))
+
+	go func() {
+		defer s.ditaBuilder.Release()
+
+		result, err := s.ditaBuilder.Run(context.Background(), ditaPath, mapPath, format, outputDir)
+		if err != nil {
+			s.notify("window/showMessage", ShowMessageParams{
+				Type:    LogError,
+				Message: "DITA OT build error: " + err.Error(),
+			})
+			return
+		}
+
+		if result.Output != "" {
+			s.logMessage(LogInfo, result.Output)
+		}
+
+		if result.Success {
+			s.notify("window/showMessage", ShowMessageParams{
+				Type:    LogInfo,
+				Message: fmt.Sprintf("DITA OT build complete (%s). Output: %s", result.Elapsed.Round(time.Millisecond), outputDir),
+			})
+		} else {
+			s.notify("window/showMessage", ShowMessageParams{
+				Type:    LogError,
+				Message: "DITA OT build failed. See output log for details.",
+			})
+		}
+	}()
+
 	return nil, nil
 }
 
