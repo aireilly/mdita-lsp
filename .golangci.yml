@@ -11,6 +11,9 @@ linters:
     - unused
     - ineffassign
     - gosimple
+
+formatters:
+  enable:
     - gofmt
 
 linters-settings:
