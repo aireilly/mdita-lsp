@@ -87,6 +87,7 @@ func GetActions(doc *document.Document, rng document.Range, folder *workspace.Fo
 	actions = append(actions, fixNBSPActions(doc, rng)...)
 	actions = append(actions, fixFootnoteRefActions(doc, rng)...)
 	actions = append(actions, fixHeadingHierarchyActions(doc, rng)...)
+	actions = append(actions, buildDitaOTActions(doc, folder)...)
 
 	return actions
 }
@@ -275,6 +276,37 @@ func fixHeadingHierarchyActions(doc *document.Document, rng document.Range) []Co
 		})
 	}
 	return actions
+}
+
+func buildDitaOTActions(doc *document.Document, folder *workspace.Folder) []CodeAction {
+	if doc.Kind != document.Map {
+		return nil
+	}
+	if !config.BoolVal(folder.Config.Build.DitaOT.Enable) {
+		return nil
+	}
+	return []CodeAction{
+		{
+			Title:  "Build XHTML with DITA OT",
+			Kind:   "source",
+			DocURI: doc.URI,
+			Command: &Command{
+				Title:     "Build XHTML",
+				Command:   "mdita-lsp.ditaOtBuild",
+				Arguments: []string{doc.URI, "xhtml"},
+			},
+		},
+		{
+			Title:  "Build DITA with DITA OT",
+			Kind:   "source",
+			DocURI: doc.URI,
+			Command: &Command{
+				Title:     "Build DITA",
+				Command:   "mdita-lsp.ditaOtBuild",
+				Arguments: []string{doc.URI, "dita"},
+			},
+		},
+	}
 }
 
 func rangesOverlap(a, b document.Range) bool {

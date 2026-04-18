@@ -255,6 +255,95 @@ func TestFixHeadingHierarchyNoSkip(t *testing.T) {
 	}
 }
 
+func boolPtr(v bool) *bool { return &v }
+
+func TestBuildXHTMLActionOnMap(t *testing.T) {
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"# My Map\n\n- [Topic](topic.md)\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(mapDoc)
+
+	actions := GetActions(mapDoc, document.Rng(0, 0, 3, 0), f)
+	found := false
+	for _, a := range actions {
+		if a.Title == "Build XHTML with DITA OT" {
+			found = true
+			if a.Command == nil {
+				t.Fatal("expected command")
+			}
+			if a.Command.Command != "mdita-lsp.ditaOtBuild" {
+				t.Errorf("command = %q, want %q", a.Command.Command, "mdita-lsp.ditaOtBuild")
+			}
+			if len(a.Command.Arguments) != 2 || a.Command.Arguments[0] != mapDoc.URI || a.Command.Arguments[1] != "xhtml" {
+				t.Errorf("arguments = %v, want [%s xhtml]", a.Command.Arguments, mapDoc.URI)
+			}
+		}
+	}
+	if !found {
+		t.Error("missing 'Build XHTML with DITA OT' action for map document")
+	}
+}
+
+func TestBuildDITAActionOnMap(t *testing.T) {
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"# My Map\n\n- [Topic](topic.md)\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(mapDoc)
+
+	actions := GetActions(mapDoc, document.Rng(0, 0, 3, 0), f)
+	found := false
+	for _, a := range actions {
+		if a.Title == "Build DITA with DITA OT" {
+			found = true
+			if a.Command == nil {
+				t.Fatal("expected command")
+			}
+			if a.Command.Command != "mdita-lsp.ditaOtBuild" {
+				t.Errorf("command = %q, want %q", a.Command.Command, "mdita-lsp.ditaOtBuild")
+			}
+			if len(a.Command.Arguments) != 2 || a.Command.Arguments[0] != mapDoc.URI || a.Command.Arguments[1] != "dita" {
+				t.Errorf("arguments = %v, want [%s dita]", a.Command.Arguments, mapDoc.URI)
+			}
+		}
+	}
+	if !found {
+		t.Error("missing 'Build DITA with DITA OT' action for map document")
+	}
+}
+
+func TestBuildActionsNotOnTopic(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\nContent.\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+
+	actions := GetActions(doc, document.Rng(0, 0, 3, 0), f)
+	for _, a := range actions {
+		if a.Title == "Build XHTML with DITA OT" || a.Title == "Build DITA with DITA OT" {
+			t.Errorf("should not offer build action %q for topic documents", a.Title)
+		}
+	}
+}
+
+func TestBuildActionsDisabled(t *testing.T) {
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"# My Map\n\n- [Topic](topic.md)\n")
+	cfg := config.Default()
+	cfg.Build.DitaOT.Enable = boolPtr(false)
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(mapDoc)
+
+	actions := GetActions(mapDoc, document.Rng(0, 0, 3, 0), f)
+	for _, a := range actions {
+		if a.Title == "Build XHTML with DITA OT" || a.Title == "Build DITA with DITA OT" {
+			t.Errorf("should not offer build action %q when disabled", a.Title)
+		}
+	}
+}
+
 func TestAddToMapAction(t *testing.T) {
 	doc := document.New("file:///project/doc.md", 1,
 		"# My Doc\n\nContent.\n")
