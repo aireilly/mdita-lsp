@@ -114,7 +114,7 @@ diagnostics:
 | Selection Ranges | Progressive selection expansion by line/element/section |
 | Linked Editing | Simultaneous rename of headings and their `[[#heading]]` references |
 | Formatting | Trim trailing whitespace, normalize headings, align tables, ensure trailing newline (full + range) |
-| Inlay Hints | Show resolved wiki link titles and keyref targets inline |
+| Inlay Hints | Show resolved wiki link titles, markdown link targets, and keyref targets inline |
 | Document Highlight | Highlight all same-document references to heading under cursor |
 | Semantic Tokens | Syntax highlighting for wiki links (full + range) |
 | File Rename | Auto-update wiki links, markdown links, and map references on file rename |
