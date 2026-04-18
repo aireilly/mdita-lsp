@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/aireilly/mdita-lsp/internal/document"
@@ -104,17 +105,27 @@ func completeWikiHeading(docPart, input string, doc *document.Document, folder *
 }
 
 func completeInlineDoc(input string, doc *document.Document, folder *workspace.Folder) []CompletionItem {
+	srcPath, _ := paths.URIToPath(doc.URI)
+	srcDir := filepath.Dir(srcPath)
+
 	var items []CompletionItem
 	for _, d := range folder.AllDocs() {
 		if d.URI == doc.URI {
 			continue
 		}
-		id := d.DocID(folder.RootURI)
-		if input == "" || strings.Contains(strings.ToLower(id.RelPath), strings.ToLower(input)) {
+		targetPath, _ := paths.URIToPath(d.URI)
+		rel := paths.RelPath(srcDir, targetPath)
+		rel = filepath.ToSlash(rel)
+
+		if input == "" || strings.Contains(strings.ToLower(rel), strings.ToLower(input)) {
+			title := ""
+			if t := d.Index.Title(); t != nil {
+				title = t.Text
+			}
 			items = append(items, CompletionItem{
-				Label:      id.RelPath,
-				Detail:     id.Stem,
-				InsertText: id.RelPath,
+				Label:      rel,
+				Detail:     title,
+				InsertText: rel,
 				Kind:       17,
 			})
 		}

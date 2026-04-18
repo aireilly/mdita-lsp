@@ -118,6 +118,61 @@ func TestCompleteYamlKey(t *testing.T) {
 	}
 }
 
+func TestCompleteInlineLinkRelativePath(t *testing.T) {
+	doc1 := document.New("file:///project/docs/intro.md", 1, "# Introduction\n")
+	doc2 := document.New("file:///project/guide/user.md", 1, "# User Guide\n\n[link](")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc1)
+	f.AddDoc(doc2)
+	g := symbols.NewGraph()
+
+	items := Complete(doc2, document.Position{Line: 2, Character: 7}, f, g)
+	if len(items) == 0 {
+		t.Fatal("expected completion items for inline link")
+	}
+	found := false
+	for _, item := range items {
+		if item.InsertText == "../docs/intro.md" {
+			found = true
+		}
+	}
+	if !found {
+		labels := make([]string, len(items))
+		for i, item := range items {
+			labels[i] = item.InsertText
+		}
+		t.Errorf("expected '../docs/intro.md' in completions, got %v", labels)
+	}
+}
+
+func TestCompleteInlineLinkSameDir(t *testing.T) {
+	doc1 := document.New("file:///project/intro.md", 1, "# Introduction\n")
+	doc2 := document.New("file:///project/doc.md", 1, "# Doc\n\n[see](")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc1)
+	f.AddDoc(doc2)
+	g := symbols.NewGraph()
+
+	items := Complete(doc2, document.Position{Line: 2, Character: 6}, f, g)
+	found := false
+	for _, item := range items {
+		if item.InsertText == "intro.md" {
+			found = true
+		}
+	}
+	if !found {
+		labels := make([]string, len(items))
+		for i, item := range items {
+			labels[i] = item.InsertText
+		}
+		t.Errorf("expected 'intro.md' in completions, got %v", labels)
+	}
+}
+
 func TestCompleteKeyref(t *testing.T) {
 	mapDoc := document.New("file:///project/map.mditamap", 1,
 		"# Map\n\n- [Install Guide](install.md)\n- [Config](config.md)\n")
