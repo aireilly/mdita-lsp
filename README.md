@@ -167,7 +167,7 @@ Keys are derived from filenames (e.g., `install.md` → key `install`). Use `[in
 
 ```bash
 make build     # Build binary
-make test      # Run 226 tests with race detection
+make test      # Run 231 tests with race detection
 make lint      # Run golangci-lint
 make publish   # Cross-compile for 5 platforms (~3.5 MB each)
 make clean     # Remove build artifacts
