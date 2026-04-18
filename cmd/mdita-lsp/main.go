@@ -35,6 +35,7 @@ func main() {
 	log.Printf("mdita-lsp %s starting", version)
 
 	s := lsp.NewServer()
+	s.SetVersion(version)
 	ctx := context.Background()
 	if err := s.Serve(ctx, os.Stdin, os.Stdout); err != nil {
 		log.Fatalf("server error: %v", err)

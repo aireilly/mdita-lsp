@@ -74,6 +74,9 @@ func TestFullLSPLifecycle(t *testing.T) {
 	if !strings.Contains(out, "completionProvider") {
 		t.Error("missing capabilities in initialize response")
 	}
+	if !strings.Contains(out, "mdita-lsp") {
+		t.Error("missing serverInfo.name in initialize response")
+	}
 	if !strings.Contains(out, "linkedEditingRangeProvider") {
 		t.Error("missing linkedEditingRangeProvider capability")
 	}

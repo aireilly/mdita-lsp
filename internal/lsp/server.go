@@ -37,6 +37,7 @@ type Server struct {
 	graph      *symbols.Graph
 	notify     func(method string, params any)
 	diagBounce *debouncer
+	version    string
 }
 
 func NewServer() *Server {
@@ -45,7 +46,12 @@ func NewServer() *Server {
 		graph:      symbols.NewGraph(),
 		notify:     func(string, any) {},
 		diagBounce: newDebouncer(200 * time.Millisecond),
+		version:    "dev",
 	}
+}
+
+func (s *Server) SetVersion(v string) {
+	s.version = v
 }
 
 func (s *Server) SetNotify(fn func(method string, params any)) {
@@ -69,6 +75,12 @@ type WorkspaceFolder struct {
 
 type InitializeResult struct {
 	Capabilities ServerCapabilities `json:"capabilities"`
+	ServerInfo   *ServerInfo        `json:"serverInfo,omitempty"`
+}
+
+type ServerInfo struct {
+	Name    string `json:"name"`
+	Version string `json:"version,omitempty"`
 }
 
 type ServerCapabilities struct {
@@ -322,6 +334,10 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 	}
 
 	return InitializeResult{
+		ServerInfo: &ServerInfo{
+			Name:    "mdita-lsp",
+			Version: s.version,
+		},
 		Capabilities: ServerCapabilities{
 			TextDocumentSync: 2,
 			CompletionProvider: &CompletionOptions{
@@ -486,6 +502,7 @@ func (s *Server) handleDidSave(_ context.Context, rawParams json.RawMessage) err
 	doc, folder := s.workspace.FindDoc(params.TextDocument.URI)
 	if doc != nil && folder != nil {
 		s.publishDiagnosticsNow(doc, folder)
+		s.refreshRelatedDiagnostics(folder)
 	}
 	return nil
 }
