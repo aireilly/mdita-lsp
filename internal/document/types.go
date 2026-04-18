@@ -3,13 +3,13 @@ package document
 import "github.com/aireilly/mdita-lsp/internal/paths"
 
 type Range struct {
-	Start Position
-	End   Position
+	Start Position `json:"start"`
+	End   Position `json:"end"`
 }
 
 type Position struct {
-	Line      int
-	Character int
+	Line      int `json:"line"`
+	Character int `json:"character"`
 }
 
 func Rng(sl, sc, el, ec int) Range {
