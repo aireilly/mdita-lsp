@@ -3,6 +3,7 @@ package workspace
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/aireilly/mdita-lsp/internal/config"
@@ -117,6 +118,26 @@ func (f *Folder) MapTexts() []string {
 		}
 	}
 	return texts
+}
+
+func (f *Folder) ResolveLink(url string, sourceURI string) *document.Document {
+	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+		return nil
+	}
+	srcPath, _ := paths.URIToPath(sourceURI)
+	srcDir := filepath.Dir(srcPath)
+	targetPath := filepath.Clean(filepath.Join(srcDir, url))
+	targetURI := paths.PathToURI(targetPath)
+	if d := f.DocByURI(targetURI); d != nil {
+		return d
+	}
+	for _, d := range f.AllDocs() {
+		id := d.DocID(f.RootURI)
+		if paths.MatchesURL(id, url) {
+			return d
+		}
+	}
+	return nil
 }
 
 func (f *Folder) RootPath() string {

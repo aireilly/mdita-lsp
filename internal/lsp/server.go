@@ -958,26 +958,11 @@ func (s *Server) handleDocumentLink(_ context.Context, rawParams json.RawMessage
 	}
 	for _, ml := range doc.Index.MdLinks() {
 		if ml.URL != "" && !isExternalURL(ml.URL) {
-			docPath, _ := paths.URIToPath(doc.URI)
-			docDir := filepath.Dir(docPath)
-			targetPath := filepath.Join(docDir, ml.URL)
-			targetURI := paths.PathToURI(targetPath)
-			if target := folder.DocByURI(targetURI); target != nil {
+			if target := folder.ResolveLink(ml.URL, doc.URI); target != nil {
 				results = append(results, DocumentLinkResult{
 					Range:  ml.Range,
 					Target: target.URI,
 				})
-				continue
-			}
-			for _, d := range folder.AllDocs() {
-				id := d.DocID(folder.RootURI)
-				if paths.MatchesURL(id, ml.URL) {
-					results = append(results, DocumentLinkResult{
-						Range:  ml.Range,
-						Target: d.URI,
-					})
-					break
-				}
 			}
 		}
 	}

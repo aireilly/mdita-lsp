@@ -69,6 +69,59 @@ func TestWorkspaceFindDoc(t *testing.T) {
 	}
 }
 
+func TestResolveLinkRelativePath(t *testing.T) {
+	f := NewFolder("file:///project", config.Default())
+	target := document.New("file:///project/docs/install.md", 1, "# Install\n")
+	source := document.New("file:///project/guide/index.md", 1, "# Guide\n")
+	f.AddDoc(target)
+	f.AddDoc(source)
+
+	got := f.ResolveLink("../docs/install.md", source.URI)
+	if got == nil {
+		t.Fatal("ResolveLink returned nil for relative path")
+	}
+	if got.URI != target.URI {
+		t.Errorf("URI = %q, want %q", got.URI, target.URI)
+	}
+}
+
+func TestResolveLinkSameDir(t *testing.T) {
+	f := NewFolder("file:///project", config.Default())
+	target := document.New("file:///project/install.md", 1, "# Install\n")
+	source := document.New("file:///project/guide.md", 1, "# Guide\n")
+	f.AddDoc(target)
+	f.AddDoc(source)
+
+	got := f.ResolveLink("install.md", source.URI)
+	if got == nil {
+		t.Fatal("ResolveLink returned nil for same-dir path")
+	}
+}
+
+func TestResolveLinkNonexistent(t *testing.T) {
+	f := NewFolder("file:///project", config.Default())
+	source := document.New("file:///project/guide.md", 1, "# Guide\n")
+	f.AddDoc(source)
+
+	got := f.ResolveLink("nonexistent.md", source.URI)
+	if got != nil {
+		t.Error("ResolveLink should return nil for nonexistent file")
+	}
+}
+
+func TestResolveLinkHTTP(t *testing.T) {
+	f := NewFolder("file:///project", config.Default())
+	source := document.New("file:///project/guide.md", 1, "# Guide\n")
+	f.AddDoc(source)
+
+	if f.ResolveLink("http://example.com", source.URI) != nil {
+		t.Error("ResolveLink should return nil for http URL")
+	}
+	if f.ResolveLink("https://example.com", source.URI) != nil {
+		t.Error("ResolveLink should return nil for https URL")
+	}
+}
+
 func TestFolderScanFiles(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "doc.md"), []byte("# Doc\n"), 0644)

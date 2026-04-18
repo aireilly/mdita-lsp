@@ -2,7 +2,6 @@ package definition
 
 import (
 	"path/filepath"
-	"strings"
 
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
@@ -72,7 +71,7 @@ func resolveMdLink(ml *document.MdLink, doc *document.Document, folder *workspac
 	}
 
 	if ml.URL != "" {
-		target := resolveRelativeLink(ml.URL, doc, folder)
+		target := folder.ResolveLink(ml.URL, doc.URI)
 		if target != nil {
 			if ml.Anchor != "" {
 				hslug := paths.SlugOf(ml.Anchor)
@@ -88,26 +87,6 @@ func resolveMdLink(ml *document.MdLink, doc *document.Document, folder *workspac
 		}
 	}
 
-	return nil
-}
-
-func resolveRelativeLink(url string, doc *document.Document, folder *workspace.Folder) *document.Document {
-	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-		return nil
-	}
-	srcPath, _ := paths.URIToPath(doc.URI)
-	srcDir := filepath.Dir(srcPath)
-	targetPath := filepath.Clean(filepath.Join(srcDir, url))
-	targetURI := paths.PathToURI(targetPath)
-	if d := folder.DocByURI(targetURI); d != nil {
-		return d
-	}
-	for _, d := range folder.AllDocs() {
-		id := d.DocID(folder.RootURI)
-		if paths.MatchesURL(id, url) {
-			return d
-		}
-	}
 	return nil
 }
 

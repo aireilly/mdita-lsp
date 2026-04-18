@@ -1,8 +1,6 @@
 package inlayhint
 
 import (
-	"path/filepath"
-
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
 	"github.com/aireilly/mdita-lsp/internal/paths"
@@ -69,17 +67,12 @@ func GetHints(doc *document.Document, rng document.Range, folder *workspace.Fold
 }
 
 func mdLinkHintLabel(ml *document.MdLink, doc *document.Document, folder *workspace.Folder) string {
-	srcPath, _ := paths.URIToPath(doc.URI)
-	srcDir := filepath.Dir(srcPath)
-	targetPath := filepath.Join(srcDir, ml.URL)
-	targetURI := paths.PathToURI(targetPath)
-	for _, d := range folder.AllDocs() {
-		if d.URI == targetURI {
-			if t := d.Index.Title(); t != nil && t.Text != ml.Text {
-				return t.Text
-			}
-			return ""
-		}
+	target := folder.ResolveLink(ml.URL, doc.URI)
+	if target == nil {
+		return ""
+	}
+	if t := target.Index.Title(); t != nil && t.Text != ml.Text {
+		return t.Text
 	}
 	return ""
 }

@@ -133,7 +133,12 @@ func completeInlineDoc(input string, doc *document.Document, folder *workspace.F
 }
 
 func completeInlineAnchor(docPart, input string, doc *document.Document, folder *workspace.Folder) []CompletionItem {
-	target := resolveRelativeDoc(docPart, doc, folder)
+	var target *document.Document
+	if docPart == "" {
+		target = doc
+	} else {
+		target = folder.ResolveLink(docPart, doc.URI)
+	}
 	if target == nil {
 		return completeWikiHeading(docPart, input, doc, folder)
 	}
@@ -151,24 +156,6 @@ func completeInlineAnchor(docPart, input string, doc *document.Document, folder 
 		}
 	}
 	return items
-}
-
-func resolveRelativeDoc(relPath string, doc *document.Document, folder *workspace.Folder) *document.Document {
-	if relPath == "" {
-		return doc
-	}
-	srcPath, err := paths.URIToPath(doc.URI)
-	if err != nil {
-		return nil
-	}
-	targetPath := filepath.Join(filepath.Dir(srcPath), relPath)
-	targetURI := paths.PathToURI(targetPath)
-	for _, d := range folder.AllDocs() {
-		if d.URI == targetURI {
-			return d
-		}
-	}
-	return nil
 }
 
 func completeKeyref(input string, folder *workspace.Folder) []CompletionItem {

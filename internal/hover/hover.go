@@ -2,7 +2,6 @@ package hover
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/aireilly/mdita-lsp/internal/document"
@@ -139,7 +138,7 @@ func hoverMdLink(ml *document.MdLink, doc *document.Document, folder *workspace.
 		}
 	}
 	if ml.URL != "" {
-		target := resolveRelativeLink(ml.URL, doc, folder)
+		target := folder.ResolveLink(ml.URL, doc.URI)
 		if target != nil {
 			title := target.Index.Title()
 			if title != nil {
@@ -155,26 +154,6 @@ func hoverMdLink(ml *document.MdLink, doc *document.Document, folder *workspace.
 		}
 	}
 	return ml.URL
-}
-
-func resolveRelativeLink(url string, doc *document.Document, folder *workspace.Folder) *document.Document {
-	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-		return nil
-	}
-	srcPath, _ := paths.URIToPath(doc.URI)
-	srcDir := filepath.Dir(srcPath)
-	targetPath := filepath.Clean(filepath.Join(srcDir, url))
-	targetURI := paths.PathToURI(targetPath)
-	if d := folder.DocByURI(targetURI); d != nil {
-		return d
-	}
-	for _, d := range folder.AllDocs() {
-		id := d.DocID(folder.RootURI)
-		if paths.MatchesURL(id, url) {
-			return d
-		}
-	}
-	return nil
 }
 
 func itoa(n int) string {
