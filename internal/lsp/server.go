@@ -703,7 +703,7 @@ func (s *Server) handleCompletion(_ context.Context, rawParams json.RawMessage) 
 	}
 
 	items := completion.Complete(doc, params.Position, folder)
-	var results []CompletionItemResult
+	results := make([]CompletionItemResult, 0, len(items))
 	for _, item := range items {
 		results = append(results, CompletionItemResult{
 			Label:      item.Label,
@@ -753,7 +753,7 @@ func (s *Server) handleDefinition(_ context.Context, rawParams json.RawMessage) 
 	}
 
 	locs := definition.GotoDef(doc, params.Position, folder)
-	var results []LocationResult
+	results := make([]LocationResult, 0, len(locs))
 	for _, loc := range locs {
 		results = append(results, LocationResult{URI: loc.URI, Range: loc.Range})
 	}
@@ -789,7 +789,11 @@ func (s *Server) handleDocumentHighlight(_ context.Context, rawParams json.RawMe
 		return nil, nil
 	}
 
-	return highlight.GetHighlights(doc, params.Position), nil
+	results := highlight.GetHighlights(doc, params.Position)
+	if results == nil {
+		results = []highlight.Highlight{}
+	}
+	return results, nil
 }
 
 func (s *Server) handleReferences(_ context.Context, rawParams json.RawMessage) (any, error) {
@@ -804,7 +808,7 @@ func (s *Server) handleReferences(_ context.Context, rawParams json.RawMessage) 
 	}
 
 	locs := references.FindRefs(doc, params.Position, folder, s.graph)
-	var results []LocationResult
+	results := make([]LocationResult, 0, len(locs))
 	for _, loc := range locs {
 		results = append(results, LocationResult{URI: loc.URI, Range: loc.Range})
 	}
@@ -869,7 +873,7 @@ func (s *Server) handleCodeAction(_ context.Context, rawParams json.RawMessage) 
 	}
 
 	actions := codeaction.GetActions(doc, params.Range, folder)
-	var results []CodeActionResult
+	results := make([]CodeActionResult, 0, len(actions))
 	for _, a := range actions {
 		entry := CodeActionResult{
 			Title: a.Title,
@@ -920,7 +924,7 @@ func (s *Server) handleCodeLens(_ context.Context, rawParams json.RawMessage) (a
 	}
 
 	lenses := codelens.GetLenses(doc, s.graph)
-	var results []CodeLensResult
+	results := make([]CodeLensResult, 0, len(lenses))
 	for _, l := range lenses {
 		results = append(results, CodeLensResult{
 			Range: l.Range,
@@ -946,7 +950,7 @@ func (s *Server) handleDocumentLink(_ context.Context, rawParams json.RawMessage
 		return nil, nil
 	}
 
-	var results []DocumentLinkResult
+	results := make([]DocumentLinkResult, 0)
 	for _, wl := range doc.Index.WikiLinks() {
 		if wl.Doc == "" {
 			continue
@@ -991,7 +995,7 @@ func (s *Server) handleFoldingRange(_ context.Context, rawParams json.RawMessage
 	}
 
 	ranges := folding.GetRanges(doc)
-	var results []FoldingRangeResult
+	results := make([]FoldingRangeResult, 0, len(ranges))
 	for _, r := range ranges {
 		results = append(results, FoldingRangeResult{
 			StartLine:      r.StartLine,
@@ -1018,6 +1022,9 @@ func (s *Server) handleDocumentSymbol(_ context.Context, rawParams json.RawMessa
 	}
 
 	syms := docsymbols.GetSymbols(doc)
+	if syms == nil {
+		syms = []docsymbols.DocSymbol{}
+	}
 	return syms, nil
 }
 
@@ -1035,6 +1042,9 @@ func (s *Server) handleWorkspaceSymbol(_ context.Context, rawParams json.RawMess
 	}
 
 	syms := docsymbols.SearchWorkspace(allDocs, params.Query)
+	if syms == nil {
+		syms = []docsymbols.DocSymbol{}
+	}
 	return syms, nil
 }
 
@@ -1130,7 +1140,7 @@ func (s *Server) handleFormatting(_ context.Context, rawParams json.RawMessage) 
 		InsertSpaces: params.Options.InsertSpaces,
 	})
 
-	var results []TextEditResult
+	results := make([]TextEditResult, 0, len(edits))
 	for _, e := range edits {
 		results = append(results, TextEditResult{
 			Range:   e.Range,
@@ -1154,7 +1164,11 @@ func (s *Server) handleInlayHint(_ context.Context, rawParams json.RawMessage) (
 		return nil, nil
 	}
 
-	return inlayhint.GetHints(doc, params.Range, folder), nil
+	hints := inlayhint.GetHints(doc, params.Range, folder)
+	if hints == nil {
+		hints = []inlayhint.InlayHint{}
+	}
+	return hints, nil
 }
 
 func (s *Server) handlePullDiagnostics(_ context.Context, rawParams json.RawMessage) (any, error) {
@@ -1171,7 +1185,7 @@ func (s *Server) handlePullDiagnostics(_ context.Context, rawParams json.RawMess
 	}
 
 	diags := diagnostic.Check(doc, folder)
-	var items []DiagnosticResult
+	items := make([]DiagnosticResult, 0, len(diags))
 	for _, d := range diags {
 		items = append(items, DiagnosticResult{
 			Range:    d.Range,
@@ -1207,7 +1221,7 @@ func (s *Server) handleRangeFormatting(_ context.Context, rawParams json.RawMess
 		InsertSpaces: params.Options.InsertSpaces,
 	})
 
-	var results []TextEditResult
+	results := make([]TextEditResult, 0)
 	for _, e := range allEdits {
 		if e.Range.End.Line < params.Range.Start.Line || e.Range.Start.Line > params.Range.End.Line {
 			continue
@@ -1421,7 +1435,7 @@ func (s *Server) scheduleDiagnostics(uri string, folder *workspace.Folder) {
 
 func (s *Server) publishDiagnosticsNow(doc *document.Document, folder *workspace.Folder) {
 	diags := diagnostic.Check(doc, folder)
-	var results []DiagnosticResult
+	results := make([]DiagnosticResult, 0, len(diags))
 	for _, d := range diags {
 		results = append(results, DiagnosticResult{
 			Range:    d.Range,
