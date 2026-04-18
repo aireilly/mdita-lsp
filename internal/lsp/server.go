@@ -698,7 +698,7 @@ func (s *Server) handleCompletion(_ context.Context, rawParams json.RawMessage) 
 		return []CompletionItemResult{}, nil
 	}
 
-	items := completion.Complete(doc, params.Position, folder, s.graph)
+	items := completion.Complete(doc, params.Position, folder)
 	var results []CompletionItemResult
 	for _, item := range items {
 		results = append(results, CompletionItemResult{
@@ -748,7 +748,7 @@ func (s *Server) handleDefinition(_ context.Context, rawParams json.RawMessage) 
 		return nil, nil
 	}
 
-	locs := definition.GotoDef(doc, params.Position, folder, s.graph)
+	locs := definition.GotoDef(doc, params.Position, folder)
 	var results []LocationResult
 	for _, loc := range locs {
 		results = append(results, LocationResult{URI: loc.URI, Range: loc.Range})
@@ -767,7 +767,7 @@ func (s *Server) handleHover(_ context.Context, rawParams json.RawMessage) (any,
 		return nil, nil
 	}
 
-	content := hover.GetHover(doc, params.Position, folder, s.graph)
+	content := hover.GetHover(doc, params.Position, folder)
 	if content == "" {
 		return nil, nil
 	}

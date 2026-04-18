@@ -5,14 +5,12 @@ import (
 
 	"github.com/aireilly/mdita-lsp/internal/config"
 	"github.com/aireilly/mdita-lsp/internal/document"
-	"github.com/aireilly/mdita-lsp/internal/symbols"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
-func setup() (*workspace.Folder, *symbols.Graph) {
+func setup() *workspace.Folder {
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
-	g := symbols.NewGraph()
 
 	doc1 := document.New("file:///project/intro.md", 1,
 		"# Introduction\n\n## Getting Started\n\nSome text.\n")
@@ -21,20 +19,16 @@ func setup() (*workspace.Folder, *symbols.Graph) {
 
 	f.AddDoc(doc1)
 	f.AddDoc(doc2)
-	g.AddDefs(doc1.URI, doc1.Defs())
-	g.AddRefs(doc1.URI, doc1.Refs())
-	g.AddDefs(doc2.URI, doc2.Defs())
-	g.AddRefs(doc2.URI, doc2.Refs())
 
-	return f, g
+	return f
 }
 
 func TestGotoDefWikiLinkDoc(t *testing.T) {
-	f, g := setup()
+	f := setup()
 	doc := f.DocByURI("file:///project/guide.md")
 
 	wl := doc.Index.WikiLinks()[0]
-	locs := GotoDef(doc, wl.Rng().Start, f, g)
+	locs := GotoDef(doc, wl.Rng().Start, f)
 	if len(locs) == 0 {
 		t.Fatal("GotoDef returned no locations")
 	}
@@ -44,11 +38,11 @@ func TestGotoDefWikiLinkDoc(t *testing.T) {
 }
 
 func TestGotoDefWikiLinkHeading(t *testing.T) {
-	f, g := setup()
+	f := setup()
 	doc := f.DocByURI("file:///project/guide.md")
 
 	wl := doc.Index.WikiLinks()[1]
-	locs := GotoDef(doc, wl.Rng().Start, f, g)
+	locs := GotoDef(doc, wl.Rng().Start, f)
 	if len(locs) == 0 {
 		t.Fatal("GotoDef returned no locations for heading wiki link")
 	}
@@ -61,12 +55,9 @@ func TestGotoDefIntraDocHeading(t *testing.T) {
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(doc)
-	g := symbols.NewGraph()
-	g.AddDefs(doc.URI, doc.Defs())
-	g.AddRefs(doc.URI, doc.Refs())
 
 	wl := doc.Index.WikiLinks()[0]
-	locs := GotoDef(doc, wl.Rng().Start, f, g)
+	locs := GotoDef(doc, wl.Rng().Start, f)
 	if len(locs) == 0 {
 		t.Fatal("GotoDef returned no locations for intra-doc heading")
 	}
@@ -80,9 +71,8 @@ func TestGotoDefNoResult(t *testing.T) {
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(doc)
-	g := symbols.NewGraph()
 
-	locs := GotoDef(doc, document.Position{Line: 2, Character: 3}, f, g)
+	locs := GotoDef(doc, document.Position{Line: 2, Character: 3}, f)
 	if len(locs) != 0 {
 		t.Errorf("expected no locations, got %d", len(locs))
 	}

@@ -6,7 +6,6 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
 	"github.com/aireilly/mdita-lsp/internal/paths"
-	"github.com/aireilly/mdita-lsp/internal/symbols"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
@@ -15,12 +14,12 @@ type Location struct {
 	Range document.Range
 }
 
-func GotoDef(doc *document.Document, pos document.Position, folder *workspace.Folder, graph *symbols.Graph) []Location {
+func GotoDef(doc *document.Document, pos document.Position, folder *workspace.Folder) []Location {
 	elem := doc.ElementAt(pos)
 	if elem != nil {
 		switch el := elem.(type) {
 		case *document.WikiLink:
-			return resolveWikiLink(el, doc, folder, graph)
+			return resolveWikiLink(el, doc, folder)
 		case *document.MdLink:
 			return resolveMdLink(el, doc, folder)
 		}
@@ -33,7 +32,7 @@ func GotoDef(doc *document.Document, pos document.Position, folder *workspace.Fo
 	return nil
 }
 
-func resolveWikiLink(wl *document.WikiLink, doc *document.Document, folder *workspace.Folder, graph *symbols.Graph) []Location {
+func resolveWikiLink(wl *document.WikiLink, doc *document.Document, folder *workspace.Folder) []Location {
 	if wl.Doc == "" && wl.Heading != "" {
 		slug := paths.SlugOf(wl.Heading)
 		for _, h := range doc.Index.HeadingsBySlug(slug) {
@@ -94,7 +93,7 @@ func resolveMdLink(ml *document.MdLink, doc *document.Document, folder *workspac
 }
 
 func resolveKeyref(kr *keyref.KeyrefAtPos, doc *document.Document, folder *workspace.Folder) []Location {
-	table := keyref.BuildMergedTable(collectMapTexts(folder))
+	table := keyref.BuildMergedTable(folder.MapTexts())
 	entry, ok := keyref.Resolve(table, kr.Label)
 	if !ok {
 		return nil
@@ -118,16 +117,6 @@ func resolveKeyref(kr *keyref.KeyrefAtPos, doc *document.Document, folder *works
 		}
 	}
 	return nil
-}
-
-func collectMapTexts(folder *workspace.Folder) []string {
-	var texts []string
-	for _, d := range folder.AllDocs() {
-		if d.Kind == document.Map {
-			texts = append(texts, d.Text)
-		}
-	}
-	return texts
 }
 
 func matchesURL(id paths.DocID, url string) bool {

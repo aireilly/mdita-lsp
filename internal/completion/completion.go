@@ -7,7 +7,6 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
 	"github.com/aireilly/mdita-lsp/internal/paths"
-	"github.com/aireilly/mdita-lsp/internal/symbols"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
@@ -25,7 +24,7 @@ var yamlKeys = []string{
 	"category", "keyword", "resourceid", "$schema",
 }
 
-func Complete(doc *document.Document, pos document.Position, folder *workspace.Folder, graph *symbols.Graph) []CompletionItem {
+func Complete(doc *document.Document, pos document.Position, folder *workspace.Folder) []CompletionItem {
 	pe := DetectPartial(doc.Text, pos)
 	if pe == nil {
 		return nil
@@ -134,7 +133,42 @@ func completeInlineDoc(input string, doc *document.Document, folder *workspace.F
 }
 
 func completeInlineAnchor(docPart, input string, doc *document.Document, folder *workspace.Folder) []CompletionItem {
-	return completeWikiHeading(docPart, input, doc, folder)
+	target := resolveRelativeDoc(docPart, doc, folder)
+	if target == nil {
+		return completeWikiHeading(docPart, input, doc, folder)
+	}
+
+	inputSlug := paths.SlugOf(input)
+	var items []CompletionItem
+	for _, h := range target.Index.Headings() {
+		if inputSlug == "" || h.Slug.Contains(inputSlug) {
+			items = append(items, CompletionItem{
+				Label:      h.ID,
+				Detail:     h.Text,
+				InsertText: h.ID,
+				Kind:       17,
+			})
+		}
+	}
+	return items
+}
+
+func resolveRelativeDoc(relPath string, doc *document.Document, folder *workspace.Folder) *document.Document {
+	if relPath == "" {
+		return doc
+	}
+	srcPath, err := paths.URIToPath(doc.URI)
+	if err != nil {
+		return nil
+	}
+	targetPath := filepath.Join(filepath.Dir(srcPath), relPath)
+	targetURI := paths.PathToURI(targetPath)
+	for _, d := range folder.AllDocs() {
+		if d.URI == targetURI {
+			return d
+		}
+	}
+	return nil
 }
 
 func completeKeyref(input string, folder *workspace.Folder) []CompletionItem {

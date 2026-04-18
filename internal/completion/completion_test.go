@@ -5,7 +5,6 @@ import (
 
 	"github.com/aireilly/mdita-lsp/internal/config"
 	"github.com/aireilly/mdita-lsp/internal/document"
-	"github.com/aireilly/mdita-lsp/internal/symbols"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
@@ -81,10 +80,7 @@ func TestCompleteWikiDoc(t *testing.T) {
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(doc1)
 	f.AddDoc(doc2)
-	g := symbols.NewGraph()
-	g.AddDefs(doc1.URI, doc1.Defs())
-
-	items := Complete(doc2, document.Position{Line: 2, Character: 5}, f, g)
+	items := Complete(doc2, document.Position{Line: 2, Character: 5}, f)
 	if len(items) == 0 {
 		t.Fatal("expected completion items")
 	}
@@ -104,9 +100,7 @@ func TestCompleteYamlKey(t *testing.T) {
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(doc)
-	g := symbols.NewGraph()
-
-	items := Complete(doc, document.Position{Line: 1, Character: 3}, f, g)
+	items := Complete(doc, document.Position{Line: 1, Character: 3}, f)
 	found := false
 	for _, item := range items {
 		if item.Label == "author" {
@@ -126,9 +120,7 @@ func TestCompleteInlineLinkRelativePath(t *testing.T) {
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(doc1)
 	f.AddDoc(doc2)
-	g := symbols.NewGraph()
-
-	items := Complete(doc2, document.Position{Line: 2, Character: 7}, f, g)
+	items := Complete(doc2, document.Position{Line: 2, Character: 7}, f)
 	if len(items) == 0 {
 		t.Fatal("expected completion items for inline link")
 	}
@@ -155,9 +147,7 @@ func TestCompleteInlineLinkSameDir(t *testing.T) {
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(doc1)
 	f.AddDoc(doc2)
-	g := symbols.NewGraph()
-
-	items := Complete(doc2, document.Position{Line: 2, Character: 6}, f, g)
+	items := Complete(doc2, document.Position{Line: 2, Character: 6}, f)
 	found := false
 	for _, item := range items {
 		if item.InsertText == "intro.md" {
@@ -183,9 +173,7 @@ func TestCompleteKeyref(t *testing.T) {
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(mapDoc)
 	f.AddDoc(topicDoc)
-	g := symbols.NewGraph()
-
-	items := Complete(topicDoc, document.Position{Line: 2, Character: 9}, f, g)
+	items := Complete(topicDoc, document.Position{Line: 2, Character: 9}, f)
 	found := false
 	for _, item := range items {
 		if item.Label == "install" {

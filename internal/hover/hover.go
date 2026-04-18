@@ -7,11 +7,10 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
 	"github.com/aireilly/mdita-lsp/internal/paths"
-	"github.com/aireilly/mdita-lsp/internal/symbols"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
-func GetHover(doc *document.Document, pos document.Position, folder *workspace.Folder, graph *symbols.Graph) string {
+func GetHover(doc *document.Document, pos document.Position, folder *workspace.Folder) string {
 	if h := hoverYAMLKey(doc, pos); h != "" {
 		return h
 	}
@@ -117,7 +116,7 @@ func hoverWikiLink(wl *document.WikiLink, doc *document.Document, folder *worksp
 }
 
 func hoverKeyref(kr *keyref.KeyrefAtPos, folder *workspace.Folder) string {
-	table := keyref.BuildMergedTable(collectMapTexts(folder))
+	table := keyref.BuildMergedTable(folder.MapTexts())
 	entry, ok := keyref.Resolve(table, kr.Label)
 	if !ok {
 		return ""
@@ -129,16 +128,6 @@ func hoverKeyref(kr *keyref.KeyrefAtPos, folder *workspace.Folder) string {
 		result += "\n\nTarget: " + entry.Href
 	}
 	return result
-}
-
-func collectMapTexts(folder *workspace.Folder) []string {
-	var texts []string
-	for _, d := range folder.AllDocs() {
-		if d.Kind == document.Map {
-			texts = append(texts, d.Text)
-		}
-	}
-	return texts
 }
 
 func hoverMdLink(ml *document.MdLink, doc *document.Document, folder *workspace.Folder) string {

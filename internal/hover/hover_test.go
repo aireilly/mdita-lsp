@@ -6,7 +6,6 @@ import (
 
 	"github.com/aireilly/mdita-lsp/internal/config"
 	"github.com/aireilly/mdita-lsp/internal/document"
-	"github.com/aireilly/mdita-lsp/internal/symbols"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
@@ -18,12 +17,8 @@ func TestHoverWikiLink(t *testing.T) {
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(doc1)
 	f.AddDoc(doc2)
-	g := symbols.NewGraph()
-	g.AddDefs(doc1.URI, doc1.Defs())
-	g.AddDefs(doc2.URI, doc2.Defs())
-
-	wl := doc2.Index.WikiLinks()[0]
-	result := GetHover(doc2, wl.Rng().Start, f, g)
+wl := doc2.Index.WikiLinks()[0]
+	result := GetHover(doc2, wl.Rng().Start, f)
 	if result == "" {
 		t.Fatal("expected hover content")
 	}
@@ -42,9 +37,7 @@ func TestHoverKeyref(t *testing.T) {
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(mapDoc)
 	f.AddDoc(topicDoc)
-	g := symbols.NewGraph()
-
-	result := GetHover(topicDoc, document.Position{Line: 2, Character: 6}, f, g)
+result := GetHover(topicDoc, document.Position{Line: 2, Character: 6}, f)
 	if result == "" {
 		t.Fatal("expected hover content for keyref")
 	}
@@ -59,9 +52,7 @@ func TestHoverYAMLKey(t *testing.T) {
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(doc)
-	g := symbols.NewGraph()
-
-	result := GetHover(doc, document.Position{Line: 1, Character: 2}, f, g)
+result := GetHover(doc, document.Position{Line: 1, Character: 2}, f)
 	if !strings.Contains(result, "author") {
 		t.Errorf("expected hover for 'author', got %q", result)
 	}
@@ -76,9 +67,7 @@ func TestHoverYAMLSchema(t *testing.T) {
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(doc)
-	g := symbols.NewGraph()
-
-	result := GetHover(doc, document.Position{Line: 1, Character: 3}, f, g)
+result := GetHover(doc, document.Position{Line: 1, Character: 3}, f)
 	if !strings.Contains(result, "$schema") {
 		t.Errorf("expected hover for '$schema', got %q", result)
 	}
@@ -92,9 +81,7 @@ func TestHoverNoElement(t *testing.T) {
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(doc)
-	g := symbols.NewGraph()
-
-	result := GetHover(doc, document.Position{Line: 2, Character: 3}, f, g)
+result := GetHover(doc, document.Position{Line: 2, Character: 3}, f)
 	if result != "" {
 		t.Errorf("expected empty hover, got %q", result)
 	}

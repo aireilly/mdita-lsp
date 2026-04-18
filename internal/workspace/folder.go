@@ -107,6 +107,18 @@ func (f *Folder) ScanFiles() error {
 	})
 }
 
+func (f *Folder) MapTexts() []string {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	var texts []string
+	for _, d := range f.docs {
+		if d.Kind == document.Map {
+			texts = append(texts, d.Text)
+		}
+	}
+	return texts
+}
+
 func (f *Folder) RootPath() string {
 	p, _ := paths.URIToPath(f.RootURI)
 	return p
