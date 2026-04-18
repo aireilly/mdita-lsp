@@ -33,6 +33,14 @@ func TestPrepareRenameNonHeading(t *testing.T) {
 	}
 }
 
+func TestPrepareRenameLink(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1, "# Title\n\n[link text](other.md)\n")
+	result := Prepare(doc, document.Position{Line: 2, Character: 1})
+	if result != nil {
+		t.Error("Prepare should return nil for links")
+	}
+}
+
 func TestRename(t *testing.T) {
 	doc1 := document.New("file:///project/intro.md", 1, "# Introduction\n\n## Details\n")
 	doc2 := document.New("file:///project/guide.md", 1, "# Guide\n\n[[intro#details]]\n")

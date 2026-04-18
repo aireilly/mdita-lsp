@@ -86,9 +86,18 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 		if !strings.Contains(prefix[idx:], "]") && !strings.HasPrefix(prefix[idx:], "[[") {
 			content := prefix[idx+1:]
 			if !strings.HasPrefix(content, "^") {
+				suffix := line[col:]
+				endCol := col
+				if len(suffix) > 0 && suffix[0] == ']' {
+					endCol = col + 1
+				}
 				return &PartialElement{
 					Kind:  PartialKeyref,
 					Input: content,
+					Range: document.Range{
+						Start: document.Position{Line: pos.Line, Character: idx},
+						End:   document.Position{Line: pos.Line, Character: endCol},
+					},
 				}
 			}
 		}

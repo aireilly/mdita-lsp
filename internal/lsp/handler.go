@@ -24,7 +24,7 @@ type Request struct {
 type Response struct {
 	JSONRPC string           `json:"jsonrpc"`
 	ID      *json.RawMessage `json:"id"`
-	Result  any              `json:"result,omitempty"`
+	Result  json.RawMessage  `json:"result,omitempty"`
 	Error   *ResponseError   `json:"error,omitempty"`
 }
 
@@ -73,7 +73,8 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 				}
 				resp.Error = &ResponseError{Code: code, Message: err.Error()}
 			} else {
-				resp.Result = result
+				resultJSON, _ := json.Marshal(result)
+				resp.Result = resultJSON
 			}
 			if werr := writeMessage(out, resp); werr != nil {
 				log.Printf("write response %s: %v", req.Method, werr)

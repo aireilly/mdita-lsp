@@ -23,14 +23,14 @@ func Prepare(doc *document.Document, pos document.Position) *PrepareResult {
 	if elem == nil {
 		return nil
 	}
-	heading, ok := elem.(*document.Heading)
-	if !ok {
-		return nil
+	switch el := elem.(type) {
+	case *document.Heading:
+		return &PrepareResult{
+			Range: el.Range,
+			Text:  el.Text,
+		}
 	}
-	return &PrepareResult{
-		Range: heading.Range,
-		Text:  heading.Text,
-	}
+	return nil
 }
 
 func DoRename(doc *document.Document, pos document.Position, newName string, folder *workspace.Folder, graph *symbols.Graph) []TextEdit {

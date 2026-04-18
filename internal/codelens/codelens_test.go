@@ -12,7 +12,7 @@ func TestCodeLens(t *testing.T) {
 	g := symbols.NewGraph()
 	g.AddDefs(doc.URI, doc.Defs())
 
-	lenses := GetLenses(doc, g)
+	lenses := GetLenses(doc, g, nil)
 	if len(lenses) < 2 {
 		t.Errorf("got %d lenses, want >= 2", len(lenses))
 	}
@@ -29,7 +29,7 @@ func TestCodeLensRefCount(t *testing.T) {
 		g.AddRefs(d.URI, d.Refs())
 	}
 
-	lenses := GetLenses(doc1, g)
+	lenses := GetLenses(doc1, g, nil)
 	if len(lenses) == 0 {
 		t.Fatal("expected at least one lens")
 	}
@@ -43,7 +43,7 @@ func TestCodeLensNoHeadings(t *testing.T) {
 	g := symbols.NewGraph()
 	g.AddDefs(doc.URI, doc.Defs())
 
-	lenses := GetLenses(doc, g)
+	lenses := GetLenses(doc, g, nil)
 	if len(lenses) != 0 {
 		t.Errorf("expected 0 lenses for no headings, got %d", len(lenses))
 	}
@@ -54,7 +54,7 @@ func TestCodeLensCommand(t *testing.T) {
 	g := symbols.NewGraph()
 	g.AddDefs(doc.URI, doc.Defs())
 
-	lenses := GetLenses(doc, g)
+	lenses := GetLenses(doc, g, nil)
 	if len(lenses) != 1 {
 		t.Fatalf("expected 1 lens, got %d", len(lenses))
 	}

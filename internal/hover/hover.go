@@ -139,6 +139,9 @@ func hoverMdLink(ml *document.MdLink, doc *document.Document, folder *workspace.
 		}
 	}
 	if ml.URL != "" {
+		if strings.HasPrefix(ml.URL, "http://") || strings.HasPrefix(ml.URL, "https://") {
+			return "[Follow link](" + ml.URL + ")"
+		}
 		target := folder.ResolveLink(ml.URL, doc.URI)
 		if target != nil {
 			title := target.Index.Title()
@@ -155,7 +158,7 @@ func hoverMdLink(ml *document.MdLink, doc *document.Document, folder *workspace.
 			}
 		}
 	}
-	return ml.URL
+	return ""
 }
 
 func preview(text string) string {

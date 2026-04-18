@@ -45,6 +45,17 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 		}
 	}
 
+	parseSrc := src
+	if yamlEnd > 0 {
+		parseSrc = make([]byte, len(src))
+		copy(parseSrc, src)
+		for i := 0; i < yamlEnd && i < len(parseSrc); i++ {
+			if parseSrc[i] != '\n' {
+				parseSrc[i] = ' '
+			}
+		}
+	}
+
 	md := goldmark.New(
 		goldmark.WithExtensions(
 			&wikiLinkExtension{},
@@ -58,7 +69,7 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 		),
 	)
 
-	reader := text.NewReader(src)
+	reader := text.NewReader(parseSrc)
 	doc := md.Parser().Parse(reader)
 
 	var elements []Element

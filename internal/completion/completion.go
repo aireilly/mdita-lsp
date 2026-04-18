@@ -10,6 +10,11 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
+type TextEdit struct {
+	Range   document.Range
+	NewText string
+}
+
 type CompletionItem struct {
 	Label         string
 	Detail        string
@@ -17,6 +22,7 @@ type CompletionItem struct {
 	Kind          int // 1=text, 6=variable, 17=keyword, 18=snippet
 	Documentation string
 	Data          map[string]string
+	TextEdit      *TextEdit
 }
 
 var yamlKeys = []string{
@@ -42,7 +48,7 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 	case PartialYamlKey:
 		return completeYamlKey(pe.Input)
 	case PartialKeyref:
-		return completeKeyref(pe.Input, folder)
+		return completeKeyref(pe.Input, doc, folder, pe.Range)
 	}
 	return nil
 }
@@ -158,8 +164,11 @@ func completeInlineAnchor(docPart, input string, doc *document.Document, folder 
 	return items
 }
 
-func completeKeyref(input string, folder *workspace.Folder) []CompletionItem {
+func completeKeyref(input string, doc *document.Document, folder *workspace.Folder, editRange document.Range) []CompletionItem {
 	table := keyref.BuildMergedTable(folder.MapTexts())
+	srcPath, _ := paths.URIToPath(doc.URI)
+	srcDir := filepath.Dir(srcPath)
+
 	var items []CompletionItem
 	for _, key := range keyref.AllKeys(table) {
 		if input == "" || strings.Contains(strings.ToLower(key), strings.ToLower(input)) {
@@ -168,12 +177,26 @@ func completeKeyref(input string, folder *workspace.Folder) []CompletionItem {
 			if entry.Title != "" {
 				detail = entry.Title + " (" + entry.Href + ")"
 			}
+			linkText := key
+			if entry.Title != "" {
+				linkText = entry.Title
+			}
+			href := entry.Href
+			target := folder.DocBySlug(paths.SlugOf(key))
+			if target != nil {
+				targetPath, _ := paths.URIToPath(target.URI)
+				href = filepath.ToSlash(paths.RelPath(srcDir, targetPath))
+			}
+			newText := "[" + linkText + "](" + href + ")"
 			items = append(items, CompletionItem{
-				Label:      key,
-				Detail:     detail,
-				InsertText: key + "]",
-				Kind:       18,
-				Data:       map[string]string{"kind": "keyref"},
+				Label:  key,
+				Detail: detail,
+				Kind:   18,
+				Data:   map[string]string{"kind": "keyref"},
+				TextEdit: &TextEdit{
+					Range:   editRange,
+					NewText: newText,
+				},
 			})
 		}
 	}

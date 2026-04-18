@@ -62,6 +62,33 @@ func TestFindRefsNonHeading(t *testing.T) {
 	}
 }
 
+func TestFindRefsMdLink(t *testing.T) {
+	doc1 := document.New("file:///project/kitchen-sink.md", 1, "# Kitchen sink\n\nContent.\n")
+	doc2 := document.New("file:///project/prereqs.md", 1, "# Prereqs\n\n[Kitchen sink](kitchen-sink.md)\n")
+	doc3 := document.New("file:///project/guide.md", 1, "# Guide\n\n[Also links](kitchen-sink.md)\n")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc1)
+	f.AddDoc(doc2)
+	f.AddDoc(doc3)
+
+	g := symbols.NewGraph()
+	for _, d := range f.AllDocs() {
+		g.AddDefs(d.URI, d.Defs())
+		g.AddRefs(d.URI, d.Refs())
+	}
+
+	links := doc2.Index.MdLinks()
+	if len(links) == 0 {
+		t.Fatal("no md links parsed")
+	}
+	locs := FindRefs(doc2, links[0].Range.Start, f, g)
+	if len(locs) < 2 {
+		t.Errorf("FindRefs for MdLink returned %d, want >= 2", len(locs))
+	}
+}
+
 func TestCountRefs(t *testing.T) {
 	doc1 := document.New("file:///project/intro.md", 1, "# Introduction\n")
 	doc2 := document.New("file:///project/a.md", 1, "# A\n\n[[intro#introduction]]\n")

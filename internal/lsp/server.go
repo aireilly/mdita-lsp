@@ -203,13 +203,19 @@ type DidCloseParams struct {
 	TextDocument TextDocumentIdentifier `json:"textDocument"`
 }
 
+type CompletionTextEdit struct {
+	Range   document.Range `json:"range"`
+	NewText string         `json:"newText"`
+}
+
 type CompletionItemResult struct {
-	Label         string            `json:"label"`
-	Detail        string            `json:"detail,omitempty"`
-	InsertText    string            `json:"insertText,omitempty"`
-	Kind          int               `json:"kind"`
-	Documentation *MarkupContent    `json:"documentation,omitempty"`
-	Data          map[string]string `json:"data,omitempty"`
+	Label         string              `json:"label"`
+	Detail        string              `json:"detail,omitempty"`
+	InsertText    string              `json:"insertText,omitempty"`
+	Kind          int                 `json:"kind"`
+	Documentation *MarkupContent      `json:"documentation,omitempty"`
+	Data          map[string]string   `json:"data,omitempty"`
+	TextEdit      *CompletionTextEdit `json:"textEdit,omitempty"`
 }
 
 type MarkupContent struct {
@@ -223,8 +229,8 @@ type LocationResult struct {
 }
 
 type HoverResult struct {
-	Contents string         `json:"contents"`
-	Range    document.Range `json:"range,omitempty"`
+	Contents MarkupContent   `json:"contents"`
+	Range    *document.Range `json:"range,omitempty"`
 }
 
 type RenameParams struct {
@@ -705,13 +711,21 @@ func (s *Server) handleCompletion(_ context.Context, rawParams json.RawMessage) 
 	items := completion.Complete(doc, params.Position, folder)
 	results := make([]CompletionItemResult, 0, len(items))
 	for _, item := range items {
-		results = append(results, CompletionItemResult{
+		r := CompletionItemResult{
 			Label:      item.Label,
 			Detail:     item.Detail,
-			InsertText: item.InsertText,
 			Kind:       item.Kind,
 			Data:       item.Data,
-		})
+		}
+		if item.TextEdit != nil {
+			r.TextEdit = &CompletionTextEdit{
+				Range:   item.TextEdit.Range,
+				NewText: item.TextEdit.NewText,
+			}
+		} else {
+			r.InsertText = item.InsertText
+		}
+		results = append(results, r)
 	}
 	return results, nil
 }
@@ -775,7 +789,7 @@ func (s *Server) handleHover(_ context.Context, rawParams json.RawMessage) (any,
 	if content == "" {
 		return nil, nil
 	}
-	return HoverResult{Contents: content}, nil
+	return HoverResult{Contents: MarkupContent{Kind: "markdown", Value: content}}, nil
 }
 
 func (s *Server) handleDocumentHighlight(_ context.Context, rawParams json.RawMessage) (any, error) {
@@ -918,12 +932,12 @@ func (s *Server) handleCodeLens(_ context.Context, rawParams json.RawMessage) (a
 		return nil, err
 	}
 
-	doc, _ := s.workspace.FindDoc(params.TextDocument.URI)
+	doc, folder := s.workspace.FindDoc(params.TextDocument.URI)
 	if doc == nil {
 		return nil, nil
 	}
 
-	lenses := codelens.GetLenses(doc, s.graph)
+	lenses := codelens.GetLenses(doc, s.graph, folder)
 	results := make([]CodeLensResult, 0, len(lenses))
 	for _, l := range lenses {
 		results = append(results, CodeLensResult{
