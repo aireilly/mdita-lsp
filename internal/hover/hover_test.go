@@ -53,6 +53,40 @@ func TestHoverKeyref(t *testing.T) {
 	}
 }
 
+func TestHoverYAMLKey(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"---\nauthor: Jane Doe\n$schema: urn:oasis:names:tc:mdita:xsd:topic.xsd\n---\n# Title\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	g := symbols.NewGraph()
+
+	result := GetHover(doc, document.Position{Line: 1, Character: 2}, f, g)
+	if !strings.Contains(result, "author") {
+		t.Errorf("expected hover for 'author', got %q", result)
+	}
+	if !strings.Contains(result, "Jane Doe") {
+		t.Errorf("expected current value in hover, got %q", result)
+	}
+}
+
+func TestHoverYAMLSchema(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"---\n$schema: urn:oasis:names:tc:mdita:xsd:topic.xsd\n---\n# Title\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	g := symbols.NewGraph()
+
+	result := GetHover(doc, document.Position{Line: 1, Character: 3}, f, g)
+	if !strings.Contains(result, "$schema") {
+		t.Errorf("expected hover for '$schema', got %q", result)
+	}
+	if !strings.Contains(result, "DITA topic type") {
+		t.Errorf("expected schema description, got %q", result)
+	}
+}
+
 func TestHoverNoElement(t *testing.T) {
 	doc := document.New("file:///project/doc.md", 1, "# Title\n\nPlain text.\n")
 	cfg := config.Default()

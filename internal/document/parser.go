@@ -33,6 +33,11 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 		if closeIdx >= 0 {
 			yamlBlock := source[4 : 4+closeIdx]
 			meta = parseYAMLMeta(yamlBlock)
+			closeLine := strings.Count(source[:4+closeIdx+4], "\n")
+			meta.Range = Range{
+				Start: Position{Line: 0, Character: 0},
+				End:   Position{Line: closeLine, Character: 3},
+			}
 			yamlEnd = 4 + closeIdx + 4
 			if yamlEnd < len(source) && source[yamlEnd-1] == '\r' {
 				yamlEnd++
