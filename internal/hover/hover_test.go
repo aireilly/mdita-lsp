@@ -76,6 +76,27 @@ result := GetHover(doc, document.Position{Line: 1, Character: 3}, f)
 	}
 }
 
+func TestHoverMdLinkRelativePath(t *testing.T) {
+	target := document.New("file:///project/docs/install.md", 1,
+		"# Installation Guide\n")
+	source := document.New("file:///project/guide/index.md", 1,
+		"# Guide\n\n[setup](../docs/install.md)\n")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(target)
+	f.AddDoc(source)
+
+	mls := source.Index.MdLinks()
+	if len(mls) == 0 {
+		t.Fatal("no md links found")
+	}
+	result := GetHover(source, mls[0].Rng().Start, f)
+	if !strings.Contains(result, "Installation Guide") {
+		t.Errorf("expected hover with title, got %q", result)
+	}
+}
+
 func TestHoverNoElement(t *testing.T) {
 	doc := document.New("file:///project/doc.md", 1, "# Title\n\nPlain text.\n")
 	cfg := config.Default()

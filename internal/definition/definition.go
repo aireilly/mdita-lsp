@@ -2,6 +2,7 @@ package definition
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
@@ -71,24 +72,42 @@ func resolveMdLink(ml *document.MdLink, doc *document.Document, folder *workspac
 	}
 
 	if ml.URL != "" {
-		for _, d := range folder.AllDocs() {
-			id := d.DocID(folder.RootURI)
-			if paths.MatchesURL(id, ml.URL) {
-				if ml.Anchor != "" {
-					hslug := paths.SlugOf(ml.Anchor)
-					for _, h := range d.Index.HeadingsBySlug(hslug) {
-						return []Location{{URI: d.URI, Range: h.Range}}
-					}
+		target := resolveRelativeLink(ml.URL, doc, folder)
+		if target != nil {
+			if ml.Anchor != "" {
+				hslug := paths.SlugOf(ml.Anchor)
+				for _, h := range target.Index.HeadingsBySlug(hslug) {
+					return []Location{{URI: target.URI, Range: h.Range}}
 				}
-				title := d.Index.Title()
-				if title != nil {
-					return []Location{{URI: d.URI, Range: title.Range}}
-				}
-				return []Location{{URI: d.URI, Range: document.Rng(0, 0, 0, 0)}}
 			}
+			title := target.Index.Title()
+			if title != nil {
+				return []Location{{URI: target.URI, Range: title.Range}}
+			}
+			return []Location{{URI: target.URI, Range: document.Rng(0, 0, 0, 0)}}
 		}
 	}
 
+	return nil
+}
+
+func resolveRelativeLink(url string, doc *document.Document, folder *workspace.Folder) *document.Document {
+	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+		return nil
+	}
+	srcPath, _ := paths.URIToPath(doc.URI)
+	srcDir := filepath.Dir(srcPath)
+	targetPath := filepath.Clean(filepath.Join(srcDir, url))
+	targetURI := paths.PathToURI(targetPath)
+	if d := folder.DocByURI(targetURI); d != nil {
+		return d
+	}
+	for _, d := range folder.AllDocs() {
+		id := d.DocID(folder.RootURI)
+		if paths.MatchesURL(id, url) {
+			return d
+		}
+	}
 	return nil
 }
 

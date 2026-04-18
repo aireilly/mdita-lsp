@@ -282,3 +282,52 @@ func TestMditaDisabled(t *testing.T) {
 		}
 	}
 }
+
+func TestBrokenMdLink(t *testing.T) {
+	doc := makeDoc("file:///project/doc.md",
+		"# Title", "", "[setup](nonexistent.md)")
+	f := makeFolder(doc)
+	diags := Check(doc, f)
+
+	found := false
+	for _, d := range diags {
+		if d.Code == CodeBrokenLink && d.Message == "Link to non-existent file 'nonexistent.md'" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected broken link diagnostic for nonexistent.md")
+	}
+}
+
+func TestValidMdLink(t *testing.T) {
+	target := document.New("file:///project/install.md", 1, "# Install\n")
+	source := makeDoc("file:///project/doc.md",
+		"# Title", "", "[setup](install.md)")
+	f := makeFolder(source, target)
+	diags := Check(source, f)
+
+	for _, d := range diags {
+		if d.Code == CodeBrokenLink && d.Message == "Link to non-existent file 'install.md'" {
+			t.Error("should not report broken link for existing file")
+		}
+	}
+}
+
+func TestBrokenMdLinkAnchor(t *testing.T) {
+	target := document.New("file:///project/install.md", 1, "# Install\n")
+	source := makeDoc("file:///project/doc.md",
+		"# Title", "", "[setup](install.md#nonexistent)")
+	f := makeFolder(source, target)
+	diags := Check(source, f)
+
+	found := false
+	for _, d := range diags {
+		if d.Code == CodeBrokenLink && d.Message == "Link to non-existent heading '#nonexistent' in 'install.md'" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected broken link diagnostic for nonexistent heading in install.md")
+	}
+}

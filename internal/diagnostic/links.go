@@ -1,6 +1,7 @@
 package diagnostic
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/aireilly/mdita-lsp/internal/document"
@@ -65,9 +66,49 @@ func checkLinks(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 				})
 			}
 		}
+		if ml.URL != "" && !strings.HasPrefix(ml.URL, "http://") && !strings.HasPrefix(ml.URL, "https://") {
+			target := resolveMdLinkTarget(ml.URL, doc, folder)
+			if target == nil {
+				diags = append(diags, Diagnostic{
+					Range:    ml.Range,
+					Severity: SeverityError,
+					Code:     CodeBrokenLink,
+					Source:   source,
+					Message:  "Link to non-existent file '" + ml.URL + "'",
+				})
+			} else if ml.Anchor != "" {
+				hslug := paths.SlugOf(ml.Anchor)
+				if len(target.Index.HeadingsBySlug(hslug)) == 0 {
+					diags = append(diags, Diagnostic{
+						Range:    ml.Range,
+						Severity: SeverityError,
+						Code:     CodeBrokenLink,
+						Source:   source,
+						Message:  "Link to non-existent heading '#" + ml.Anchor + "' in '" + ml.URL + "'",
+					})
+				}
+			}
+		}
 	}
 
 	return diags
+}
+
+func resolveMdLinkTarget(url string, doc *document.Document, folder *workspace.Folder) *document.Document {
+	srcPath, _ := paths.URIToPath(doc.URI)
+	srcDir := filepath.Dir(srcPath)
+	targetPath := filepath.Clean(filepath.Join(srcDir, url))
+	targetURI := paths.PathToURI(targetPath)
+	if d := folder.DocByURI(targetURI); d != nil {
+		return d
+	}
+	for _, d := range folder.AllDocs() {
+		id := d.DocID(folder.RootURI)
+		if paths.MatchesURL(id, url) {
+			return d
+		}
+	}
+	return nil
 }
 
 func checkNonBreakingWhitespace(doc *document.Document) []Diagnostic {
