@@ -20,6 +20,12 @@ make publish    # Cross-compile for 5 platforms (3.5 MB binary)
 make clean      # Clean build artifacts
 ```
 
+Ensure `~/go/bin` is on your `PATH`:
+
+```bash
+export PATH=$PATH:~/go/bin  # add to ~/.bashrc for persistence
+```
+
 ## Project structure
 
 ```

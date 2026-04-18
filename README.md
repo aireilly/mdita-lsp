@@ -24,6 +24,13 @@ cd mdita-lsp
 make install   # installs to ~/.local/bin
 ```
 
+Ensure `~/go/bin` is on your `PATH`:
+
+```bash
+echo 'export PATH=$PATH:~/go/bin' >> ~/.bashrc
+source ~/.bashrc
+```
+
 ## Editor setup
 
 ### VS Code
