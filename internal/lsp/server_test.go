@@ -21,7 +21,9 @@ func TestInitializeResponse(t *testing.T) {
 
 	var initResult InitializeResult
 	data, _ := json.Marshal(result)
-	json.Unmarshal(data, &initResult)
+	if err = json.Unmarshal(data, &initResult); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
 
 	if initResult.Capabilities.CompletionProvider == nil {
 		t.Error("missing completion provider")
@@ -43,7 +45,7 @@ func TestInitializeResponse(t *testing.T) {
 func TestDidOpenAndDiagnostics(t *testing.T) {
 	s := NewServer()
 
-	s.handleInitialize(context.Background(), json.RawMessage(`{
+	_, _ = s.handleInitialize(context.Background(), json.RawMessage(`{
 		"capabilities": {},
 		"rootUri": "file:///tmp/test"
 	}`))
@@ -70,12 +72,12 @@ func TestDidOpenAndDiagnostics(t *testing.T) {
 
 func TestCompletion(t *testing.T) {
 	s := NewServer()
-	s.handleInitialize(context.Background(), json.RawMessage(`{
+	_, _ = s.handleInitialize(context.Background(), json.RawMessage(`{
 		"capabilities": {},
 		"rootUri": "file:///tmp/test"
 	}`))
 
-	s.handleDidOpen(context.Background(), json.RawMessage(`{
+	_ = s.handleDidOpen(context.Background(), json.RawMessage(`{
 		"textDocument": {
 			"uri": "file:///tmp/test/intro.md",
 			"languageId": "markdown",
@@ -84,7 +86,7 @@ func TestCompletion(t *testing.T) {
 		}
 	}`))
 
-	s.handleDidOpen(context.Background(), json.RawMessage(`{
+	_ = s.handleDidOpen(context.Background(), json.RawMessage(`{
 		"textDocument": {
 			"uri": "file:///tmp/test/doc.md",
 			"languageId": "markdown",
@@ -121,7 +123,7 @@ func TestInitializeHasServerInfo(t *testing.T) {
 	}
 	data, _ := json.Marshal(result)
 	var ir InitializeResult
-	json.Unmarshal(data, &ir)
+	_ = json.Unmarshal(data, &ir)
 	if ir.ServerInfo == nil {
 		t.Fatal("missing serverInfo")
 	}
@@ -144,7 +146,7 @@ func TestInitializeHasDiagnosticProvider(t *testing.T) {
 	}
 	data, _ := json.Marshal(result)
 	var ir InitializeResult
-	json.Unmarshal(data, &ir)
+	_ = json.Unmarshal(data, &ir)
 	if ir.Capabilities.DiagnosticProvider == nil {
 		t.Error("missing diagnosticProvider")
 	}
@@ -155,7 +157,7 @@ func TestInitializeHasDiagnosticProvider(t *testing.T) {
 
 func TestWillCreateFilesPopulatesFrontMatter(t *testing.T) {
 	s := NewServer()
-	s.handleInitialize(context.Background(), json.RawMessage(`{
+	_, _ = s.handleInitialize(context.Background(), json.RawMessage(`{
 		"capabilities": {},
 		"rootUri": "file:///tmp/test-wcf"
 	}`))
@@ -181,12 +183,12 @@ func TestWillCreateFilesPopulatesFrontMatter(t *testing.T) {
 
 func TestMultiChangeIncremental(t *testing.T) {
 	s := NewServer()
-	s.handleInitialize(context.Background(), json.RawMessage(`{
+	_, _ = s.handleInitialize(context.Background(), json.RawMessage(`{
 		"capabilities": {},
 		"rootUri": "file:///tmp/test-mc"
 	}`))
 
-	s.handleDidOpen(context.Background(), json.RawMessage(`{
+	_ = s.handleDidOpen(context.Background(), json.RawMessage(`{
 		"textDocument": {
 			"uri": "file:///tmp/test-mc/doc.md",
 			"version": 1,
@@ -194,7 +196,7 @@ func TestMultiChangeIncremental(t *testing.T) {
 		}
 	}`))
 
-	s.handleDidChange(context.Background(), json.RawMessage(`{
+	_ = s.handleDidChange(context.Background(), json.RawMessage(`{
 		"textDocument": {"uri": "file:///tmp/test-mc/doc.md", "version": 2},
 		"contentChanges": [
 			{"range": {"start": {"line": 2, "character": 5}, "end": {"line": 2, "character": 6}}, "text": "1"},

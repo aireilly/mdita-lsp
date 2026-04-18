@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git *)",
+      "Bash(go test *)",
+      "Bash(make test *)",
+      "Bash(go build *)",
+      "Bash(python3 -c \"import yaml; yaml.safe_load\\(open\\('.github/workflows/ci.yml'\\)\\)\")",
+      "Bash(make lint *)",
+      "Bash(make build *)",
+      "Bash(gofmt *)",
+      "Bash(~/go/bin/golangci-lint run *)"
+    ]
+  }
+}

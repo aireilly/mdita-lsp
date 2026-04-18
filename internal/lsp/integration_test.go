@@ -117,7 +117,7 @@ func TestLSPCompletion(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	s.Serve(ctx, &input, &output)
+	_ = s.Serve(ctx, &input, &output)
 
 	out := output.String()
 	if !strings.Contains(out, "\"id\":2") {
@@ -151,7 +151,7 @@ func TestLSPFormatting(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	s.Serve(ctx, &input, &output)
+	_ = s.Serve(ctx, &input, &output)
 
 	out := output.String()
 	if !strings.Contains(out, "\"id\":2") {
@@ -187,7 +187,7 @@ func TestLSPPullDiagnostics(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	s.Serve(ctx, &input, &output)
+	_ = s.Serve(ctx, &input, &output)
 
 	out := output.String()
 	if !strings.Contains(out, "\"id\":2") {
@@ -213,7 +213,7 @@ func TestLSPUnknownMethod(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	s.Serve(ctx, &input, &output)
+	_ = s.Serve(ctx, &input, &output)
 
 	out := output.String()
 	if !strings.Contains(out, "method not found") {
@@ -250,7 +250,7 @@ func TestLSPDocumentHighlight(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	s.Serve(ctx, &input, &output)
+	_ = s.Serve(ctx, &input, &output)
 
 	out := output.String()
 	if !strings.Contains(out, "\"id\":2") {
@@ -290,7 +290,7 @@ func TestLSPCodeAction(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	s.Serve(ctx, &input, &output)
+	_ = s.Serve(ctx, &input, &output)
 
 	out := output.String()
 	if !strings.Contains(out, "\"id\":2") {
@@ -327,7 +327,7 @@ func TestLSPDefinition(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	s.Serve(ctx, &input, &output)
+	_ = s.Serve(ctx, &input, &output)
 
 	out := output.String()
 	if !strings.Contains(out, "\"id\":2") {
@@ -360,7 +360,7 @@ func TestLSPSemanticTokens(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	s.Serve(ctx, &input, &output)
+	_ = s.Serve(ctx, &input, &output)
 
 	out := output.String()
 	if !strings.Contains(out, "\"id\":2") {
@@ -396,7 +396,7 @@ func TestLSPFoldingRange(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	s.Serve(ctx, &input, &output)
+	_ = s.Serve(ctx, &input, &output)
 
 	out := output.String()
 	if !strings.Contains(out, "\"id\":2") {

@@ -124,10 +124,10 @@ func TestResolveLinkHTTP(t *testing.T) {
 
 func TestFolderScanFiles(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "doc.md"), []byte("# Doc\n"), 0644)
-	os.WriteFile(filepath.Join(dir, "notes.markdown"), []byte("# Notes\n"), 0644)
-	os.WriteFile(filepath.Join(dir, "map.mditamap"), []byte("# Map\n- [D](doc.md)\n"), 0644)
-	os.WriteFile(filepath.Join(dir, "ignore.txt"), []byte("not md"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "doc.md"), []byte("# Doc\n"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "notes.markdown"), []byte("# Notes\n"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "map.mditamap"), []byte("# Map\n- [D](doc.md)\n"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "ignore.txt"), []byte("not md"), 0644)
 
 	cfg := config.Default()
 	f := NewFolder(paths.PathToURI(dir), cfg)

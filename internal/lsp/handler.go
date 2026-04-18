@@ -50,7 +50,9 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 			Method:  method,
 			Params:  params,
 		}
-		writeMessage(out, notif)
+		if err := writeMessage(out, notif); err != nil {
+			log.Printf("write notification %s: %v", method, err)
+		}
 	})
 
 	for scanner.Scan() {
@@ -73,7 +75,9 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 			} else {
 				resp.Result = result
 			}
-			writeMessage(out, resp)
+			if werr := writeMessage(out, resp); werr != nil {
+				log.Printf("write response %s: %v", req.Method, werr)
+			}
 		} else {
 			s.dispatchNotification(ctx, req.Method, req.Params)
 		}
@@ -147,21 +151,21 @@ func (s *Server) dispatchNotification(ctx context.Context, method string, params
 	case "initialized":
 		// no-op
 	case "textDocument/didOpen":
-		s.handleDidOpen(ctx, params)
+		_ = s.handleDidOpen(ctx, params)
 	case "textDocument/didChange":
-		s.handleDidChange(ctx, params)
+		_ = s.handleDidChange(ctx, params)
 	case "textDocument/didClose":
-		s.handleDidClose(ctx, params)
+		_ = s.handleDidClose(ctx, params)
 	case "textDocument/didSave":
-		s.handleDidSave(ctx, params)
+		_ = s.handleDidSave(ctx, params)
 	case "workspace/didChangeWorkspaceFolders":
-		s.handleDidChangeWorkspaceFolders(ctx, params)
+		_ = s.handleDidChangeWorkspaceFolders(ctx, params)
 	case "workspace/didCreateFiles":
-		s.handleDidCreateFiles(ctx, params)
+		_ = s.handleDidCreateFiles(ctx, params)
 	case "workspace/didDeleteFiles":
-		s.handleDidDeleteFiles(ctx, params)
+		_ = s.handleDidDeleteFiles(ctx, params)
 	case "workspace/didChangeConfiguration":
-		s.handleDidChangeConfiguration(ctx, params)
+		_ = s.handleDidChangeConfiguration(ctx, params)
 	case "$/cancelRequest", "$/setTrace":
 		// silently ignored
 	case "exit":

@@ -419,7 +419,7 @@ func (s *Server) addWorkspaceFolder(uri string) {
 	rootPath, _ := paths.URIToPath(uri)
 	cfg := config.LoadMerged(rootPath)
 	folder := workspace.NewFolder(uri, cfg)
-	folder.ScanFiles()
+	_ = folder.ScanFiles()
 	s.workspace.AddFolder(folder)
 
 	docs := folder.AllDocs()

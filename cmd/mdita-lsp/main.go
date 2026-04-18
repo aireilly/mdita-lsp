@@ -29,7 +29,7 @@ func main() {
 	logFile, err := os.CreateTemp("", "mdita-lsp-*.log")
 	if err == nil {
 		log.SetOutput(logFile)
-		defer logFile.Close()
+		defer func() { _ = logFile.Close() }()
 	}
 
 	log.Printf("mdita-lsp %s starting", version)
