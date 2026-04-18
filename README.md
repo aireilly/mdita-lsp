@@ -94,6 +94,12 @@ code_actions:
   create_missing_file:
     enable: true
 
+build:
+  dita_ot:
+    enable: true
+    dita_path: ""          # Path to dita binary (empty = search $PATH)
+    output_dir: "out"      # Output directory relative to workspace root
+
 diagnostics:
   mdita_compliance: true
   ditamap_validation: true
@@ -112,7 +118,7 @@ diagnostics:
 | Hover | Document titles, heading text, keyref targets, YAML front matter keys |
 | Find References | All references to a heading across the workspace |
 | Rename | Heading rename with cross-document wiki link updates |
-| Code Actions | Generate ToC, create missing files, convert wiki→markdown links, add YAML front matter, add to mditamap, quick-fix NBSP/footnotes/heading hierarchy |
+| Code Actions | Generate ToC, create missing files, convert wiki→markdown links, add YAML front matter, add to mditamap, quick-fix NBSP/footnotes/heading hierarchy, build XHTML/DITA with DITA OT |
 | Code Lens | Reference counts on headings |
 | Document Links | Clickable links for wiki links and markdown links |
 | Document Symbols | Hierarchical heading outline tree |
@@ -126,7 +132,7 @@ diagnostics:
 | Semantic Tokens | Syntax highlighting for wiki links (full + range) |
 | File Rename | Auto-update wiki links, markdown links, and map references on file rename |
 | File Create | Auto-populate new `.md` files with MDITA YAML front matter |
-| Execute Command | Create files, add documents to map |
+| Execute Command | Create files, add documents to map, build XHTML/DITA via DITA OT |
 | Pull Diagnostics | On-demand diagnostics via `textDocument/diagnostic` (LSP 3.17) |
 | Text Sync | Incremental (mode 2) with 200ms diagnostic debouncing |
 | File Operations | Auto-index created/deleted files, cross-document diagnostic refresh |
@@ -174,7 +180,7 @@ Keys are derived from filenames (e.g., `install.md` → key `install`). Use `[in
 
 ```bash
 make build     # Build binary
-make test      # Run 235 tests with race detection
+make test      # Run 248 tests with race detection
 make lint      # Run golangci-lint
 make publish   # Cross-compile for 5 platforms (~3.5 MB each)
 make clean     # Remove build artifacts

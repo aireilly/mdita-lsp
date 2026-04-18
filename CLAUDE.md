@@ -13,7 +13,7 @@ mdita-lsp is an LSP server for MDITA (Markdown DITA) documents, written in Go. I
 
 ```bash
 make build      # Build the binary
-make test       # Run tests with race detection (235 tests across 25 packages)
+make test       # Run tests with race detection (248 tests across 26 packages)
 make lint       # Run golangci-lint
 make install    # Build and install to ~/.local/bin
 make publish    # Cross-compile for 5 platforms (3.5 MB binary)
@@ -49,7 +49,7 @@ internal/
   references/           # Find references to headings via symbol graph
   completion/           # Completion: wiki links, inline links, YAML keys, keyrefs
   rename/               # Heading rename with cross-doc wiki link ref updates
-  codeaction/           # ToC generation, create missing file, convert wiki→md links, add front matter, add to map
+  codeaction/           # ToC generation, create missing file, convert wiki→md links, add front matter, add to map, DITA OT build
   codelens/             # Reference count lenses on headings
   docsymbols/           # Hierarchical document symbol outline, workspace symbol search
   folding/              # Folding ranges for headings, YAML front matter, ToC markers
@@ -60,6 +60,7 @@ internal/
   filerename/           # Cross-reference updates on file rename (wiki links, md links, map refs)
   highlight/            # Document highlight for headings and their intra-doc references
   semantic/             # Semantic token encoding (full + range) for wiki links
+  ditaot/               # DITA OT binary resolution and build invocation (xhtml, dita formats)
   lsp/                  # LSP server, JSON-RPC handler, diagnostic debouncing, execute command
 testdata/               # Test fixtures
 .github/workflows/      # CI and Release workflows
@@ -78,7 +79,7 @@ testdata/               # Test fixtures
 - Semantic Tokens (full + range)
 - Pull Diagnostics (textDocument/diagnostic, LSP 3.17)
 - File Operations (didCreate, didDelete, willCreate, willRename)
-- Execute Command (createFile, addToMap)
+- Execute Command (createFile, addToMap, ditaOtBuild)
 - Diagnostic quick-fixes (NBSP, footnotes, heading hierarchy)
 - Server Info (name + version in initialize response)
 - Configuration change notification (workspace/didChangeConfiguration)
