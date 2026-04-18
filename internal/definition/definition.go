@@ -73,7 +73,7 @@ func resolveMdLink(ml *document.MdLink, doc *document.Document, folder *workspac
 	if ml.URL != "" {
 		for _, d := range folder.AllDocs() {
 			id := d.DocID(folder.RootURI)
-			if matchesURL(id, ml.URL) {
+			if paths.MatchesURL(id, ml.URL) {
 				if ml.Anchor != "" {
 					hslug := paths.SlugOf(ml.Anchor)
 					for _, h := range d.Index.HeadingsBySlug(hslug) {
@@ -119,6 +119,3 @@ func resolveKeyref(kr *keyref.KeyrefAtPos, doc *document.Document, folder *works
 	return nil
 }
 
-func matchesURL(id paths.DocID, url string) bool {
-	return id.RelPath == url || id.Stem+".md" == url || id.Stem+".markdown" == url
-}

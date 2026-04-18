@@ -52,6 +52,10 @@ func DocIDFromURI(uri, rootURI string) DocID {
 	}
 }
 
+func MatchesURL(id DocID, url string) bool {
+	return id.RelPath == url || id.Stem+".md" == url || id.Stem+".markdown" == url
+}
+
 func IsMditaMapFile(path string, mapExts []string) bool {
 	ext := strings.TrimPrefix(filepath.Ext(path), ".")
 	for _, me := range mapExts {

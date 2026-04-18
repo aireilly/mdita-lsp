@@ -140,7 +140,7 @@ func hoverMdLink(ml *document.MdLink, doc *document.Document, folder *workspace.
 	if ml.URL != "" {
 		for _, d := range folder.AllDocs() {
 			id := d.DocID(folder.RootURI)
-			if id.RelPath == ml.URL || id.Stem+".md" == ml.URL {
+			if paths.MatchesURL(id, ml.URL) {
 				title := d.Index.Title()
 				if title != nil {
 					result := "**" + title.Text + "** (" + ml.URL + ")"

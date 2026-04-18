@@ -971,7 +971,7 @@ func (s *Server) handleDocumentLink(_ context.Context, rawParams json.RawMessage
 			}
 			for _, d := range folder.AllDocs() {
 				id := d.DocID(folder.RootURI)
-				if id.RelPath == ml.URL || id.Stem+".md" == ml.URL {
+				if paths.MatchesURL(id, ml.URL) {
 					results = append(results, DocumentLinkResult{
 						Range:  ml.Range,
 						Target: d.URI,
