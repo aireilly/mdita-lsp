@@ -96,6 +96,29 @@ func TestParseAdmonitions(t *testing.T) {
 	}
 }
 
+func TestMdLinkRange(t *testing.T) {
+	text := "# Title\n\nSome text [link](other.md) more text.\n"
+	elements, _, _ := Parse(text)
+
+	mdLinks := filterMdLinks(elements)
+	if len(mdLinks) != 1 {
+		t.Fatalf("got %d md links, want 1", len(mdLinks))
+	}
+	ml := mdLinks[0]
+	if ml.Range.Start.Line != 2 {
+		t.Errorf("start line = %d, want 2", ml.Range.Start.Line)
+	}
+	if ml.Range.Start.Character != 10 {
+		t.Errorf("start char = %d, want 10", ml.Range.Start.Character)
+	}
+	if ml.Range.End.Line != 2 {
+		t.Errorf("end line = %d, want 2", ml.Range.End.Line)
+	}
+	if ml.Range.End.Character != 26 {
+		t.Errorf("end char = %d, want 26", ml.Range.End.Character)
+	}
+}
+
 func filterHeadings(elems []Element) []*Heading {
 	var result []*Heading
 	for _, e := range elems {

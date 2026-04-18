@@ -256,7 +256,10 @@ func extractText(n ast.Node, src []byte) string {
 }
 
 func nodeRange(n ast.Node, src []byte) Range {
-	// Inline nodes don't have Lines(), so use parent
+	if link, ok := n.(*ast.Link); ok {
+		return linkNodeRange(link, src)
+	}
+
 	if n.Type() == ast.TypeInline {
 		parent := n.Parent()
 		if parent != nil {
@@ -270,6 +273,72 @@ func nodeRange(n ast.Node, src []byte) Range {
 		first := lines.At(0)
 		last := lines.At(lines.Len() - 1)
 		return rangeFromOffset(string(src), first.Start, last.Stop)
+	}
+	return Range{}
+}
+
+func linkNodeRange(node *ast.Link, src []byte) Range {
+	minStart := len(src)
+	_ = ast.Walk(node, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		if t, ok := n.(*ast.Text); ok && t.Segment.Start < minStart {
+			minStart = t.Segment.Start
+		}
+		return ast.WalkContinue, nil
+	})
+	if minStart >= len(src) {
+		return parentBlockRange(node, src)
+	}
+
+	startByte := -1
+	for i := minStart - 1; i >= 0 && src[i] != '\n'; i-- {
+		if src[i] == '[' {
+			startByte = i
+			break
+		}
+	}
+	if startByte < 0 {
+		return parentBlockRange(node, src)
+	}
+
+	i := startByte + 1
+	depth := 1
+	for ; i < len(src) && depth > 0; i++ {
+		if src[i] == '[' {
+			depth++
+		} else if src[i] == ']' {
+			depth--
+		}
+	}
+
+	if i < len(src) && src[i] == '(' {
+		depth = 1
+		i++
+		for ; i < len(src) && depth > 0; i++ {
+			if src[i] == '(' {
+				depth++
+			} else if src[i] == ')' {
+				depth--
+			}
+		}
+	} else if i < len(src) && src[i] == '[' {
+		i++
+		for ; i < len(src) && src[i] != ']'; i++ {
+		}
+		if i < len(src) {
+			i++
+		}
+	}
+
+	return rangeFromOffset(string(src), startByte, i)
+}
+
+func parentBlockRange(n ast.Node, src []byte) Range {
+	parent := n.Parent()
+	if parent != nil {
+		return nodeRange(parent, src)
 	}
 	return Range{}
 }
