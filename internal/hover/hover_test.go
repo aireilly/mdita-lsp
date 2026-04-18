@@ -22,8 +22,11 @@ func TestHoverWikiLink(t *testing.T) {
 	if result == "" {
 		t.Fatal("expected hover content")
 	}
-	if result != "**Introduction**" {
-		t.Errorf("hover = %q, want %q", result, "**Introduction**")
+	if !strings.Contains(result, "**Introduction**") {
+		t.Errorf("hover = %q, want to contain %q", result, "**Introduction**")
+	}
+	if !strings.Contains(result, "This is the intro.") {
+		t.Errorf("hover = %q, want preview containing %q", result, "This is the intro.")
 	}
 }
 

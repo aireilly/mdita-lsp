@@ -110,6 +110,7 @@ func hoverWikiLink(wl *document.WikiLink, doc *document.Document, folder *worksp
 				result += " > " + h.Text
 			}
 		}
+		result += preview(target.Text)
 		return result
 	}
 	return ""
@@ -149,11 +150,40 @@ func hoverMdLink(ml *document.MdLink, doc *document.Document, folder *workspace.
 						result += " > " + h.Text
 					}
 				}
+				result += preview(target.Text)
 				return result
 			}
 		}
 	}
 	return ml.URL
+}
+
+func preview(text string) string {
+	lines := strings.Split(text, "\n")
+	// skip YAML front matter
+	start := 0
+	if len(lines) > 0 && strings.TrimSpace(lines[0]) == "---" {
+		for i := 1; i < len(lines); i++ {
+			if strings.TrimSpace(lines[i]) == "---" {
+				start = i + 1
+				break
+			}
+		}
+	}
+	var body []string
+	for _, line := range lines[start:] {
+		if len(body) >= 5 {
+			break
+		}
+		if len(body) == 0 && strings.TrimSpace(line) == "" {
+			continue
+		}
+		body = append(body, line)
+	}
+	if len(body) == 0 {
+		return ""
+	}
+	return "\n\n---\n\n" + strings.Join(body, "\n")
 }
 
 func itoa(n int) string {
