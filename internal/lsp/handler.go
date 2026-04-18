@@ -111,7 +111,7 @@ func (s *Server) dispatch(ctx context.Context, method string, params json.RawMes
 	case "textDocument/codeLens":
 		return s.handleCodeLens(ctx, params)
 	case "textDocument/documentLink":
-		return s.handleDocumentLink(ctx, params)
+		return nil, nil
 	case "textDocument/foldingRange":
 		return s.handleFoldingRange(ctx, params)
 	case "textDocument/documentSymbol":
