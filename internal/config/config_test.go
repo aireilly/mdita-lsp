@@ -67,6 +67,12 @@ func TestDefault(t *testing.T) {
 	if len(cfg.CodeActions.ToC.IncludeLevels) != 6 {
 		t.Errorf("default IncludeLevels len = %d, want 6", len(cfg.CodeActions.ToC.IncludeLevels))
 	}
+	if !BoolVal(cfg.Build.DitaOT.Enable) {
+		t.Error("default Build.DitaOT.Enable should be true")
+	}
+	if cfg.Build.DitaOT.OutputDir != "out" {
+		t.Errorf("default OutputDir = %q, want %q", cfg.Build.DitaOT.OutputDir, "out")
+	}
 }
 
 func TestMerge(t *testing.T) {
@@ -142,6 +148,50 @@ completion:
 	}
 	if !BoolVal(merged.CodeActions.ToC.Enable) {
 		t.Error("unset overlay should preserve base ToC.Enable=true")
+	}
+}
+
+func TestParseBuildConfig(t *testing.T) {
+	input := `
+build:
+  dita_ot:
+    enable: true
+    dita_path: "/opt/dita-ot/bin/dita"
+    output_dir: "build-output"
+`
+	cfg, err := Parse([]byte(input))
+	if err != nil {
+		t.Fatalf("Parse error: %v", err)
+	}
+	if !BoolVal(cfg.Build.DitaOT.Enable) {
+		t.Error("Build.DitaOT.Enable should be true")
+	}
+	if cfg.Build.DitaOT.DitaPath != "/opt/dita-ot/bin/dita" {
+		t.Errorf("DitaPath = %q, want %q", cfg.Build.DitaOT.DitaPath, "/opt/dita-ot/bin/dita")
+	}
+	if cfg.Build.DitaOT.OutputDir != "build-output" {
+		t.Errorf("OutputDir = %q, want %q", cfg.Build.DitaOT.OutputDir, "build-output")
+	}
+}
+
+func TestMergeBuildConfig(t *testing.T) {
+	base := Default()
+	overlay, _ := Parse([]byte(`
+build:
+  dita_ot:
+    enable: false
+    dita_path: "/custom/dita"
+    output_dir: "custom-out"
+`))
+	merged := Merge(base, overlay)
+	if BoolVal(merged.Build.DitaOT.Enable) {
+		t.Error("merged Build.DitaOT.Enable should be false")
+	}
+	if merged.Build.DitaOT.DitaPath != "/custom/dita" {
+		t.Errorf("merged DitaPath = %q, want %q", merged.Build.DitaOT.DitaPath, "/custom/dita")
+	}
+	if merged.Build.DitaOT.OutputDir != "custom-out" {
+		t.Errorf("merged OutputDir = %q, want %q", merged.Build.DitaOT.OutputDir, "custom-out")
 	}
 }
 

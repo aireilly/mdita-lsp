@@ -12,6 +12,7 @@ type Config struct {
 	Completion  CompletionConfig  `yaml:"completion"`
 	CodeActions CodeActionsConfig `yaml:"code_actions"`
 	Diagnostics DiagnosticsConfig `yaml:"diagnostics"`
+	Build       BuildConfig       `yaml:"build"`
 }
 
 type CoreConfig struct {
@@ -57,6 +58,16 @@ type DiagnosticsConfig struct {
 	NbspDetection     *bool `yaml:"nbsp_detection"`
 }
 
+type BuildConfig struct {
+	DitaOT DitaOTConfig `yaml:"dita_ot"`
+}
+
+type DitaOTConfig struct {
+	Enable    *bool  `yaml:"enable"`
+	DitaPath  string `yaml:"dita_path,omitempty"`
+	OutputDir string `yaml:"output_dir,omitempty"`
+}
+
 func boolPtr(v bool) *bool { return &v }
 
 func BoolVal(b *bool) bool {
@@ -98,6 +109,12 @@ func Default() *Config {
 			KeyrefResolution:  boolPtr(true),
 			LinkValidation:    boolPtr(true),
 			NbspDetection:     boolPtr(true),
+		},
+		Build: BuildConfig{
+			DitaOT: DitaOTConfig{
+				Enable:    boolPtr(true),
+				OutputDir: "out",
+			},
 		},
 	}
 }
@@ -166,6 +183,14 @@ func Merge(base, overlay *Config) *Config {
 	merged.Diagnostics.KeyrefResolution = mergeBool(base.Diagnostics.KeyrefResolution, overlay.Diagnostics.KeyrefResolution)
 	merged.Diagnostics.LinkValidation = mergeBool(base.Diagnostics.LinkValidation, overlay.Diagnostics.LinkValidation)
 	merged.Diagnostics.NbspDetection = mergeBool(base.Diagnostics.NbspDetection, overlay.Diagnostics.NbspDetection)
+
+	merged.Build.DitaOT.Enable = mergeBool(base.Build.DitaOT.Enable, overlay.Build.DitaOT.Enable)
+	if overlay.Build.DitaOT.DitaPath != "" {
+		merged.Build.DitaOT.DitaPath = overlay.Build.DitaOT.DitaPath
+	}
+	if overlay.Build.DitaOT.OutputDir != "" {
+		merged.Build.DitaOT.OutputDir = overlay.Build.DitaOT.OutputDir
+	}
 
 	return &merged
 }

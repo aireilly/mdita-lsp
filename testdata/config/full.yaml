@@ -19,3 +19,8 @@ diagnostics:
   mdita_compliance: true
   ditamap_validation: true
   keyref_resolution: true
+build:
+  dita_ot:
+    enable: true
+    dita_path: ""
+    output_dir: "out"
