@@ -3,6 +3,7 @@ package lsp
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -105,6 +106,76 @@ func TestCompletion(t *testing.T) {
 	}
 	if len(items) == 0 {
 		t.Error("expected completion items")
+	}
+}
+
+func TestInitializeHasServerInfo(t *testing.T) {
+	s := NewServer()
+	s.SetVersion("1.2.3")
+	result, err := s.handleInitialize(context.Background(), json.RawMessage(`{
+		"capabilities": {},
+		"rootUri": "file:///tmp/test-si"
+	}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := json.Marshal(result)
+	var ir InitializeResult
+	json.Unmarshal(data, &ir)
+	if ir.ServerInfo == nil {
+		t.Fatal("missing serverInfo")
+	}
+	if ir.ServerInfo.Name != "mdita-lsp" {
+		t.Errorf("expected name mdita-lsp, got %s", ir.ServerInfo.Name)
+	}
+	if ir.ServerInfo.Version != "1.2.3" {
+		t.Errorf("expected version 1.2.3, got %s", ir.ServerInfo.Version)
+	}
+}
+
+func TestInitializeHasDiagnosticProvider(t *testing.T) {
+	s := NewServer()
+	result, err := s.handleInitialize(context.Background(), json.RawMessage(`{
+		"capabilities": {},
+		"rootUri": "file:///tmp/test-dp"
+	}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := json.Marshal(result)
+	var ir InitializeResult
+	json.Unmarshal(data, &ir)
+	if ir.Capabilities.DiagnosticProvider == nil {
+		t.Error("missing diagnosticProvider")
+	}
+	if !ir.Capabilities.DiagnosticProvider.InterFileDependencies {
+		t.Error("expected interFileDependencies=true")
+	}
+}
+
+func TestWillCreateFilesPopulatesFrontMatter(t *testing.T) {
+	s := NewServer()
+	s.handleInitialize(context.Background(), json.RawMessage(`{
+		"capabilities": {},
+		"rootUri": "file:///tmp/test-wcf"
+	}`))
+
+	result, err := s.handleWillCreateFiles(context.Background(), json.RawMessage(`{
+		"files": [{"uri": "file:///tmp/test-wcf/my-topic.md"}]
+	}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result == nil {
+		t.Fatal("expected workspace edit")
+	}
+	data, _ := json.Marshal(result)
+	out := string(data)
+	if !strings.Contains(out, "$schema") {
+		t.Error("expected YAML front matter with $schema")
+	}
+	if !strings.Contains(out, "my-topic") {
+		t.Error("expected title derived from filename")
 	}
 }
 
