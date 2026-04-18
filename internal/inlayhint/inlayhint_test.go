@@ -58,6 +58,44 @@ func TestKeyrefHint(t *testing.T) {
 	}
 }
 
+func TestMdLinkHint(t *testing.T) {
+	target := document.New("file:///project/install.md", 1,
+		"# Installation Guide\n\nSteps here.\n")
+	source := document.New("file:///project/index.md", 1,
+		"# Index\n\n[Setup](install.md)\n")
+	folder := testFolder(target, source)
+
+	hints := GetHints(source, fullRange(), folder)
+	found := false
+	for _, h := range hints {
+		if h.Label == " → Installation Guide" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected md link hint with title, got %v", hints)
+	}
+}
+
+func TestMdLinkHintSubdir(t *testing.T) {
+	target := document.New("file:///project/docs/install.md", 1,
+		"# Installation Guide\n")
+	source := document.New("file:///project/guide/index.md", 1,
+		"# Guide\n\n[Setup](../docs/install.md)\n")
+	folder := testFolder(target, source)
+
+	hints := GetHints(source, fullRange(), folder)
+	found := false
+	for _, h := range hints {
+		if h.Label == " → Installation Guide" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected md link hint for relative path, got %v", hints)
+	}
+}
+
 func TestNoHintsForPlainText(t *testing.T) {
 	source := document.New("file:///project/doc.md", 1,
 		"# Title\n\nJust plain text.\n")

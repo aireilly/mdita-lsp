@@ -3,7 +3,6 @@ package completion
 import (
 	"strings"
 
-	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
 	"github.com/aireilly/mdita-lsp/internal/paths"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
@@ -45,13 +44,7 @@ func resolveDocumentation(stem string, folder *workspace.Folder) string {
 }
 
 func resolveKeyrefDocs(key string, folder *workspace.Folder) string {
-	var mapTexts []string
-	for _, d := range folder.AllDocs() {
-		if d.Kind == document.Map {
-			mapTexts = append(mapTexts, d.Text)
-		}
-	}
-	table := keyref.BuildMergedTable(mapTexts)
+	table := keyref.BuildMergedTable(folder.MapTexts())
 	entry, ok := table[key]
 	if !ok {
 		return ""

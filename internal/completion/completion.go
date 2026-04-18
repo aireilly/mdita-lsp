@@ -172,13 +172,7 @@ func resolveRelativeDoc(relPath string, doc *document.Document, folder *workspac
 }
 
 func completeKeyref(input string, folder *workspace.Folder) []CompletionItem {
-	var mapTexts []string
-	for _, d := range folder.AllDocs() {
-		if d.Kind == document.Map {
-			mapTexts = append(mapTexts, d.Text)
-		}
-	}
-	table := keyref.BuildMergedTable(mapTexts)
+	table := keyref.BuildMergedTable(folder.MapTexts())
 	var items []CompletionItem
 	for _, key := range keyref.AllKeys(table) {
 		if input == "" || strings.Contains(strings.ToLower(key), strings.ToLower(input)) {

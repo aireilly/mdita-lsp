@@ -1,6 +1,8 @@
 package inlayhint
 
 import (
+	"path/filepath"
+
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
 	"github.com/aireilly/mdita-lsp/internal/paths"
@@ -19,7 +21,7 @@ type InlayHint struct {
 }
 
 func GetHints(doc *document.Document, rng document.Range, folder *workspace.Folder) []InlayHint {
-	table := buildKeyTable(folder)
+	table := keyref.BuildMergedTable(folder.MapTexts())
 	var hints []InlayHint
 
 	for _, elem := range doc.Elements {
@@ -46,17 +48,16 @@ func GetHints(doc *document.Document, rng document.Range, folder *workspace.Fold
 				}
 			}
 		case *document.MdLink:
-			if el.Text == el.URL {
+			if el.URL == "" {
 				continue
 			}
-			entry, ok := table[el.Text]
-			if ok {
+			if label := mdLinkHintLabel(el, doc, folder); label != "" {
 				hints = append(hints, InlayHint{
 					Position: document.Position{
 						Line:      el.Range.End.Line,
 						Character: el.Range.End.Character,
 					},
-					Label: " → " + entry.Href,
+					Label: " → " + label,
 					Kind:  KindType,
 				})
 			}
@@ -65,6 +66,22 @@ func GetHints(doc *document.Document, rng document.Range, folder *workspace.Fold
 
 	hints = append(hints, keyrefHints(doc, rng, table)...)
 	return hints
+}
+
+func mdLinkHintLabel(ml *document.MdLink, doc *document.Document, folder *workspace.Folder) string {
+	srcPath, _ := paths.URIToPath(doc.URI)
+	srcDir := filepath.Dir(srcPath)
+	targetPath := filepath.Join(srcDir, ml.URL)
+	targetURI := paths.PathToURI(targetPath)
+	for _, d := range folder.AllDocs() {
+		if d.URI == targetURI {
+			if t := d.Index.Title(); t != nil && t.Text != ml.Text {
+				return t.Text
+			}
+			return ""
+		}
+	}
+	return ""
 }
 
 func keyrefHints(doc *document.Document, rng document.Range, table keyref.KeyTable) []InlayHint {
@@ -94,12 +111,3 @@ func keyrefHints(doc *document.Document, rng document.Range, table keyref.KeyTab
 	return hints
 }
 
-func buildKeyTable(folder *workspace.Folder) keyref.KeyTable {
-	var mapTexts []string
-	for _, d := range folder.AllDocs() {
-		if d.Kind == document.Map {
-			mapTexts = append(mapTexts, d.Text)
-		}
-	}
-	return keyref.BuildMergedTable(mapTexts)
-}
