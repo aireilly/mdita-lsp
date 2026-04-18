@@ -229,6 +229,42 @@ func TestMatchedFootnotesNoDiagnostic(t *testing.T) {
 	}
 }
 
+func TestLinkValidationDisabled(t *testing.T) {
+	cfg := config.Default()
+	no := false
+	cfg.Diagnostics.LinkValidation = &no
+
+	doc := makeDoc("file:///project/doc.md",
+		"# Title\n\n[[nonexistent]]\n")
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	diags := Check(doc, f)
+
+	for _, d := range diags {
+		if d.Code == CodeBrokenLink || d.Code == CodeAmbiguousLink {
+			t.Errorf("should not report link diagnostics when disabled, got code %s", d.Code)
+		}
+	}
+}
+
+func TestNbspDetectionDisabled(t *testing.T) {
+	cfg := config.Default()
+	no := false
+	cfg.Diagnostics.NbspDetection = &no
+
+	doc := makeDoc("file:///project/doc.md",
+		"# Title\u00a0Here\n")
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	diags := Check(doc, f)
+
+	for _, d := range diags {
+		if d.Code == CodeNonBreakingWhitespace {
+			t.Error("should not report NBSP diagnostics when disabled")
+		}
+	}
+}
+
 func TestMditaDisabled(t *testing.T) {
 	cfg := config.Default()
 	no := false

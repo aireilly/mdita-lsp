@@ -54,8 +54,13 @@ func Check(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 		diags = append(diags, checkMditaCompliance(doc)...)
 	}
 
-	diags = append(diags, checkLinks(doc, folder)...)
-	diags = append(diags, checkNonBreakingWhitespace(doc)...)
+	if config.BoolVal(cfg.Diagnostics.LinkValidation) {
+		diags = append(diags, checkLinks(doc, folder)...)
+	}
+
+	if config.BoolVal(cfg.Diagnostics.NbspDetection) {
+		diags = append(diags, checkNonBreakingWhitespace(doc)...)
+	}
 
 	if config.BoolVal(cfg.Diagnostics.DitamapValidation) {
 		diags = append(diags, CheckDitamap(doc, folder)...)

@@ -109,6 +109,58 @@ func TestMapHrefRename(t *testing.T) {
 	}
 }
 
+func TestMdLinkRenameSubdir(t *testing.T) {
+	referring := document.New("file:///project/guide/index.md", 1,
+		"# Guide\n\nSee [setup](../docs/install.md) for details.\n")
+	target := document.New("file:///project/docs/install.md", 1,
+		"# Install\n\nContent.\n")
+
+	folder := testFolder(referring, target)
+
+	edits := ComputeEdits([]FileRename{
+		{OldURI: "file:///project/docs/install.md", NewURI: "file:///project/docs/setup.md"},
+	}, folder)
+
+	if len(edits) != 1 {
+		t.Fatalf("expected 1 document edit, got %d", len(edits))
+	}
+	found := false
+	for _, e := range edits[0].Edits {
+		if e.NewText == "[setup](../docs/setup.md)" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected cross-dir md link to be updated, got %v", edits[0].Edits)
+	}
+}
+
+func TestMdLinkRenameMoveDir(t *testing.T) {
+	referring := document.New("file:///project/index.md", 1,
+		"# Index\n\nSee [guide](docs/intro.md) for help.\n")
+	target := document.New("file:///project/docs/intro.md", 1,
+		"# Intro\n")
+
+	folder := testFolder(referring, target)
+
+	edits := ComputeEdits([]FileRename{
+		{OldURI: "file:///project/docs/intro.md", NewURI: "file:///project/guide/getting-started.md"},
+	}, folder)
+
+	if len(edits) != 1 {
+		t.Fatalf("expected 1 document edit, got %d", len(edits))
+	}
+	found := false
+	for _, e := range edits[0].Edits {
+		if e.NewText == "[guide](./guide/getting-started.md)" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected md link to be updated for dir move, got %v", edits[0].Edits)
+	}
+}
+
 func TestWikiLinkWithHeading(t *testing.T) {
 	referring := document.New("file:///project/index.md", 1,
 		"# Index\n\nSee [[install#prerequisites]] for details.\n")

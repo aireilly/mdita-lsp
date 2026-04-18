@@ -53,6 +53,8 @@ type DiagnosticsConfig struct {
 	MditaCompliance   *bool `yaml:"mdita_compliance"`
 	DitamapValidation *bool `yaml:"ditamap_validation"`
 	KeyrefResolution  *bool `yaml:"keyref_resolution"`
+	LinkValidation    *bool `yaml:"link_validation"`
+	NbspDetection     *bool `yaml:"nbsp_detection"`
 }
 
 func boolPtr(v bool) *bool { return &v }
@@ -94,6 +96,8 @@ func Default() *Config {
 			MditaCompliance:   boolPtr(true),
 			DitamapValidation: boolPtr(true),
 			KeyrefResolution:  boolPtr(true),
+			LinkValidation:    boolPtr(true),
+			NbspDetection:     boolPtr(true),
 		},
 	}
 }
@@ -160,6 +164,8 @@ func Merge(base, overlay *Config) *Config {
 	merged.Diagnostics.MditaCompliance = mergeBool(base.Diagnostics.MditaCompliance, overlay.Diagnostics.MditaCompliance)
 	merged.Diagnostics.DitamapValidation = mergeBool(base.Diagnostics.DitamapValidation, overlay.Diagnostics.DitamapValidation)
 	merged.Diagnostics.KeyrefResolution = mergeBool(base.Diagnostics.KeyrefResolution, overlay.Diagnostics.KeyrefResolution)
+	merged.Diagnostics.LinkValidation = mergeBool(base.Diagnostics.LinkValidation, overlay.Diagnostics.LinkValidation)
+	merged.Diagnostics.NbspDetection = mergeBool(base.Diagnostics.NbspDetection, overlay.Diagnostics.NbspDetection)
 
 	return &merged
 }
