@@ -26,7 +26,7 @@ type MarkdownConfig struct {
 }
 
 type MditaConfig struct {
-	Enable        bool     `yaml:"enable"`
+	Enable        *bool    `yaml:"enable"`
 	MapExtensions []string `yaml:"map_extensions"`
 }
 
@@ -41,18 +41,27 @@ type CodeActionsConfig struct {
 }
 
 type ToCConfig struct {
-	Enable        bool  `yaml:"enable"`
+	Enable        *bool `yaml:"enable"`
 	IncludeLevels []int `yaml:"include_levels"`
 }
 
 type CreateMissingFileConfig struct {
-	Enable bool `yaml:"enable"`
+	Enable *bool `yaml:"enable"`
 }
 
 type DiagnosticsConfig struct {
-	MditaCompliance   bool `yaml:"mdita_compliance"`
-	DitamapValidation bool `yaml:"ditamap_validation"`
-	KeyrefResolution  bool `yaml:"keyref_resolution"`
+	MditaCompliance   *bool `yaml:"mdita_compliance"`
+	DitamapValidation *bool `yaml:"ditamap_validation"`
+	KeyrefResolution  *bool `yaml:"keyref_resolution"`
+}
+
+func boolPtr(v bool) *bool { return &v }
+
+func BoolVal(b *bool) bool {
+	if b == nil {
+		return false
+	}
+	return *b
 }
 
 func Default() *Config {
@@ -64,7 +73,7 @@ func Default() *Config {
 				TitleFromHeading: true,
 			},
 			Mdita: MditaConfig{
-				Enable:        true,
+				Enable:        boolPtr(true),
 				MapExtensions: []string{"mditamap"},
 			},
 		},
@@ -74,17 +83,17 @@ func Default() *Config {
 		},
 		CodeActions: CodeActionsConfig{
 			ToC: ToCConfig{
-				Enable:        true,
+				Enable:        boolPtr(true),
 				IncludeLevels: []int{1, 2, 3, 4, 5, 6},
 			},
 			CreateMissingFile: CreateMissingFileConfig{
-				Enable: true,
+				Enable: boolPtr(true),
 			},
 		},
 		Diagnostics: DiagnosticsConfig{
-			MditaCompliance:   true,
-			DitamapValidation: true,
-			KeyrefResolution:  true,
+			MditaCompliance:   boolPtr(true),
+			DitamapValidation: boolPtr(true),
+			KeyrefResolution:  boolPtr(true),
 		},
 	}
 }
@@ -111,6 +120,13 @@ func Load(path string) (*Config, error) {
 	return Parse(data)
 }
 
+func mergeBool(base, overlay *bool) *bool {
+	if overlay != nil {
+		return overlay
+	}
+	return base
+}
+
 func Merge(base, overlay *Config) *Config {
 	merged := *base
 
@@ -123,6 +139,7 @@ func Merge(base, overlay *Config) *Config {
 	if overlay.Core.Markdown.TitleFromHeading != base.Core.Markdown.TitleFromHeading {
 		merged.Core.Markdown.TitleFromHeading = overlay.Core.Markdown.TitleFromHeading
 	}
+	merged.Core.Mdita.Enable = mergeBool(base.Core.Mdita.Enable, overlay.Core.Mdita.Enable)
 	if overlay.Core.Mdita.MapExtensions != nil {
 		merged.Core.Mdita.MapExtensions = overlay.Core.Mdita.MapExtensions
 	}
@@ -134,9 +151,15 @@ func Merge(base, overlay *Config) *Config {
 		merged.Completion.MaxCandidates = overlay.Completion.MaxCandidates
 	}
 
+	merged.CodeActions.ToC.Enable = mergeBool(base.CodeActions.ToC.Enable, overlay.CodeActions.ToC.Enable)
 	if overlay.CodeActions.ToC.IncludeLevels != nil {
 		merged.CodeActions.ToC.IncludeLevels = overlay.CodeActions.ToC.IncludeLevels
 	}
+	merged.CodeActions.CreateMissingFile.Enable = mergeBool(base.CodeActions.CreateMissingFile.Enable, overlay.CodeActions.CreateMissingFile.Enable)
+
+	merged.Diagnostics.MditaCompliance = mergeBool(base.Diagnostics.MditaCompliance, overlay.Diagnostics.MditaCompliance)
+	merged.Diagnostics.DitamapValidation = mergeBool(base.Diagnostics.DitamapValidation, overlay.Diagnostics.DitamapValidation)
+	merged.Diagnostics.KeyrefResolution = mergeBool(base.Diagnostics.KeyrefResolution, overlay.Diagnostics.KeyrefResolution)
 
 	return &merged
 }

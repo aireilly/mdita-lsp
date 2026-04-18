@@ -1,6 +1,7 @@
 package diagnostic
 
 import (
+	"github.com/aireilly/mdita-lsp/internal/config"
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
@@ -49,18 +50,18 @@ func Check(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 	var diags []Diagnostic
 
 	cfg := folder.Config
-	if cfg.Diagnostics.MditaCompliance && cfg.Core.Mdita.Enable {
+	if config.BoolVal(cfg.Diagnostics.MditaCompliance) && config.BoolVal(cfg.Core.Mdita.Enable) {
 		diags = append(diags, checkMditaCompliance(doc)...)
 	}
 
 	diags = append(diags, checkLinks(doc, folder)...)
 	diags = append(diags, checkNonBreakingWhitespace(doc)...)
 
-	if cfg.Diagnostics.DitamapValidation {
+	if config.BoolVal(cfg.Diagnostics.DitamapValidation) {
 		diags = append(diags, CheckDitamap(doc, folder)...)
 	}
 
-	if cfg.Diagnostics.KeyrefResolution {
+	if config.BoolVal(cfg.Diagnostics.KeyrefResolution) {
 		diags = append(diags, CheckKeyrefs(doc, folder)...)
 	}
 

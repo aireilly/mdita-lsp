@@ -231,8 +231,9 @@ func TestMatchedFootnotesNoDiagnostic(t *testing.T) {
 
 func TestMditaDisabled(t *testing.T) {
 	cfg := config.Default()
-	cfg.Core.Mdita.Enable = false
-	cfg.Diagnostics.MditaCompliance = false
+	no := false
+	cfg.Core.Mdita.Enable = &no
+	cfg.Diagnostics.MditaCompliance = &no
 
 	doc := makeDoc("file:///project/doc.md", "# Title")
 	f := workspace.NewFolder("file:///project", cfg)

@@ -3,6 +3,7 @@ package codeaction
 import (
 	"strings"
 
+	"github.com/aireilly/mdita-lsp/internal/config"
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/paths"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
@@ -40,7 +41,7 @@ func GetActions(doc *document.Document, rng document.Range, folder *workspace.Fo
 	var actions []CodeAction
 	cfg := folder.Config
 
-	if cfg.CodeActions.ToC.Enable {
+	if config.BoolVal(cfg.CodeActions.ToC.Enable) {
 		toc := GenerateToC(doc, cfg.CodeActions.ToC.IncludeLevels)
 		if toc != "" {
 			insertLine := 0
@@ -60,7 +61,7 @@ func GetActions(doc *document.Document, rng document.Range, folder *workspace.Fo
 		}
 	}
 
-	if cfg.CodeActions.CreateMissingFile.Enable {
+	if config.BoolVal(cfg.CodeActions.CreateMissingFile.Enable) {
 		for _, wl := range doc.Index.WikiLinks() {
 			if rangesOverlap(rng, wl.Range) && wl.Doc != "" {
 				target := folder.DocBySlug(paths.SlugOf(wl.Doc))

@@ -44,7 +44,7 @@ diagnostics:
 	if cfg.Completion.MaxCandidates != 100 {
 		t.Errorf("MaxCandidates = %d, want 100", cfg.Completion.MaxCandidates)
 	}
-	if cfg.CodeActions.ToC.Enable != false {
+	if cfg.CodeActions.ToC.Enable == nil || *cfg.CodeActions.ToC.Enable != false {
 		t.Errorf("ToC.Enable = %v, want false", cfg.CodeActions.ToC.Enable)
 	}
 	exts := cfg.Core.Mdita.MapExtensions
@@ -58,7 +58,7 @@ func TestDefault(t *testing.T) {
 	if cfg.Core.Markdown.TextSync != "full" {
 		t.Errorf("default TextSync = %q, want %q", cfg.Core.Markdown.TextSync, "full")
 	}
-	if cfg.Core.Mdita.Enable != true {
+	if !BoolVal(cfg.Core.Mdita.Enable) {
 		t.Errorf("default Mdita.Enable = %v, want true", cfg.Core.Mdita.Enable)
 	}
 	if cfg.Completion.MaxCandidates != 50 {
@@ -83,8 +83,65 @@ completion:
 	if merged.Completion.MaxCandidates != 25 {
 		t.Errorf("merged MaxCandidates = %d, want 25", merged.Completion.MaxCandidates)
 	}
-	if merged.Core.Mdita.Enable != true {
+	if !BoolVal(merged.Core.Mdita.Enable) {
 		t.Errorf("merged Mdita.Enable = %v, want true (from default)", merged.Core.Mdita.Enable)
+	}
+}
+
+func TestMergeBoolOverrides(t *testing.T) {
+	base := Default()
+	overlay, _ := Parse([]byte(`
+core:
+  mdita:
+    enable: false
+code_actions:
+  toc:
+    enable: false
+  create_missing_file:
+    enable: false
+diagnostics:
+  mdita_compliance: false
+  ditamap_validation: false
+  keyref_resolution: false
+`))
+	merged := Merge(base, overlay)
+
+	if BoolVal(merged.Core.Mdita.Enable) {
+		t.Error("merged Mdita.Enable should be false after overlay")
+	}
+	if BoolVal(merged.CodeActions.ToC.Enable) {
+		t.Error("merged ToC.Enable should be false after overlay")
+	}
+	if BoolVal(merged.CodeActions.CreateMissingFile.Enable) {
+		t.Error("merged CreateMissingFile.Enable should be false after overlay")
+	}
+	if BoolVal(merged.Diagnostics.MditaCompliance) {
+		t.Error("merged MditaCompliance should be false after overlay")
+	}
+	if BoolVal(merged.Diagnostics.DitamapValidation) {
+		t.Error("merged DitamapValidation should be false after overlay")
+	}
+	if BoolVal(merged.Diagnostics.KeyrefResolution) {
+		t.Error("merged KeyrefResolution should be false after overlay")
+	}
+}
+
+func TestMergeUnsetBoolPreservesBase(t *testing.T) {
+	base := Default()
+	overlay, _ := Parse([]byte(`
+completion:
+  wiki_style: custom
+`))
+	merged := Merge(base, overlay)
+
+	if !BoolVal(merged.Core.Mdita.Enable) {
+		t.Error("unset overlay should preserve base Mdita.Enable=true")
+	}
+	if !BoolVal(merged.Diagnostics.MditaCompliance) {
+		t.Error("unset overlay should preserve base MditaCompliance=true")
+	}
+	if !BoolVal(merged.CodeActions.ToC.Enable) {
+		t.Error("unset overlay should preserve base ToC.Enable=true")
 	}
 }
 
