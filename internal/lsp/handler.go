@@ -24,7 +24,7 @@ type Request struct {
 type Response struct {
 	JSONRPC string           `json:"jsonrpc"`
 	ID      *json.RawMessage `json:"id"`
-	Result  any      `json:"result,omitempty"`
+	Result  any              `json:"result,omitempty"`
 	Error   *ResponseError   `json:"error,omitempty"`
 }
 
@@ -34,9 +34,9 @@ type ResponseError struct {
 }
 
 type Notification struct {
-	JSONRPC string      `json:"jsonrpc"`
-	Method  string      `json:"method"`
-	Params  any `json:"params,omitempty"`
+	JSONRPC string `json:"jsonrpc"`
+	Method  string `json:"method"`
+	Params  any    `json:"params,omitempty"`
 }
 
 func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
