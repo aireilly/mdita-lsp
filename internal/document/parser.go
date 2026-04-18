@@ -58,7 +58,6 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 
 	md := goldmark.New(
 		goldmark.WithExtensions(
-			&wikiLinkExtension{},
 			extension.NewTable(),
 			extension.Strikethrough,
 			extension.DefinitionList,
@@ -98,14 +97,6 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 				ID:    id,
 				Slug:  paths.SlugOf(headingText),
 				Range: nodeRange(node, src),
-			})
-
-		case *wikiLinkNode:
-			elements = append(elements, &WikiLink{
-				Doc:     node.Doc,
-				Heading: node.Heading,
-				Title:   node.Title,
-				Range:   nodeRange(node, src),
 			})
 
 		case *ast.Link:

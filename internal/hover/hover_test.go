@@ -9,27 +9,6 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
-func TestHoverWikiLink(t *testing.T) {
-	doc1 := document.New("file:///project/intro.md", 1, "# Introduction\n\nThis is the intro.\n")
-	doc2 := document.New("file:///project/guide.md", 1, "# Guide\n\n[[intro]]\n")
-
-	cfg := config.Default()
-	f := workspace.NewFolder("file:///project", cfg)
-	f.AddDoc(doc1)
-	f.AddDoc(doc2)
-	wl := doc2.Index.WikiLinks()[0]
-	result := GetHover(doc2, wl.Rng().Start, f)
-	if result == "" {
-		t.Fatal("expected hover content")
-	}
-	if !strings.Contains(result, "**Introduction**") {
-		t.Errorf("hover = %q, want to contain %q", result, "**Introduction**")
-	}
-	if !strings.Contains(result, "This is the intro.") {
-		t.Errorf("hover = %q, want preview containing %q", result, "This is the intro.")
-	}
-}
-
 func TestHoverKeyref(t *testing.T) {
 	mapDoc := document.New("file:///project/map.mditamap", 1,
 		"# Map\n\n- [Install Guide](install.md)\n")

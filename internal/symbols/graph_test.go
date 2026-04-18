@@ -20,7 +20,7 @@ func TestGraphResolveRef(t *testing.T) {
 	}
 	ref := document.Symbol{
 		Kind:    document.RefKind,
-		RefType: document.RefWikiLink,
+		RefType: document.RefMdLink,
 		Name:    "introduction",
 		Slug:    paths.SlugOf("introduction"),
 		DocURI:  "file:///project/other.md",

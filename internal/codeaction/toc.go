@@ -37,7 +37,7 @@ func GenerateToC(doc *document.Document, levels []int) string {
 	for _, h := range filtered {
 		indent := strings.Repeat("  ", h.Level-minLevel)
 		slug := paths.Slugify(h.Text)
-		sb.WriteString(fmt.Sprintf("%s- [%s](#%s)\n", indent, h.Text, slug))
+		fmt.Fprintf(&sb, "%s- [%s](#%s)\n", indent, h.Text, slug)
 	}
 	sb.WriteString("<!--toc:end-->")
 

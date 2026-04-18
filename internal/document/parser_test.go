@@ -23,28 +23,6 @@ func TestParseHeadings(t *testing.T) {
 	}
 }
 
-func TestParseWikiLinks(t *testing.T) {
-	text := "# Title\n\n[[other-doc]]\n\n[[doc#heading]]\n\n[[doc#heading|display title]]\n\n[[#local-heading]]\n"
-	elements, _, _ := Parse(text)
-
-	wikiLinks := filterWikiLinks(elements)
-	if len(wikiLinks) != 4 {
-		t.Fatalf("got %d wiki links, want 4", len(wikiLinks))
-	}
-	if wikiLinks[0].Doc != "other-doc" || wikiLinks[0].Heading != "" {
-		t.Errorf("wl[0] = {%q, %q}, want {\"other-doc\", \"\"}", wikiLinks[0].Doc, wikiLinks[0].Heading)
-	}
-	if wikiLinks[1].Doc != "doc" || wikiLinks[1].Heading != "heading" {
-		t.Errorf("wl[1] = {%q, %q}", wikiLinks[1].Doc, wikiLinks[1].Heading)
-	}
-	if wikiLinks[2].Doc != "doc" || wikiLinks[2].Heading != "heading" || wikiLinks[2].Title != "display title" {
-		t.Errorf("wl[2] = {%q, %q, %q}", wikiLinks[2].Doc, wikiLinks[2].Heading, wikiLinks[2].Title)
-	}
-	if wikiLinks[3].Doc != "" || wikiLinks[3].Heading != "local-heading" {
-		t.Errorf("wl[3] = {%q, %q}", wikiLinks[3].Doc, wikiLinks[3].Heading)
-	}
-}
-
 func TestParseMdLinks(t *testing.T) {
 	text := "# Title\n\n[link text](other.md)\n\n[anchor](other.md#section)\n\n[ref][label]\n"
 	elements, _, _ := Parse(text)
@@ -123,16 +101,6 @@ func filterHeadings(elems []Element) []*Heading {
 	for _, e := range elems {
 		if h, ok := e.(*Heading); ok {
 			result = append(result, h)
-		}
-	}
-	return result
-}
-
-func filterWikiLinks(elems []Element) []*WikiLink {
-	var result []*WikiLink
-	for _, e := range elems {
-		if w, ok := e.(*WikiLink); ok {
-			result = append(result, w)
 		}
 	}
 	return result

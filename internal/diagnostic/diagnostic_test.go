@@ -129,7 +129,7 @@ func TestConceptHasProcedure(t *testing.T) {
 
 func TestBrokenLink(t *testing.T) {
 	doc := makeDoc("file:///project/doc.md",
-		"# Title", "", "[[nonexistent]]")
+		"# Title", "", "[missing](nonexistent.md)")
 	f := makeFolder(doc)
 	diags := Check(doc, f)
 
@@ -141,19 +141,6 @@ func TestBrokenLink(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected BrokenLink diagnostic")
-	}
-}
-
-func TestValidLink(t *testing.T) {
-	doc1 := makeDoc("file:///project/intro.md", "# Intro", "", "Some text.")
-	doc2 := makeDoc("file:///project/doc.md", "# Doc", "", "[[intro]]")
-	f := makeFolder(doc1, doc2)
-	diags := Check(doc2, f)
-
-	for _, d := range diags {
-		if d.Code == CodeBrokenLink {
-			t.Errorf("should not report BrokenLink for valid wiki link, got: %s", d.Message)
-		}
 	}
 }
 
@@ -235,7 +222,7 @@ func TestLinkValidationDisabled(t *testing.T) {
 	cfg.Diagnostics.LinkValidation = &no
 
 	doc := makeDoc("file:///project/doc.md",
-		"# Title\n\n[[nonexistent]]\n")
+		"# Title\n\n[missing](nonexistent.md)\n")
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(doc)
 	diags := Check(doc, f)

@@ -18,8 +18,6 @@ func GetHover(doc *document.Document, pos document.Position, folder *workspace.F
 	elem := doc.ElementAt(pos)
 	if elem != nil {
 		switch el := elem.(type) {
-		case *document.WikiLink:
-			return hoverWikiLink(el, doc, folder)
 		case *document.MdLink:
 			return hoverMdLink(el, doc, folder)
 		case *document.Heading:
@@ -84,36 +82,6 @@ func posInYAMLRange(pos document.Position, r document.Range) bool {
 		return false
 	}
 	return true
-}
-
-func hoverWikiLink(wl *document.WikiLink, doc *document.Document, folder *workspace.Folder) string {
-	if wl.Doc == "" && wl.Heading != "" {
-		slug := paths.SlugOf(wl.Heading)
-		for _, h := range doc.Index.HeadingsBySlug(slug) {
-			return "**" + h.Text + "**"
-		}
-		return ""
-	}
-
-	targetSlug := paths.SlugOf(wl.Doc)
-	target := folder.DocBySlug(targetSlug)
-	if target == nil {
-		return ""
-	}
-
-	title := target.Index.Title()
-	if title != nil {
-		result := "**" + title.Text + "**"
-		if wl.Heading != "" {
-			hslug := paths.SlugOf(wl.Heading)
-			for _, h := range target.Index.HeadingsBySlug(hslug) {
-				result += " > " + h.Text
-			}
-		}
-		result += preview(target.Text)
-		return result
-	}
-	return ""
 }
 
 func hoverKeyref(kr *keyref.KeyrefAtPos, folder *workspace.Folder) string {

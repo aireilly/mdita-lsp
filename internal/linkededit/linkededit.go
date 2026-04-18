@@ -17,18 +17,5 @@ func GetLinkedRanges(doc *document.Document, pos document.Position) *LinkedEditi
 		return nil
 	}
 
-	var ranges []document.Range
-	ranges = append(ranges, heading.Range)
-
-	for _, wl := range doc.Index.WikiLinks() {
-		if wl.Doc == "" && wl.Heading == heading.Text {
-			ranges = append(ranges, wl.Range)
-		}
-	}
-
-	if len(ranges) <= 1 {
-		return nil
-	}
-
-	return &LinkedEditingRanges{Ranges: ranges}
+	return &LinkedEditingRanges{Ranges: []document.Range{heading.Range}}
 }

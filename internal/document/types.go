@@ -96,16 +96,6 @@ func (h *Heading) Rng() Range    { return h.Range }
 func (h *Heading) element()      {}
 func (h *Heading) IsTitle() bool { return h.Level == 1 }
 
-type WikiLink struct {
-	Doc     string
-	Heading string
-	Title   string
-	Range   Range
-}
-
-func (w *WikiLink) Rng() Range { return w.Range }
-func (w *WikiLink) element()   {}
-
 type MdLink struct {
 	Text   string
 	URL    string
@@ -191,8 +181,7 @@ const (
 type RefType int
 
 const (
-	RefWikiLink RefType = iota
-	RefMdLink
+	RefMdLink RefType = iota
 	RefKeyref
 )
 

@@ -16,32 +16,6 @@ func testFolder(docs ...*document.Document) *workspace.Folder {
 	return f
 }
 
-func TestWikiLinkRename(t *testing.T) {
-	referring := document.New("file:///project/index.md", 1,
-		"# Index\n\nSee [[install]] for details.\n")
-	target := document.New("file:///project/install.md", 1,
-		"# Install\n\nContent.\n")
-
-	folder := testFolder(referring, target)
-
-	edits := ComputeEdits([]FileRename{
-		{OldURI: "file:///project/install.md", NewURI: "file:///project/setup.md"},
-	}, folder)
-
-	if len(edits) != 1 {
-		t.Fatalf("expected 1 document edit, got %d", len(edits))
-	}
-	if edits[0].URI != "file:///project/index.md" {
-		t.Errorf("expected edit in index.md, got %s", edits[0].URI)
-	}
-	if len(edits[0].Edits) != 1 {
-		t.Fatalf("expected 1 text edit, got %d", len(edits[0].Edits))
-	}
-	if edits[0].Edits[0].NewText != "[[setup]]" {
-		t.Errorf("expected [[setup]], got %s", edits[0].Edits[0].NewText)
-	}
-}
-
 func TestMdLinkRename(t *testing.T) {
 	referring := document.New("file:///project/index.md", 1,
 		"# Index\n\nSee [install guide](./install.md) for details.\n")
@@ -158,25 +132,5 @@ func TestMdLinkRenameMoveDir(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("expected md link to be updated for dir move, got %v", edits[0].Edits)
-	}
-}
-
-func TestWikiLinkWithHeading(t *testing.T) {
-	referring := document.New("file:///project/index.md", 1,
-		"# Index\n\nSee [[install#prerequisites]] for details.\n")
-	target := document.New("file:///project/install.md", 1,
-		"# Install\n\n## Prerequisites\n\nContent.\n")
-
-	folder := testFolder(referring, target)
-
-	edits := ComputeEdits([]FileRename{
-		{OldURI: "file:///project/install.md", NewURI: "file:///project/setup.md"},
-	}, folder)
-
-	if len(edits) != 1 {
-		t.Fatalf("expected 1 document edit, got %d", len(edits))
-	}
-	if edits[0].Edits[0].NewText != "[[setup#prerequisites]]" {
-		t.Errorf("expected [[setup#prerequisites]], got %s", edits[0].Edits[0].NewText)
 	}
 }

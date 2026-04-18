@@ -32,8 +32,7 @@ type MditaConfig struct {
 }
 
 type CompletionConfig struct {
-	WikiStyle     string `yaml:"wiki_style"`
-	MaxCandidates int    `yaml:"max_candidates"`
+	MaxCandidates int `yaml:"max_candidates"`
 }
 
 type CodeActionsConfig struct {
@@ -91,7 +90,6 @@ func Default() *Config {
 			},
 		},
 		Completion: CompletionConfig{
-			WikiStyle:     "title-slug",
 			MaxCandidates: 50,
 		},
 		CodeActions: CodeActionsConfig{
@@ -165,9 +163,6 @@ func Merge(base, overlay *Config) *Config {
 		merged.Core.Mdita.MapExtensions = overlay.Core.Mdita.MapExtensions
 	}
 
-	if overlay.Completion.WikiStyle != "" {
-		merged.Completion.WikiStyle = overlay.Completion.WikiStyle
-	}
 	if overlay.Completion.MaxCandidates != 0 {
 		merged.Completion.MaxCandidates = overlay.Completion.MaxCandidates
 	}

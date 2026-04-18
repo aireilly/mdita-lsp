@@ -9,9 +9,7 @@ import (
 type PartialKind int
 
 const (
-	PartialWikiLink PartialKind = iota
-	PartialWikiHeading
-	PartialInlineLink
+	PartialInlineLink PartialKind = iota
 	PartialInlineAnchor
 	PartialRefLink
 	PartialYamlKey
@@ -46,23 +44,6 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 			}
 		}
 		return nil
-	}
-
-	if idx := strings.LastIndex(prefix, "[["); idx >= 0 {
-		if !strings.Contains(prefix[idx:], "]]") {
-			content := prefix[idx+2:]
-			if hashIdx := strings.Index(content, "#"); hashIdx >= 0 {
-				return &PartialElement{
-					Kind:    PartialWikiHeading,
-					DocPart: content[:hashIdx],
-					Input:   content[hashIdx+1:],
-				}
-			}
-			return &PartialElement{
-				Kind:  PartialWikiLink,
-				Input: content,
-			}
-		}
 	}
 
 	if idx := strings.LastIndex(prefix, "]("); idx >= 0 {

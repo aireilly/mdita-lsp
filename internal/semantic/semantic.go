@@ -7,11 +7,10 @@ import (
 )
 
 const (
-	TokenTypeWikiLink = 0
-	TokenTypeRefLink  = 1
+	TokenTypeRefLink = 0
 )
 
-var TokenTypes = []string{"class", "class"}
+var TokenTypes = []string{"class"}
 
 type token struct {
 	line   int
@@ -37,18 +36,6 @@ func EncodeRange(doc *document.Document, rng document.Range) []uint32 {
 
 func collectTokens(doc *document.Document) []token {
 	var tokens []token
-
-	for _, wl := range doc.Index.WikiLinks() {
-		r := wl.Range
-		if r.Start.Line == r.End.Line {
-			tokens = append(tokens, token{
-				line:   r.Start.Line,
-				char:   r.Start.Character,
-				length: r.End.Character - r.Start.Character,
-				typ:    TokenTypeWikiLink,
-			})
-		}
-	}
 
 	sort.Slice(tokens, func(i, j int) bool {
 		if tokens[i].line != tokens[j].line {

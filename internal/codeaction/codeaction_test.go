@@ -30,7 +30,7 @@ func TestGenerateToC(t *testing.T) {
 
 func TestGetActions(t *testing.T) {
 	doc := document.New("file:///project/doc.md", 1,
-		"# Title\n\n## Section\n\n[[missing-doc]]\n")
+		"# Title\n\n## Section\n")
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(doc)
@@ -47,33 +47,6 @@ func TestGetActions(t *testing.T) {
 	}
 	if !foundToC {
 		t.Error("missing ToC action")
-	}
-}
-
-func TestConvertWikiLinkAction(t *testing.T) {
-	source := document.New("file:///project/index.md", 1,
-		"# Index\n\nSee [[install]] for details.\n")
-	target := document.New("file:///project/install.md", 1,
-		"# Install\n\nContent.\n")
-	cfg := config.Default()
-	f := workspace.NewFolder("file:///project", cfg)
-	f.AddDoc(source)
-	f.AddDoc(target)
-
-	actions := GetActions(source, document.Rng(2, 4, 2, 15), f)
-	found := false
-	for _, a := range actions {
-		if a.Title == "Convert to markdown link" {
-			found = true
-			if a.Edit == nil {
-				t.Error("expected edit")
-			} else if !strings.Contains(a.Edit.NewText, "install.md") {
-				t.Errorf("expected markdown link, got %s", a.Edit.NewText)
-			}
-		}
-	}
-	if !found {
-		t.Error("missing convert wiki link action")
 	}
 }
 

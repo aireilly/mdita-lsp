@@ -1,6 +1,7 @@
 package codeaction
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/aireilly/mdita-lsp/internal/config"
@@ -62,26 +63,16 @@ func GetActions(doc *document.Document, rng document.Range, folder *workspace.Fo
 	}
 
 	if config.BoolVal(cfg.CodeActions.CreateMissingFile.Enable) {
-		for _, wl := range doc.Index.WikiLinks() {
-			if rangesOverlap(rng, wl.Range) && wl.Doc != "" {
-				target := folder.DocBySlug(paths.SlugOf(wl.Doc))
+		for _, ml := range doc.Index.MdLinks() {
+			if rangesOverlap(rng, ml.Range) && ml.URL != "" {
+				target := folder.ResolveLink(ml.URL, doc.URI)
 				if target == nil {
-					actions = append(actions, CodeAction{
-						Title:  "Create '" + wl.Doc + ".md'",
-						Kind:   "quickfix",
-						DocURI: doc.URI,
-						Command: &Command{
-							Title:     "Create file",
-							Command:   "mdita-lsp.createFile",
-							Arguments: []string{wl.Doc + ".md"},
-						},
-					})
+					actions = append(actions, createMissingFileAction(ml.URL, doc.URI, folder))
 				}
 			}
 		}
 	}
 
-	actions = append(actions, convertWikiLinkActions(doc, rng, folder)...)
 	actions = append(actions, addFrontMatterAction(doc)...)
 	actions = append(actions, addToMapActions(doc, folder)...)
 	actions = append(actions, fixNBSPActions(doc, rng)...)
@@ -89,38 +80,6 @@ func GetActions(doc *document.Document, rng document.Range, folder *workspace.Fo
 	actions = append(actions, fixHeadingHierarchyActions(doc, rng)...)
 	actions = append(actions, buildDitaOTActions(doc, folder)...)
 
-	return actions
-}
-
-func convertWikiLinkActions(doc *document.Document, rng document.Range, folder *workspace.Folder) []CodeAction {
-	var actions []CodeAction
-	for _, wl := range doc.Index.WikiLinks() {
-		if !rangesOverlap(rng, wl.Range) || wl.Doc == "" {
-			continue
-		}
-		target := folder.DocBySlug(paths.SlugOf(wl.Doc))
-		if target == nil {
-			continue
-		}
-		targetID := target.DocID(folder.RootURI)
-		url := targetID.RelPath
-		if wl.Heading != "" {
-			url += "#" + paths.Slugify(wl.Heading)
-		}
-		title := wl.Doc
-		if wl.Title != "" {
-			title = wl.Title
-		}
-		actions = append(actions, CodeAction{
-			Title:  "Convert to markdown link",
-			Kind:   "refactor",
-			DocURI: doc.URI,
-			Edit: &TextEdit{
-				Range:   wl.Range,
-				NewText: "[" + title + "](" + url + ")",
-			},
-		})
-	}
 	return actions
 }
 
@@ -305,6 +264,24 @@ func buildDitaOTActions(doc *document.Document, folder *workspace.Folder) []Code
 				Command:   "mdita-lsp.ditaOtBuild",
 				Arguments: []string{doc.URI, "dita"},
 			},
+		},
+	}
+}
+
+func createMissingFileAction(relPath string, sourceURI string, folder *workspace.Folder) CodeAction {
+	srcPath, _ := paths.URIToPath(sourceURI)
+	srcDir := filepath.Dir(srcPath)
+	fullPath := filepath.Clean(filepath.Join(srcDir, relPath))
+	fileURI := paths.PathToURI(fullPath)
+
+	return CodeAction{
+		Title:  "Create '" + relPath + "'",
+		Kind:   "quickfix",
+		DocURI: sourceURI,
+		Command: &Command{
+			Title:     "Create file",
+			Command:   "mdita-lsp.createFile",
+			Arguments: []string{fileURI},
 		},
 	}
 }

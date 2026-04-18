@@ -3,8 +3,10 @@ package codelens
 import (
 	"testing"
 
+	"github.com/aireilly/mdita-lsp/internal/config"
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/symbols"
+	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
 func TestCodeLens(t *testing.T) {
@@ -20,16 +22,22 @@ func TestCodeLens(t *testing.T) {
 
 func TestCodeLensRefCount(t *testing.T) {
 	doc1 := document.New("file:///project/intro.md", 1, "# Introduction\n\nContent.\n")
-	doc2 := document.New("file:///project/a.md", 1, "# A\n\n[[intro#introduction]]\n")
-	doc3 := document.New("file:///project/b.md", 1, "# B\n\n[[intro#introduction]]\n")
+	doc2 := document.New("file:///project/a.md", 1, "# A\n\n[link](intro.md)\n")
+	doc3 := document.New("file:///project/b.md", 1, "# B\n\n[link](intro.md)\n")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc1)
+	f.AddDoc(doc2)
+	f.AddDoc(doc3)
 
 	g := symbols.NewGraph()
-	for _, d := range []*document.Document{doc1, doc2, doc3} {
+	for _, d := range f.AllDocs() {
 		g.AddDefs(d.URI, d.Defs())
 		g.AddRefs(d.URI, d.Refs())
 	}
 
-	lenses := GetLenses(doc1, g, nil)
+	lenses := GetLenses(doc1, g, f)
 	if len(lenses) == 0 {
 		t.Fatal("expected at least one lens")
 	}

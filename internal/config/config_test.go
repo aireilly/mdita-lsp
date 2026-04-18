@@ -15,7 +15,6 @@ core:
     enable: true
     map_extensions: [mditamap, ditamap]
 completion:
-  wiki_style: file-stem
   max_candidates: 100
 code_actions:
   toc:
@@ -37,9 +36,6 @@ diagnostics:
 	}
 	if cfg.Core.Markdown.TitleFromHeading != false {
 		t.Errorf("TitleFromHeading = %v, want false", cfg.Core.Markdown.TitleFromHeading)
-	}
-	if cfg.Completion.WikiStyle != "file-stem" {
-		t.Errorf("WikiStyle = %q, want %q", cfg.Completion.WikiStyle, "file-stem")
 	}
 	if cfg.Completion.MaxCandidates != 100 {
 		t.Errorf("MaxCandidates = %d, want 100", cfg.Completion.MaxCandidates)
@@ -79,13 +75,9 @@ func TestMerge(t *testing.T) {
 	base := Default()
 	overlay, _ := Parse([]byte(`
 completion:
-  wiki_style: file-path-stem
   max_candidates: 25
 `))
 	merged := Merge(base, overlay)
-	if merged.Completion.WikiStyle != "file-path-stem" {
-		t.Errorf("merged WikiStyle = %q, want %q", merged.Completion.WikiStyle, "file-path-stem")
-	}
 	if merged.Completion.MaxCandidates != 25 {
 		t.Errorf("merged MaxCandidates = %d, want 25", merged.Completion.MaxCandidates)
 	}
@@ -136,7 +128,7 @@ func TestMergeUnsetBoolPreservesBase(t *testing.T) {
 	base := Default()
 	overlay, _ := Parse([]byte(`
 completion:
-  wiki_style: custom
+  max_candidates: 10
 `))
 	merged := Merge(base, overlay)
 

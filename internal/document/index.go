@@ -5,7 +5,6 @@ import "github.com/aireilly/mdita-lsp/internal/paths"
 type Index struct {
 	headings     []*Heading
 	headingSlug  map[paths.Slug][]*Heading
-	wikiLinks    []*WikiLink
 	mdLinks      []*MdLink
 	linkDefs     []*LinkDef
 	linkDefLabel map[string]*LinkDef
@@ -30,8 +29,6 @@ func BuildIndex(elements []Element, bf *BlockFeatures, meta *YAMLMetadata) *Inde
 		case *Heading:
 			idx.headings = append(idx.headings, el)
 			idx.headingSlug[el.Slug] = append(idx.headingSlug[el.Slug], el)
-		case *WikiLink:
-			idx.wikiLinks = append(idx.wikiLinks, el)
 		case *MdLink:
 			idx.mdLinks = append(idx.mdLinks, el)
 		case *LinkDef:
@@ -59,10 +56,6 @@ func (idx *Index) Title() *Heading {
 	return nil
 }
 
-func (idx *Index) WikiLinks() []*WikiLink {
-	return idx.wikiLinks
-}
-
 func (idx *Index) MdLinks() []*MdLink {
 	return idx.mdLinks
 }
@@ -77,9 +70,6 @@ func (idx *Index) LinkDefByLabel(label string) *LinkDef {
 
 func (idx *Index) AllLinks() []Element {
 	var links []Element
-	for _, w := range idx.wikiLinks {
-		links = append(links, w)
-	}
 	for _, m := range idx.mdLinks {
 		links = append(links, m)
 	}

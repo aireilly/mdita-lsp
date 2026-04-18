@@ -712,10 +712,10 @@ func (s *Server) handleCompletion(_ context.Context, rawParams json.RawMessage) 
 	results := make([]CompletionItemResult, 0, len(items))
 	for _, item := range items {
 		r := CompletionItemResult{
-			Label:      item.Label,
-			Detail:     item.Detail,
-			Kind:       item.Kind,
-			Data:       item.Data,
+			Label:  item.Label,
+			Detail: item.Detail,
+			Kind:   item.Kind,
+			Data:   item.Data,
 		}
 		if item.TextEdit != nil {
 			r.TextEdit = &CompletionTextEdit{
@@ -965,19 +965,6 @@ func (s *Server) handleDocumentLink(_ context.Context, rawParams json.RawMessage
 	}
 
 	results := make([]DocumentLinkResult, 0)
-	for _, wl := range doc.Index.WikiLinks() {
-		if wl.Doc == "" {
-			continue
-		}
-		targetSlug := paths.SlugOf(wl.Doc)
-		target := folder.DocBySlug(targetSlug)
-		if target != nil {
-			results = append(results, DocumentLinkResult{
-				Range:  wl.Range,
-				Target: target.URI,
-			})
-		}
-	}
 	for _, ml := range doc.Index.MdLinks() {
 		if ml.URL != "" && !isExternalURL(ml.URL) {
 			if target := folder.ResolveLink(ml.URL, doc.URI); target != nil {
@@ -1272,25 +1259,22 @@ func (s *Server) executeCreateFile(args []string) (any, error) {
 	if len(args) < 1 {
 		return nil, nil
 	}
-	filename := args[0]
-
-	var folder *workspace.Folder
-	for _, f := range s.workspace.Folders() {
-		folder = f
-		break
-	}
-	if folder == nil {
+	fileURI := args[0]
+	filePath, err := paths.URIToPath(fileURI)
+	if err != nil {
 		return nil, nil
 	}
-
-	rootPath := folder.RootPath()
-	filePath := filepath.Join(rootPath, filename)
 
 	if _, err := os.Stat(filePath); err == nil {
 		return nil, nil
 	}
 
-	stem := filepath.Base(filename)
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, err
+	}
+
+	stem := filepath.Base(filePath)
 	ext := filepath.Ext(stem)
 	title := stem[:len(stem)-len(ext)]
 
@@ -1298,17 +1282,23 @@ func (s *Server) executeCreateFile(args []string) (any, error) {
 	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
 		return nil, err
 	}
-	s.logMessage(LogInfo, "Created file: "+filename)
+	s.logMessage(LogInfo, "Created file: "+filePath)
 
-	uri := paths.PathToURI(filePath)
-	doc := document.New(uri, 0, content)
-	folder.AddDoc(doc)
-	s.graph.AddDefs(uri, doc.Defs())
-	s.graph.AddRefs(uri, doc.Refs())
+	doc := document.New(fileURI, 0, content)
+	var folder *workspace.Folder
+	for _, f := range s.workspace.Folders() {
+		folder = f
+		break
+	}
+	if folder != nil {
+		folder.AddDoc(doc)
+	}
+	s.graph.AddDefs(fileURI, doc.Defs())
+	s.graph.AddRefs(fileURI, doc.Refs())
 
 	s.notify("window/showMessage", ShowMessageParams{
 		Type:    3,
-		Message: "Created " + filename,
+		Message: "Created " + filePath,
 	})
 	return nil, nil
 }

@@ -35,9 +35,6 @@ func ComputeEdits(renames []FileRename, folder *workspace.Folder) []DocumentEdit
 func computeOneRename(r FileRename, folder *workspace.Folder) []DocumentEdit {
 	oldPath, _ := paths.URIToPath(r.OldURI)
 	newPath, _ := paths.URIToPath(r.NewURI)
-	oldStem := stemOf(oldPath)
-	newStem := stemOf(newPath)
-	oldSlug := paths.SlugOf(oldStem)
 	editsByURI := make(map[string][]TextEdit)
 
 	for _, doc := range folder.AllDocs() {
@@ -46,13 +43,6 @@ func computeOneRename(r FileRename, folder *workspace.Folder) []DocumentEdit {
 		}
 		for _, elem := range doc.Elements {
 			switch el := elem.(type) {
-			case *document.WikiLink:
-				if el.Doc != "" && paths.SlugOf(el.Doc) == oldSlug {
-					editsByURI[doc.URI] = append(editsByURI[doc.URI], TextEdit{
-						Range:   el.Range,
-						NewText: buildWikiLink(newStem, el.Heading, el.Title),
-					})
-				}
 			case *document.MdLink:
 				if matchesMdLink(el, oldPath, doc.URI) {
 					newRel := computeRelPath(doc.URI, newPath)
@@ -98,27 +88,6 @@ func computeRelPath(docURI, targetPath string) string {
 		rel = "./" + rel
 	}
 	return rel
-}
-
-func stemOf(path string) string {
-	base := filepath.Base(path)
-	ext := filepath.Ext(base)
-	return strings.TrimSuffix(base, ext)
-}
-
-func buildWikiLink(doc, heading, title string) string {
-	s := "[["
-	if doc != "" {
-		s += doc
-	}
-	if heading != "" {
-		s += "#" + heading
-	}
-	if title != "" {
-		s += "|" + title
-	}
-	s += "]]"
-	return s
 }
 
 func buildMdLink(text, url string) string {

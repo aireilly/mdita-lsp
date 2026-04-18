@@ -56,15 +56,15 @@ func TestDocumentApplyFullChange(t *testing.T) {
 }
 
 func TestDocumentSymbols(t *testing.T) {
-	doc := New("file:///test/doc.md", 1, "# Title\n\n## Section\n\n[[other]]\n\n[link](foo.md)\n")
+	doc := New("file:///test/doc.md", 1, "# Title\n\n## Section\n\n[link](foo.md)\n")
 	defs := doc.Defs()
 	refs := doc.Refs()
 
 	if len(defs) < 2 {
 		t.Errorf("Defs = %d, want >= 2 (doc + headings)", len(defs))
 	}
-	if len(refs) < 2 {
-		t.Errorf("Refs = %d, want >= 2 (wiki link + md link)", len(refs))
+	if len(refs) < 1 {
+		t.Errorf("Refs = %d, want >= 1 (md link)", len(refs))
 	}
 }
 

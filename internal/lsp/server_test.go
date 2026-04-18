@@ -55,7 +55,7 @@ func TestDidOpenAndDiagnostics(t *testing.T) {
 			"uri": "file:///tmp/test/doc.md",
 			"languageId": "markdown",
 			"version": 1,
-			"text": "# Title\n\n[[nonexistent]]\n"
+			"text": "# Title\n\n[link](nonexistent.md)\n"
 		}
 	}`)
 
@@ -91,13 +91,13 @@ func TestCompletion(t *testing.T) {
 			"uri": "file:///tmp/test/doc.md",
 			"languageId": "markdown",
 			"version": 1,
-			"text": "# Doc\n\n[[int"
+			"text": "# Doc\n\n[link]("
 		}
 	}`))
 
 	result, err := s.handleCompletion(context.Background(), json.RawMessage(`{
 		"textDocument": {"uri": "file:///tmp/test/doc.md"},
-		"position": {"line": 2, "character": 5}
+		"position": {"line": 2, "character": 7}
 	}`))
 	if err != nil {
 		t.Fatalf("Completion error: %v", err)

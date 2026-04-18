@@ -37,10 +37,6 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 	}
 
 	switch pe.Kind {
-	case PartialWikiLink:
-		return completeWikiDoc(pe.Input, doc, folder)
-	case PartialWikiHeading:
-		return completeWikiHeading(pe.DocPart, pe.Input, doc, folder)
 	case PartialInlineLink:
 		return completeInlineDoc(pe.Input, doc, folder)
 	case PartialInlineAnchor:
@@ -51,62 +47,6 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 		return completeKeyref(pe.Input, doc, folder, pe.Range)
 	}
 	return nil
-}
-
-func completeWikiDoc(input string, doc *document.Document, folder *workspace.Folder) []CompletionItem {
-	var items []CompletionItem
-	inputSlug := paths.SlugOf(input)
-	for _, d := range folder.AllDocs() {
-		if d.URI == doc.URI {
-			continue
-		}
-		id := d.DocID(folder.RootURI)
-		if inputSlug == "" || id.Slug.Contains(inputSlug) {
-			title := ""
-			if t := d.Index.Title(); t != nil {
-				title = t.Text
-			}
-			items = append(items, CompletionItem{
-				Label:      id.Stem,
-				Detail:     title,
-				InsertText: id.Stem,
-				Kind:       17,
-				Data:       map[string]string{"kind": "wiki-doc"},
-			})
-		}
-	}
-	return items
-}
-
-func completeWikiHeading(docPart, input string, doc *document.Document, folder *workspace.Folder) []CompletionItem {
-	var target *document.Document
-	if docPart == "" {
-		target = doc
-	} else {
-		target = folder.DocBySlug(paths.SlugOf(docPart))
-	}
-	if target == nil {
-		return nil
-	}
-
-	inputSlug := paths.SlugOf(input)
-	docStem := ""
-	if docPart != "" {
-		docStem = docPart
-	}
-	var items []CompletionItem
-	for _, h := range target.Index.Headings() {
-		if inputSlug == "" || h.Slug.Contains(inputSlug) {
-			items = append(items, CompletionItem{
-				Label:      h.ID,
-				Detail:     h.Text,
-				InsertText: h.ID,
-				Kind:       17,
-				Data:       map[string]string{"kind": "heading", "doc": docStem},
-			})
-		}
-	}
-	return items
 }
 
 func completeInlineDoc(input string, doc *document.Document, folder *workspace.Folder) []CompletionItem {
@@ -146,7 +86,7 @@ func completeInlineAnchor(docPart, input string, doc *document.Document, folder 
 		target = folder.ResolveLink(docPart, doc.URI)
 	}
 	if target == nil {
-		return completeWikiHeading(docPart, input, doc, folder)
+		return nil
 	}
 
 	inputSlug := paths.SlugOf(input)

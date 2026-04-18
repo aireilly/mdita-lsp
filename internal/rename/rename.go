@@ -2,7 +2,6 @@ package rename
 
 import (
 	"github.com/aireilly/mdita-lsp/internal/document"
-	"github.com/aireilly/mdita-lsp/internal/paths"
 	"github.com/aireilly/mdita-lsp/internal/symbols"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
@@ -51,31 +50,6 @@ func DoRename(doc *document.Document, pos document.Position, newName string, fol
 		NewText: headingPrefix(heading.Level) + newName,
 	})
 
-	oldSlug := heading.Slug
-	refs := graph.FindRefs(document.Symbol{Slug: oldSlug})
-	newSlug := paths.Slugify(newName)
-
-	for _, ref := range refs {
-		refDoc := folder.DocByURI(ref.DocURI)
-		if refDoc == nil {
-			continue
-		}
-		elem := refDoc.ElementAt(ref.Range.Start)
-		if elem == nil {
-			continue
-		}
-		switch el := elem.(type) {
-		case *document.WikiLink:
-			if el.Heading != "" && paths.SlugOf(el.Heading) == oldSlug {
-				edits = append(edits, TextEdit{
-					URI:     ref.DocURI,
-					Range:   el.Range,
-					NewText: buildWikiLink(el.Doc, newSlug, el.Title),
-				})
-			}
-		}
-	}
-
 	return edits
 }
 
@@ -85,19 +59,4 @@ func headingPrefix(level int) string {
 		s += "#"
 	}
 	return s + " "
-}
-
-func buildWikiLink(doc, heading, title string) string {
-	s := "[["
-	if doc != "" {
-		s += doc
-	}
-	if heading != "" {
-		s += "#" + heading
-	}
-	if title != "" {
-		s += "|" + title
-	}
-	s += "]]"
-	return s
 }

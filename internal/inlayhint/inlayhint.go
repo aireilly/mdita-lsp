@@ -3,7 +3,6 @@ package inlayhint
 import (
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
-	"github.com/aireilly/mdita-lsp/internal/paths"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
@@ -29,22 +28,6 @@ func GetHints(doc *document.Document, rng document.Range, folder *workspace.Fold
 		}
 
 		switch el := elem.(type) {
-		case *document.WikiLink:
-			if el.Doc != "" {
-				target := folder.DocBySlug(paths.SlugOf(el.Doc))
-				if target != nil {
-					if t := target.Index.Title(); t != nil && t.Text != el.Doc {
-						hints = append(hints, InlayHint{
-							Position: document.Position{
-								Line:      el.Range.End.Line,
-								Character: el.Range.End.Character,
-							},
-							Label: " → " + t.Text,
-							Kind:  KindType,
-						})
-					}
-				}
-			}
 		case *document.MdLink:
 			if el.URL == "" {
 				continue

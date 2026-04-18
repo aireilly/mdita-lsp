@@ -43,12 +43,10 @@ func TestPrepareRenameLink(t *testing.T) {
 
 func TestRename(t *testing.T) {
 	doc1 := document.New("file:///project/intro.md", 1, "# Introduction\n\n## Details\n")
-	doc2 := document.New("file:///project/guide.md", 1, "# Guide\n\n[[intro#details]]\n")
 
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
 	f.AddDoc(doc1)
-	f.AddDoc(doc2)
 	g := symbols.NewGraph()
 	for _, d := range f.AllDocs() {
 		g.AddDefs(d.URI, d.Defs())
@@ -62,19 +60,12 @@ func TestRename(t *testing.T) {
 	}
 
 	foundHeading := false
-	foundRef := false
 	for _, e := range edits {
 		if e.URI == doc1.URI {
 			foundHeading = true
 		}
-		if e.URI == doc2.URI {
-			foundRef = true
-		}
 	}
 	if !foundHeading {
 		t.Error("missing edit for heading document")
-	}
-	if !foundRef {
-		t.Error("missing edit for referencing document")
 	}
 }

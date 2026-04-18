@@ -47,19 +47,6 @@ func TestIndexNoTitle(t *testing.T) {
 	}
 }
 
-func TestIndexWikiLinks(t *testing.T) {
-	elements := []Element{
-		&WikiLink{Doc: "other", Heading: "section"},
-		&WikiLink{Doc: "another"},
-	}
-	idx := BuildIndex(elements, nil, nil)
-
-	wl := idx.WikiLinks()
-	if len(wl) != 2 {
-		t.Errorf("WikiLinks() returned %d, want 2", len(wl))
-	}
-}
-
 func TestIndexShortDescription(t *testing.T) {
 	idx := BuildIndex(nil, nil, nil)
 	idx.ShortDesc = "This is the short description."
@@ -72,7 +59,6 @@ func TestIndexAllHeadings(t *testing.T) {
 	elements := []Element{
 		&Heading{Level: 1, Text: "T", Slug: paths.SlugOf("T")},
 		&Heading{Level: 2, Text: "S", Slug: paths.SlugOf("S")},
-		&WikiLink{Doc: "x"},
 	}
 	idx := BuildIndex(elements, nil, nil)
 	if len(idx.Headings()) != 2 {

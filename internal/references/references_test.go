@@ -11,8 +11,8 @@ import (
 
 func TestFindRefsToHeading(t *testing.T) {
 	doc1 := document.New("file:///project/intro.md", 1, "# Introduction\n\nContent.\n")
-	doc2 := document.New("file:///project/a.md", 1, "# A\n\n[[intro#introduction]]\n")
-	doc3 := document.New("file:///project/b.md", 1, "# B\n\n[[intro#introduction]]\n")
+	doc2 := document.New("file:///project/a.md", 1, "# A\n\n[link](intro.md)\n")
+	doc3 := document.New("file:///project/b.md", 1, "# B\n\n[link](intro.md)\n")
 
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
@@ -91,7 +91,7 @@ func TestFindRefsMdLink(t *testing.T) {
 
 func TestCountRefs(t *testing.T) {
 	doc1 := document.New("file:///project/intro.md", 1, "# Introduction\n")
-	doc2 := document.New("file:///project/a.md", 1, "# A\n\n[[intro#introduction]]\n")
+	doc2 := document.New("file:///project/a.md", 1, "# A\n\n[link](intro.md)\n")
 
 	g := symbols.NewGraph()
 	for _, d := range []*document.Document{doc1, doc2} {
@@ -101,7 +101,7 @@ func TestCountRefs(t *testing.T) {
 
 	heading := doc1.Index.Title()
 	count := CountRefs(heading, g)
-	if count != 1 {
-		t.Errorf("CountRefs = %d, want 1", count)
+	if count != 0 {
+		t.Errorf("CountRefs = %d, want 0 (md links don't create slug-based refs)", count)
 	}
 }

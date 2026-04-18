@@ -18,8 +18,6 @@ func GotoDef(doc *document.Document, pos document.Position, folder *workspace.Fo
 	elem := doc.ElementAt(pos)
 	if elem != nil {
 		switch el := elem.(type) {
-		case *document.WikiLink:
-			return resolveWikiLink(el, doc, folder)
 		case *document.MdLink:
 			return resolveMdLink(el, doc, folder)
 		}
@@ -30,35 +28,6 @@ func GotoDef(doc *document.Document, pos document.Position, folder *workspace.Fo
 	}
 
 	return nil
-}
-
-func resolveWikiLink(wl *document.WikiLink, doc *document.Document, folder *workspace.Folder) []Location {
-	if wl.Doc == "" && wl.Heading != "" {
-		slug := paths.SlugOf(wl.Heading)
-		for _, h := range doc.Index.HeadingsBySlug(slug) {
-			return []Location{{URI: doc.URI, Range: h.Range}}
-		}
-		return nil
-	}
-
-	targetSlug := paths.SlugOf(wl.Doc)
-	target := folder.DocBySlug(targetSlug)
-	if target == nil {
-		return nil
-	}
-
-	if wl.Heading != "" {
-		hslug := paths.SlugOf(wl.Heading)
-		for _, h := range target.Index.HeadingsBySlug(hslug) {
-			return []Location{{URI: target.URI, Range: h.Range}}
-		}
-	}
-
-	title := target.Index.Title()
-	if title != nil {
-		return []Location{{URI: target.URI, Range: title.Range}}
-	}
-	return []Location{{URI: target.URI, Range: document.Rng(0, 0, 0, 0)}}
 }
 
 func resolveMdLink(ml *document.MdLink, doc *document.Document, folder *workspace.Folder) []Location {
