@@ -91,6 +91,8 @@ diagnostics:
   mdita_compliance: true
   ditamap_validation: true
   keyref_resolution: true
+  link_validation: true
+  nbsp_detection: true
 ```
 
 ## Features
@@ -100,7 +102,7 @@ diagnostics:
 | Diagnostics | 19 codes: MDITA compliance, link validation, heading hierarchy, footnotes, keyrefs, ditamap validation, map heading consistency |
 | Completion | Wiki links (`[[`), inline links (`](`), YAML keys, heading anchors (`#`), keyrefs (`[`) with lazy documentation resolve |
 | Go to Definition | Wiki links, markdown links, and keyref shortcut references |
-| Hover | Document titles, heading text, keyref targets with href/title |
+| Hover | Document titles, heading text, keyref targets, YAML front matter keys |
 | Find References | All references to a heading across the workspace |
 | Rename | Heading rename with cross-document wiki link updates |
 | Code Actions | Generate ToC, create missing files, convert wiki→markdown links, add YAML front matter, add to mditamap, quick-fix NBSP/footnotes/heading hierarchy |
@@ -165,7 +167,7 @@ Keys are derived from filenames (e.g., `install.md` → key `install`). Use `[in
 
 ```bash
 make build     # Build binary
-make test      # Run 222 tests with race detection
+make test      # Run 226 tests with race detection
 make lint      # Run golangci-lint
 make publish   # Cross-compile for 5 platforms (~3.5 MB each)
 make clean     # Remove build artifacts
