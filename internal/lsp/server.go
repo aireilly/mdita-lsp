@@ -113,6 +113,7 @@ type WorkspaceCapabilities struct {
 }
 
 type FileOperationCapabilities struct {
+	WillCreate *FileOperationRegistration `json:"willCreate,omitempty"`
 	DidCreate  *FileOperationRegistration `json:"didCreate,omitempty"`
 	DidDelete  *FileOperationRegistration `json:"didDelete,omitempty"`
 	WillRename *FileOperationRegistration `json:"willRename,omitempty"`
@@ -381,6 +382,11 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			},
 			Workspace: &WorkspaceCapabilities{
 				FileOperations: &FileOperationCapabilities{
+					WillCreate: &FileOperationRegistration{
+						Filters: []FileOperationFilter{
+							{Pattern: FileOperationPattern{Glob: "**/*.md"}},
+						},
+					},
 					DidCreate: &FileOperationRegistration{
 						Filters: []FileOperationFilter{
 							{Pattern: FileOperationPattern{Glob: "**/*.md"}},
@@ -524,6 +530,52 @@ func (s *Server) handleDidChangeWorkspaceFolders(_ context.Context, rawParams js
 	for _, f := range params.Event.Added {
 		s.addWorkspaceFolder(f.URI)
 	}
+	return nil
+}
+
+func (s *Server) handleWillCreateFiles(_ context.Context, rawParams json.RawMessage) (any, error) {
+	var params struct {
+		Files []struct {
+			URI string `json:"uri"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	changes := make(map[string][]TextEditResult)
+	for _, f := range params.Files {
+		if !paths.IsMarkdownURI(f.URI) {
+			continue
+		}
+		filePath, err := paths.URIToPath(f.URI)
+		if err != nil {
+			continue
+		}
+		stem := filepath.Base(filePath)
+		ext := filepath.Ext(stem)
+		title := stem[:len(stem)-len(ext)]
+
+		content := "---\n$schema: \"urn:oasis:names:tc:mdita:rng:topic.rng\"\n---\n\n# " + title + "\n\n"
+		changes[f.URI] = []TextEditResult{{
+			Range:   document.Rng(0, 0, 0, 0),
+			NewText: content,
+		}}
+	}
+
+	if len(changes) == 0 {
+		return nil, nil
+	}
+	return WorkspaceEditResult{Changes: changes}, nil
+}
+
+func (s *Server) handleDidChangeConfiguration(_ context.Context, _ json.RawMessage) error {
+	for _, folder := range s.workspace.Folders() {
+		rootPath := folder.RootPath()
+		folder.Config = config.LoadMerged(rootPath)
+		s.refreshRelatedDiagnostics(folder)
+	}
+	s.logMessage(LogInfo, "Configuration reloaded")
 	return nil
 }
 

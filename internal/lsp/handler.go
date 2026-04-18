@@ -133,6 +133,8 @@ func (s *Server) dispatch(ctx context.Context, method string, params json.RawMes
 		return s.handleExecuteCommand(ctx, params)
 	case "workspace/willRenameFiles":
 		return s.handleWillRenameFiles(ctx, params)
+	case "workspace/willCreateFiles":
+		return s.handleWillCreateFiles(ctx, params)
 	case "shutdown":
 		return nil, nil
 	default:
@@ -158,6 +160,8 @@ func (s *Server) dispatchNotification(ctx context.Context, method string, params
 		s.handleDidCreateFiles(ctx, params)
 	case "workspace/didDeleteFiles":
 		s.handleDidDeleteFiles(ctx, params)
+	case "workspace/didChangeConfiguration":
+		s.handleDidChangeConfiguration(ctx, params)
 	case "$/cancelRequest", "$/setTrace":
 		// silently ignored
 	case "exit":
