@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/aireilly/mdita-lsp/internal/codeaction"
@@ -280,6 +282,12 @@ type CodeLensResult struct {
 	Command CommandResult  `json:"command"`
 }
 
+type DocumentLinkResult struct {
+	Range   document.Range `json:"range"`
+	Target  string         `json:"target"`
+	Tooltip string         `json:"tooltip,omitempty"`
+}
+
 type FoldingRangeResult struct {
 	StartLine      int    `json:"startLine"`
 	StartCharacter int    `json:"startCharacter,omitempty"`
@@ -356,7 +364,7 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			CodeActionProvider:              true,
 			CodeLensProvider:                &CodeLensOptions{},
 			DocumentHighlightProvider:       true,
-			DocumentLinkProvider:            false,
+			DocumentLinkProvider:            true,
 			FoldingRangeProvider:            true,
 			DocumentSymbolProvider:          true,
 			WorkspaceSymbolProvider:         true,
@@ -942,6 +950,37 @@ func (s *Server) handleCodeLens(_ context.Context, rawParams json.RawMessage) (a
 				Command: l.Command,
 			},
 		})
+	}
+	return results, nil
+}
+
+var externalURLRegex = regexp.MustCompile(`https?://[^\s<>\[\]()"'` + "`" + `]*[^\s<>\[\]()"'.,;:!?` + "`" + `]`)
+
+func (s *Server) handleDocumentLink(_ context.Context, rawParams json.RawMessage) (any, error) {
+	var params struct {
+		TextDocument TextDocumentIdentifier `json:"textDocument"`
+	}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	doc, _ := s.workspace.FindDoc(params.TextDocument.URI)
+	if doc == nil {
+		return nil, nil
+	}
+
+	results := make([]DocumentLinkResult, 0)
+	lines := strings.Split(doc.Text, "\n")
+	for lineNum, line := range lines {
+		matches := externalURLRegex.FindAllStringIndex(line, -1)
+		for _, m := range matches {
+			url := line[m[0]:m[1]]
+			results = append(results, DocumentLinkResult{
+				Range:   document.Rng(lineNum, m[0], lineNum, m[1]),
+				Target:  url,
+				Tooltip: "Follow link",
+			})
+		}
 	}
 	return results, nil
 }
