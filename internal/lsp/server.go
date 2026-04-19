@@ -946,7 +946,6 @@ func (s *Server) handleCodeLens(_ context.Context, rawParams json.RawMessage) (a
 	return results, nil
 }
 
-
 func (s *Server) handleFoldingRange(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
 		TextDocument TextDocumentIdentifier `json:"textDocument"`

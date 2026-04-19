@@ -306,9 +306,10 @@ func linkNodeRange(node *ast.Link, src []byte) Range {
 	i := startByte + 1
 	depth := 1
 	for ; i < len(src) && depth > 0; i++ {
-		if src[i] == '[' {
+		switch src[i] {
+		case '[':
 			depth++
-		} else if src[i] == ']' {
+		case ']':
 			depth--
 		}
 	}
@@ -317,9 +318,10 @@ func linkNodeRange(node *ast.Link, src []byte) Range {
 		depth = 1
 		i++
 		for ; i < len(src) && depth > 0; i++ {
-			if src[i] == '(' {
+			switch src[i] {
+			case '(':
 				depth++
-			} else if src[i] == ')' {
+			case ')':
 				depth--
 			}
 		}
