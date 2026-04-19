@@ -35,7 +35,7 @@ type TextEdit struct {
 type Command struct {
 	Title     string
 	Command   string
-	Arguments []string
+	Arguments []any
 }
 
 func GetActions(doc *document.Document, rng document.Range, folder *workspace.Folder) []CodeAction {
@@ -118,7 +118,7 @@ func addToMapActions(doc *document.Document, folder *workspace.Folder) []CodeAct
 			Command: &Command{
 				Title:     "Add to map",
 				Command:   "mdita-lsp.addToMap",
-				Arguments: []string{doc.URI, d.URI},
+				Arguments: []any{doc.URI, d.URI},
 			},
 		})
 	}
@@ -252,7 +252,7 @@ func buildDitaOTActions(doc *document.Document, folder *workspace.Folder) []Code
 			Command: &Command{
 				Title:     "Build XHTML",
 				Command:   "mdita-lsp.ditaOtBuild",
-				Arguments: []string{doc.URI, "xhtml"},
+				Arguments: []any{doc.URI, "xhtml"},
 			},
 		},
 		{
@@ -262,7 +262,7 @@ func buildDitaOTActions(doc *document.Document, folder *workspace.Folder) []Code
 			Command: &Command{
 				Title:     "Build DITA",
 				Command:   "mdita-lsp.ditaOtBuild",
-				Arguments: []string{doc.URI, "dita"},
+				Arguments: []any{doc.URI, "dita"},
 			},
 		},
 	}
@@ -281,7 +281,7 @@ func createMissingFileAction(relPath string, sourceURI string, folder *workspace
 		Command: &Command{
 			Title:     "Create file",
 			Command:   "mdita-lsp.createFile",
-			Arguments: []string{fileURI},
+			Arguments: []any{fileURI},
 		},
 	}
 }

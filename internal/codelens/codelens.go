@@ -9,9 +9,10 @@ import (
 )
 
 type Lens struct {
-	Range   document.Range
-	Command string
-	Title   string
+	Range    document.Range
+	Command  string
+	Title    string
+	Position document.Position
 }
 
 func GetLenses(doc *document.Document, graph *symbols.Graph, folder *workspace.Folder) []Lens {
@@ -19,9 +20,10 @@ func GetLenses(doc *document.Document, graph *symbols.Graph, folder *workspace.F
 	for _, h := range doc.Index.Headings() {
 		count := countHeadingRefs(h, doc, graph, folder)
 		lenses = append(lenses, Lens{
-			Range:   h.Range,
-			Command: "mdita-lsp.findReferences",
-			Title:   fmt.Sprintf("%d references", count),
+			Range:    h.Range,
+			Command:  "mdita-lsp.findReferences",
+			Title:    fmt.Sprintf("%d references", count),
+			Position: h.Range.Start,
 		})
 	}
 	return lenses

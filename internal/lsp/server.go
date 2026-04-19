@@ -272,9 +272,9 @@ type CodeActionResult struct {
 }
 
 type CommandResult struct {
-	Title     string   `json:"title"`
-	Command   string   `json:"command"`
-	Arguments []string `json:"arguments,omitempty"`
+	Title     string `json:"title"`
+	Command   string `json:"command"`
+	Arguments []any  `json:"arguments,omitempty"`
 }
 
 type CodeLensResult struct {
@@ -948,6 +948,10 @@ func (s *Server) handleCodeLens(_ context.Context, rawParams json.RawMessage) (a
 			Command: CommandResult{
 				Title:   l.Title,
 				Command: l.Command,
+				Arguments: []any{
+					params.TextDocument.URI,
+					l.Position,
+				},
 			},
 		})
 	}
@@ -1240,22 +1244,61 @@ func (s *Server) handleRangeFormatting(_ context.Context, rawParams json.RawMess
 
 func (s *Server) handleExecuteCommand(_ context.Context, rawParams json.RawMessage) (any, error) {
 	var params struct {
-		Command   string   `json:"command"`
-		Arguments []string `json:"arguments"`
+		Command   string            `json:"command"`
+		Arguments []json.RawMessage `json:"arguments"`
 	}
 	if err := json.Unmarshal(rawParams, &params); err != nil {
 		return nil, err
 	}
 
 	switch params.Command {
+	case "mdita-lsp.findReferences":
+		return s.executeFindReferences(params.Arguments)
 	case "mdita-lsp.createFile":
-		return s.executeCreateFile(params.Arguments)
+		return s.executeCreateFile(stringArgs(params.Arguments))
 	case "mdita-lsp.addToMap":
-		return s.executeAddToMap(params.Arguments)
+		return s.executeAddToMap(stringArgs(params.Arguments))
 	case "mdita-lsp.ditaOtBuild":
-		return s.executeDitaOtBuild(params.Arguments)
+		return s.executeDitaOtBuild(stringArgs(params.Arguments))
 	}
 	return nil, nil
+}
+
+func stringArgs(raw []json.RawMessage) []string {
+	args := make([]string, 0, len(raw))
+	for _, r := range raw {
+		var s string
+		if json.Unmarshal(r, &s) == nil {
+			args = append(args, s)
+		}
+	}
+	return args
+}
+
+func (s *Server) executeFindReferences(args []json.RawMessage) (any, error) {
+	if len(args) < 2 {
+		return nil, nil
+	}
+	var uri string
+	if err := json.Unmarshal(args[0], &uri); err != nil {
+		return nil, nil
+	}
+	var pos document.Position
+	if err := json.Unmarshal(args[1], &pos); err != nil {
+		return nil, nil
+	}
+
+	doc, folder := s.workspace.FindDoc(uri)
+	if doc == nil || folder == nil {
+		return nil, nil
+	}
+
+	locs := references.FindRefs(doc, pos, folder, s.graph)
+	results := make([]LocationResult, 0, len(locs))
+	for _, loc := range locs {
+		results = append(results, LocationResult{URI: loc.URI, Range: loc.Range})
+	}
+	return results, nil
 }
 
 func (s *Server) executeCreateFile(args []string) (any, error) {
