@@ -274,7 +274,7 @@ type CodeActionResult struct {
 type CommandResult struct {
 	Title     string `json:"title"`
 	Command   string `json:"command"`
-	Arguments []any  `json:"arguments,omitempty"`
+	Arguments []any  `json:"arguments"`
 }
 
 type CodeLensResult struct {
