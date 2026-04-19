@@ -90,6 +90,11 @@ testdata/               # Test fixtures
 - `.mdita-lsp.yaml` — project-level config (user config at `~/.config/mdita-lsp/config.yaml`)
 - `go.mod` — dependencies: goldmark, yaml.v3
 
+## Workflow
+
+- Run `make lint` before every commit to ensure zero lint issues
+- Run `make test` to verify no regressions
+
 ## Conventions
 
 - Config filename: `.mdita-lsp.yaml`
