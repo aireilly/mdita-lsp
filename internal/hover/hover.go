@@ -2,6 +2,7 @@ package hover
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/aireilly/mdita-lsp/internal/document"
@@ -27,6 +28,10 @@ func GetHover(doc *document.Document, pos document.Position, folder *workspace.F
 
 	if kr := keyref.DetectAtPosition(doc.Text, pos); kr != nil {
 		return hoverKeyref(kr, folder)
+	}
+
+	if url := detectURL(doc.Text, pos); url != "" {
+		return "[Follow link](" + url + ")"
 	}
 
 	return ""
@@ -155,6 +160,23 @@ func preview(text string) string {
 		return ""
 	}
 	return "\n\n---\n\n" + strings.Join(body, "\n")
+}
+
+var urlRegex = regexp.MustCompile(`https?://[^\s<>\[\]()"'` + "`" + `]*[^\s<>\[\]()"'.,;:!?` + "`" + `]`)
+
+func detectURL(text string, pos document.Position) string {
+	lines := strings.Split(text, "\n")
+	if pos.Line >= len(lines) {
+		return ""
+	}
+	line := lines[pos.Line]
+	matches := urlRegex.FindAllStringIndex(line, -1)
+	for _, m := range matches {
+		if pos.Character >= m[0] && pos.Character < m[1] {
+			return line[m[0]:m[1]]
+		}
+	}
+	return ""
 }
 
 func itoa(n int) string {

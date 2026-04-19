@@ -89,3 +89,72 @@ func TestHoverNoElement(t *testing.T) {
 		t.Errorf("expected empty hover, got %q", result)
 	}
 }
+
+func TestHoverBareURL(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\nVisit https://example.com for details.\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	result := GetHover(doc, document.Position{Line: 2, Character: 10}, f)
+	if !strings.Contains(result, "Follow link") {
+		t.Errorf("expected Follow link hover, got %q", result)
+	}
+	if !strings.Contains(result, "https://example.com") {
+		t.Errorf("expected URL in hover, got %q", result)
+	}
+}
+
+func TestHoverBareURLWithPath(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\nSee https://example.com/docs/guide?q=1#section here.\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	result := GetHover(doc, document.Position{Line: 2, Character: 20}, f)
+	if !strings.Contains(result, "Follow link") {
+		t.Errorf("expected Follow link hover, got %q", result)
+	}
+	if !strings.Contains(result, "https://example.com/docs/guide?q=1#section") {
+		t.Errorf("expected full URL in hover, got %q", result)
+	}
+}
+
+func TestHoverHTTPURL(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\nhttp://legacy.example.com/api\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	result := GetHover(doc, document.Position{Line: 2, Character: 5}, f)
+	if !strings.Contains(result, "Follow link") {
+		t.Errorf("expected Follow link hover, got %q", result)
+	}
+	if !strings.Contains(result, "http://legacy.example.com/api") {
+		t.Errorf("expected URL in hover, got %q", result)
+	}
+}
+
+func TestHoverURLInMdLinkSyntax(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\n[click here](https://example.com/page)\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	result := GetHover(doc, document.Position{Line: 2, Character: 20}, f)
+	if !strings.Contains(result, "Follow link") {
+		t.Errorf("expected Follow link hover for URL in md link, got %q", result)
+	}
+}
+
+func TestHoverNotOnURL(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\nVisit https://example.com for details.\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	result := GetHover(doc, document.Position{Line: 2, Character: 2}, f)
+	if result != "" {
+		t.Errorf("expected no hover on non-URL text, got %q", result)
+	}
+}
