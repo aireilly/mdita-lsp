@@ -24,10 +24,13 @@ cd mdita-lsp
 make install   # installs to ~/.local/bin
 ```
 
-Ensure `~/go/bin` is on your `PATH`:
+Ensure the install location is on your `PATH`:
 
 ```bash
+# For go install:
 echo 'export PATH=$PATH:~/go/bin' >> ~/.bashrc
+# For make install:
+echo 'export PATH=$PATH:~/.local/bin' >> ~/.bashrc
 source ~/.bashrc
 ```
 
@@ -113,24 +116,24 @@ diagnostics:
 | Feature | Description |
 |---------|-------------|
 | Diagnostics | 19 codes: MDITA compliance, link validation, heading hierarchy, footnotes, keyrefs, ditamap validation, map heading consistency |
-| Completion | Wiki links (`[[`), inline links (`](`), YAML keys, heading anchors (`#`), keyrefs (`[`) with lazy documentation resolve |
-| Go to Definition | Wiki links, markdown links, and keyref shortcut references |
+| Completion | Inline links (`](`), YAML keys, heading anchors (`#`), keyrefs (`[`) with lazy documentation resolve |
+| Go to Definition | Markdown links and keyref shortcut references |
 | Hover | Document titles, heading text, keyref targets, YAML front matter keys |
 | Find References | All references to a heading across the workspace |
-| Rename | Heading rename with cross-document wiki link updates |
-| Code Actions | Generate ToC, create missing files, convert wiki→markdown links, add YAML front matter, add to mditamap, quick-fix NBSP/footnotes/heading hierarchy, build XHTML/DITA with DITA OT |
+| Rename | Heading rename |
+| Code Actions | Generate ToC, create missing files, add YAML front matter, add to mditamap, quick-fix NBSP/footnotes/heading hierarchy, build XHTML/DITA with DITA OT |
 | Code Lens | Reference counts on headings |
-| Document Links | Clickable links for wiki links and markdown links |
+| Document Links | Clickable links for external URLs |
 | Document Symbols | Hierarchical heading outline tree |
 | Workspace Symbols | Search headings across all documents |
 | Folding Ranges | Fold headings, YAML front matter, and ToC markers |
 | Selection Ranges | Progressive selection expansion by line/element/section |
-| Linked Editing | Simultaneous rename of headings and their `[[#heading]]` references |
+| Linked Editing | Linked editing of heading text |
 | Formatting | Trim trailing whitespace, normalize headings, align tables, ensure trailing newline (full + range) |
-| Inlay Hints | Show resolved wiki link titles, markdown link targets, and keyref targets inline |
+| Inlay Hints | Show resolved markdown link targets and keyref targets inline |
 | Document Highlight | Highlight all same-document references to heading under cursor |
-| Semantic Tokens | Syntax highlighting for wiki links (full + range) |
-| File Rename | Auto-update wiki links, markdown links, and map references on file rename |
+| Semantic Tokens | Semantic token encoding (full + range) |
+| File Rename | Auto-update markdown links and map references on file rename |
 | File Create | Auto-populate new `.md` files with MDITA YAML front matter |
 | Execute Command | Create files, add documents to map, build XHTML/DITA via DITA OT |
 | Pull Diagnostics | On-demand diagnostics via `textDocument/diagnostic` (LSP 3.17) |
@@ -180,7 +183,7 @@ Keys are derived from filenames (e.g., `install.md` → key `install`). Use `[in
 
 ```bash
 make build     # Build binary
-make test      # Run 248 tests with race detection
+make test      # Run 202 tests with race detection
 make lint      # Run golangci-lint
 make publish   # Cross-compile for 5 platforms (~3.5 MB each)
 make clean     # Remove build artifacts

@@ -13,7 +13,7 @@ mdita-lsp is an LSP server for MDITA (Markdown DITA) documents, written in Go. I
 
 ```bash
 make build      # Build the binary
-make test       # Run tests with race detection (248 tests across 26 packages)
+make test       # Run tests with race detection (202 tests across 26 packages)
 make lint       # Run golangci-lint
 make install    # Build and install to ~/.local/bin
 make publish    # Cross-compile for 5 platforms (3.5 MB binary)
@@ -35,8 +35,7 @@ internal/
   config/               # YAML config loading with 3-level merging
   document/             # Document parsing, indexing, symbol extraction
     types.go            # Element types, symbols, DITA schemas, footnote labels
-    parser.go           # goldmark parser with wiki link extension, footnote/admonition regex
-    wikilink_ext.go     # Custom goldmark inline parser for [[doc#heading|title]]
+    parser.go           # goldmark parser, footnote/admonition regex
     index.go            # Heading/link index with slug-based lookups
     document.go         # Document type with incremental change support
   ditamap/              # .mditamap parsing (nested markdown lists → TopicRef tree)
@@ -44,22 +43,22 @@ internal/
   symbols/              # Symbol graph with bidirectional ref/def resolution
   diagnostic/           # 19 diagnostic codes, MDITA compliance, link/map/keyref validation
   keyref/               # Key extraction, resolution, cursor detection for keyrefs
-  definition/           # Go-to-definition for wiki links, markdown links, and keyrefs
-  hover/                # Hover for wiki links, markdown links, keyrefs, and headings
+  definition/           # Go-to-definition for markdown links and keyrefs
+  hover/                # Hover for markdown links, keyrefs, headings, and YAML keys
   references/           # Find references to headings via symbol graph
-  completion/           # Completion: wiki links, inline links, YAML keys, keyrefs
-  rename/               # Heading rename with cross-doc wiki link ref updates
-  codeaction/           # ToC generation, create missing file, convert wiki→md links, add front matter, add to map, DITA OT build
+  completion/           # Completion: inline links, YAML keys, keyrefs
+  rename/               # Heading rename
+  codeaction/           # ToC generation, create missing file, add front matter, add to map, DITA OT build
   codelens/             # Reference count lenses on headings
   docsymbols/           # Hierarchical document symbol outline, workspace symbol search
   folding/              # Folding ranges for headings, YAML front matter, ToC markers
   selection/            # Progressive selection expansion (line → element → section)
-  linkededit/           # Linked editing of headings and their intra-doc wiki link refs
+  linkededit/           # Linked editing of heading text
   formatting/           # Table alignment, trailing whitespace, heading spacing, trailing newline
-  inlayhint/            # Inline hints showing resolved wiki link titles and keyref targets
-  filerename/           # Cross-reference updates on file rename (wiki links, md links, map refs)
+  inlayhint/            # Inline hints showing resolved markdown link targets and keyref targets
+  filerename/           # Cross-reference updates on file rename (md links, map refs)
   highlight/            # Document highlight for headings and their intra-doc references
-  semantic/             # Semantic token encoding (full + range) for wiki links
+  semantic/             # Semantic token encoding (full + range)
   ditaot/               # DITA OT binary resolution and build invocation (xhtml, dita formats)
   lsp/                  # LSP server, JSON-RPC handler, diagnostic debouncing, execute command
 testdata/               # Test fixtures
@@ -69,9 +68,9 @@ testdata/               # Test fixtures
 ## LSP capabilities
 
 - TextDocumentSync: Incremental (mode 2) with 200ms diagnostic debouncing
-- Completion (wiki links, inline links, YAML keys, keyrefs) with resolve
-- Definition (wiki links, markdown links, keyrefs)
-- Hover (wiki links, markdown links, keyrefs, headings)
+- Completion (inline links, YAML keys, keyrefs) with resolve
+- Definition (markdown links, keyrefs)
+- Hover (markdown links, keyrefs, headings, YAML keys)
 - Document Highlight, References, Rename (with prepare), Code Actions, Code Lens
 - Document Links, Folding Ranges, Document Symbols, Workspace Symbols
 - Selection Ranges, Linked Editing Ranges
