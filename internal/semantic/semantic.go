@@ -7,10 +7,11 @@ import (
 )
 
 const (
-	TokenTypeRefLink = 0
+	TokenTypeRefLink   = 0
+	TokenTypeDecorator = 1
 )
 
-var TokenTypes = []string{"class"}
+var TokenTypes = []string{"class", "decorator"}
 
 type token struct {
 	line   int
@@ -36,6 +37,23 @@ func EncodeRange(doc *document.Document, rng document.Range) []uint32 {
 
 func collectTokens(doc *document.Document) []token {
 	var tokens []token
+
+	for _, ia := range doc.InlineAttrs {
+		tokens = append(tokens, token{
+			line:   ia.Line,
+			char:   ia.Col,
+			length: ia.Attr.Range.End.Character - ia.Col,
+			typ:    TokenTypeDecorator,
+		})
+	}
+	for _, ba := range doc.BlockAttrs {
+		tokens = append(tokens, token{
+			line:   ba.Line,
+			char:   ba.Attr.Range.Start.Character,
+			length: ba.Attr.Range.End.Character - ba.Attr.Range.Start.Character,
+			typ:    TokenTypeDecorator,
+		})
+	}
 
 	sort.Slice(tokens, func(i, j int) bool {
 		if tokens[i].line != tokens[j].line {

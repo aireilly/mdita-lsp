@@ -79,6 +79,8 @@ func GetActions(doc *document.Document, rng document.Range, folder *workspace.Fo
 	actions = append(actions, fixFootnoteRefActions(doc, rng)...)
 	actions = append(actions, fixHeadingHierarchyActions(doc, rng)...)
 	actions = append(actions, buildDitaOTActions(doc, folder)...)
+	actions = append(actions, addRelatedLinksAction(doc)...)
+	actions = append(actions, addTaskSectionActions(doc)...)
 
 	return actions
 }
@@ -266,6 +268,81 @@ func buildDitaOTActions(doc *document.Document, folder *workspace.Folder) []Code
 			},
 		},
 	}
+}
+
+func addRelatedLinksAction(doc *document.Document) []CodeAction {
+	if doc.Kind != document.Topic {
+		return nil
+	}
+	for _, h := range doc.Index.Headings() {
+		if h.IsRelLinks {
+			return nil
+		}
+	}
+	lastLine := len(strings.Split(doc.Text, "\n")) - 1
+	return []CodeAction{{
+		Title:  "Add related links section",
+		Kind:   "source",
+		DocURI: doc.URI,
+		Edit: &TextEdit{
+			Range:   document.Rng(lastLine, 0, lastLine, 0),
+			NewText: "\n## Related information\n\n- []()\n",
+		},
+	}}
+}
+
+func addTaskSectionActions(doc *document.Document) []CodeAction {
+	isTask := doc.Meta != nil && doc.Meta.Schema == document.SchemaTask
+	if !isTask {
+		title := doc.Index.Title()
+		if title != nil && title.Attributes != nil {
+			for _, c := range title.Attributes.Classes {
+				if c == "task" {
+					isTask = true
+					break
+				}
+			}
+		}
+	}
+	if !isTask {
+		return nil
+	}
+
+	existing := make(map[document.TaskSectionKind]bool)
+	for _, h := range doc.Index.Headings() {
+		if h.TaskSection != document.TaskSectionNone {
+			existing[h.TaskSection] = true
+		}
+	}
+
+	type sectionTemplate struct {
+		kind  document.TaskSectionKind
+		title string
+	}
+	templates := []sectionTemplate{
+		{document.TaskSectionPrereq, "Prerequisites"},
+		{document.TaskSectionContext, "About this task"},
+		{document.TaskSectionResult, "Verification"},
+		{document.TaskSectionPostreq, "Next steps"},
+	}
+
+	var actions []CodeAction
+	for _, tmpl := range templates {
+		if existing[tmpl.kind] {
+			continue
+		}
+		lastLine := len(strings.Split(doc.Text, "\n")) - 1
+		actions = append(actions, CodeAction{
+			Title:  "Add " + tmpl.title + " section",
+			Kind:   "source",
+			DocURI: doc.URI,
+			Edit: &TextEdit{
+				Range:   document.Rng(lastLine, 0, lastLine, 0),
+				NewText: "\n## " + tmpl.title + "\n\n\n",
+			},
+		})
+	}
+	return actions
 }
 
 func createMissingFileAction(relPath string, sourceURI string, folder *workspace.Folder) CodeAction {

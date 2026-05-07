@@ -3,6 +3,7 @@ package inlayhint
 import (
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
+	"github.com/aireilly/mdita-lsp/internal/vocabulary"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
@@ -46,6 +47,7 @@ func GetHints(doc *document.Document, rng document.Range, folder *workspace.Fold
 	}
 
 	hints = append(hints, keyrefHints(doc, rng, table)...)
+	hints = append(hints, domainHints(doc, rng)...)
 	return hints
 }
 
@@ -83,6 +85,28 @@ func keyrefHints(doc *document.Document, rng document.Range, table keyref.KeyTab
 			Label: " → " + label,
 			Kind:  KindType,
 		})
+	}
+	return hints
+}
+
+func domainHints(doc *document.Document, rng document.Range) []InlayHint {
+	var hints []InlayHint
+	for _, ia := range doc.InlineAttrs {
+		if ia.Line < rng.Start.Line || ia.Line > rng.End.Line {
+			continue
+		}
+		for _, class := range ia.Attr.Classes {
+			if elem, ok := vocabulary.LookupDomainElement(class); ok {
+				hints = append(hints, InlayHint{
+					Position: document.Position{
+						Line:      ia.Line,
+						Character: ia.Attr.Range.End.Character,
+					},
+					Label: " → <" + elem.DITAElement + ">",
+					Kind:  KindType,
+				})
+			}
+		}
 	}
 	return hints
 }
