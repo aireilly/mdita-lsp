@@ -35,11 +35,9 @@ type ConditionalAttribute struct {
 
 var (
 	domainElementsByClass   map[string]DomainElement
-	domainElementsByName    map[string]DomainElement
 	taskSectionsByTitle     map[string]TaskSection
 	taskSectionsByClass     map[string]TaskSection
 	stepElementsByClass     map[string]StepElement
-	stepElementsByName      map[string]StepElement
 	conditionalAttributeSet map[string]bool
 
 	allDomainElements        []DomainElement
@@ -52,28 +50,28 @@ func init() {
 	domainElements := []DomainElement{
 		// UI domain (4) - bold parent
 		{
-			Class:       "+ topic/ph ui-d/uicontrol",
+			Class:       "uicontrol",
 			DITAElement: "uicontrol",
 			Domain:      "ui-d",
 			ParentKind:  "bold",
 			Description: "A user interface control such as a button name, menu item, or dialog label.",
 		},
 		{
-			Class:       "+ topic/keyword ui-d/wintitle",
+			Class:       "wintitle",
 			DITAElement: "wintitle",
 			Domain:      "ui-d",
 			ParentKind:  "bold",
 			Description: "The title text that appears in a window or dialog box title bar.",
 		},
 		{
-			Class:       "+ topic/ph ui-d/menucascade",
+			Class:       "menucascade",
 			DITAElement: "menucascade",
 			Domain:      "ui-d",
 			ParentKind:  "bold",
 			Description: "A sequence of menu choices, typically separated by > or arrows.",
 		},
 		{
-			Class:       "+ topic/keyword ui-d/shortcut",
+			Class:       "shortcut",
 			DITAElement: "shortcut",
 			Domain:      "ui-d",
 			ParentKind:  "bold",
@@ -82,42 +80,42 @@ func init() {
 
 		// Software domain (6) - code parent
 		{
-			Class:       "+ topic/ph sw-d/filepath",
+			Class:       "filepath",
 			DITAElement: "filepath",
 			Domain:      "sw-d",
 			ParentKind:  "code",
 			Description: "A file path, directory path, or file name.",
 		},
 		{
-			Class:       "+ topic/keyword sw-d/cmdname",
+			Class:       "cmdname",
 			DITAElement: "cmdname",
 			Domain:      "sw-d",
 			ParentKind:  "code",
 			Description: "The name of a command or executable program.",
 		},
 		{
-			Class:       "+ topic/ph sw-d/userinput",
+			Class:       "userinput",
 			DITAElement: "userinput",
 			Domain:      "sw-d",
 			ParentKind:  "code",
 			Description: "Text or commands that a user enters into a computer system.",
 		},
 		{
-			Class:       "+ topic/ph sw-d/systemoutput",
+			Class:       "systemoutput",
 			DITAElement: "systemoutput",
 			Domain:      "sw-d",
 			ParentKind:  "code",
 			Description: "Output produced by a computer system, such as console messages or log entries.",
 		},
 		{
-			Class:       "+ topic/keyword sw-d/varname",
+			Class:       "varname",
 			DITAElement: "varname",
 			Domain:      "sw-d",
 			ParentKind:  "code",
 			Description: "The name of a variable in programming or configuration contexts.",
 		},
 		{
-			Class:       "+ topic/keyword sw-d/msgph",
+			Class:       "msgph",
 			DITAElement: "msgph",
 			Domain:      "sw-d",
 			ParentKind:  "code",
@@ -126,35 +124,35 @@ func init() {
 
 		// Programming domain (5) - code parent
 		{
-			Class:       "+ topic/ph pr-d/codeph",
+			Class:       "codeph",
 			DITAElement: "codeph",
 			Domain:      "pr-d",
 			ParentKind:  "code",
 			Description: "A snippet of code within a sentence or paragraph.",
 		},
 		{
-			Class:       "+ topic/keyword pr-d/option",
+			Class:       "option",
 			DITAElement: "option",
 			Domain:      "pr-d",
 			ParentKind:  "code",
 			Description: "A command-line option or parameter flag.",
 		},
 		{
-			Class:       "+ topic/keyword pr-d/parmname",
+			Class:       "parmname",
 			DITAElement: "parmname",
 			Domain:      "pr-d",
 			ParentKind:  "code",
 			Description: "The name of a function or method parameter.",
 		},
 		{
-			Class:       "+ topic/keyword pr-d/apiname",
+			Class:       "apiname",
 			DITAElement: "apiname",
 			Domain:      "pr-d",
 			ParentKind:  "code",
 			Description: "The name of an API, function, method, or class.",
 		},
 		{
-			Class:       "+ topic/keyword pr-d/kwd",
+			Class:       "kwd",
 			DITAElement: "kwd",
 			Domain:      "pr-d",
 			ParentKind:  "code",
@@ -163,14 +161,14 @@ func init() {
 
 		// Cross-domain (2)
 		{
-			Class:       "+ topic/cite",
+			Class:       "cite",
 			DITAElement: "cite",
 			Domain:      "topic",
 			ParentKind:  "italic",
 			Description: "A citation to a book, article, or other published work.",
 		},
 		{
-			Class:       "+ topic/draft-comment",
+			Class:       "draft-comment",
 			DITAElement: "draft-comment",
 			Domain:      "topic",
 			ParentKind:  "paragraph",
@@ -182,35 +180,35 @@ func init() {
 	taskSections := []TaskSection{
 		{
 			DefaultTitle: "Prerequisites",
-			Class:        "+ topic/section task/prereq",
+			Class:        "prereq",
 			DITAElement:  "prereq",
 			Description:  "Prerequisites or conditions that must be met before starting the task.",
 			Order:        1,
 		},
 		{
 			DefaultTitle: "About this task",
-			Class:        "+ topic/section task/context",
+			Class:        "context",
 			DITAElement:  "context",
 			Description:  "Background information or context for the task.",
 			Order:        2,
 		},
 		{
 			DefaultTitle: "Verification",
-			Class:        "+ topic/section task/result",
+			Class:        "result",
 			DITAElement:  "result",
 			Description:  "The expected outcome or result of completing the task.",
 			Order:        4,
 		},
 		{
 			DefaultTitle: "Next steps",
-			Class:        "+ topic/section task/postreq",
+			Class:        "postreq",
 			DITAElement:  "postreq",
 			Description:  "Optional steps to perform after completing the task.",
 			Order:        5,
 		},
 		{
 			DefaultTitle: "",
-			Class:        "+ topic/section task/tasktroubleshooting",
+			Class:        "tasktroubleshooting",
 			DITAElement:  "tasktroubleshooting",
 			Description:  "Troubleshooting information for common problems encountered during the task.",
 			Order:        6,
@@ -220,12 +218,12 @@ func init() {
 	// Initialize step elements
 	stepElements := []StepElement{
 		{
-			Class:       "+ topic/itemgroup task/stepresult",
+			Class:       "stepresult",
 			DITAElement: "stepresult",
 			Description: "The result or outcome of performing a step.",
 		},
 		{
-			Class:       "+ topic/itemgroup task/stepxmp",
+			Class:       "stepxmp",
 			DITAElement: "stepxmp",
 			Description: "An example demonstrating how to perform a step.",
 		},
@@ -265,10 +263,8 @@ func init() {
 
 	// Build lookup maps
 	domainElementsByClass = make(map[string]DomainElement, len(domainElements))
-	domainElementsByName = make(map[string]DomainElement, len(domainElements))
 	for _, elem := range domainElements {
 		domainElementsByClass[elem.Class] = elem
-		domainElementsByName[elem.DITAElement] = elem
 	}
 
 	taskSectionsByTitle = make(map[string]TaskSection, len(taskSections))
@@ -280,10 +276,8 @@ func init() {
 	}
 
 	stepElementsByClass = make(map[string]StepElement, len(stepElements))
-	stepElementsByName = make(map[string]StepElement, len(stepElements))
 	for _, elem := range stepElements {
 		stepElementsByClass[elem.Class] = elem
-		stepElementsByName[elem.DITAElement] = elem
 	}
 
 	conditionalAttributeSet = make(map[string]bool, len(conditionalAttributes))
@@ -304,13 +298,6 @@ func LookupDomainElement(class string) (DomainElement, bool) {
 	return elem, found
 }
 
-// LookupDomainElementByName returns the domain element with the given DITA element name.
-// For example, "uicontrol" instead of the full class "+ topic/ph ui-d/uicontrol".
-func LookupDomainElementByName(name string) (DomainElement, bool) {
-	elem, found := domainElementsByName[name]
-	return elem, found
-}
-
 // LookupTaskSection returns the task section with the given title.
 // The lookup is case-insensitive.
 func LookupTaskSection(title string) (TaskSection, bool) {
@@ -327,13 +314,6 @@ func LookupTaskSectionByClass(class string) (TaskSection, bool) {
 // LookupStepElement returns the step element with the given class attribute value.
 func LookupStepElement(class string) (StepElement, bool) {
 	elem, found := stepElementsByClass[class]
-	return elem, found
-}
-
-// LookupStepElementByName returns the step element with the given DITA element name.
-// For example, "stepresult" instead of the full class "+ topic/itemgroup task/stepresult".
-func LookupStepElementByName(name string) (StepElement, bool) {
-	elem, found := stepElementsByName[name]
 	return elem, found
 }
 

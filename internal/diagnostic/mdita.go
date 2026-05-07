@@ -301,9 +301,9 @@ func checkInlineAttributes(doc *document.Document) []Diagnostic {
 	var diags []Diagnostic
 	for _, ia := range doc.InlineAttrs {
 		for _, class := range ia.Attr.Classes {
-			elem, ok := vocabulary.LookupDomainElementByName(class)
+			elem, ok := vocabulary.LookupDomainElement(class)
 			if !ok {
-				_, isStep := vocabulary.LookupStepElementByName(class)
+				_, isStep := vocabulary.LookupStepElement(class)
 				if !isStep {
 					diags = append(diags, Diagnostic{
 						Range:    ia.Attr.Range,

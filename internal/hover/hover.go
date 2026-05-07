@@ -233,10 +233,10 @@ func hoverInlineAttribute(doc *document.Document, pos document.Position) string 
 			continue
 		}
 		for _, class := range ia.Attr.Classes {
-			if elem, ok := vocabulary.LookupDomainElementByName(class); ok {
+			if elem, ok := vocabulary.LookupDomainElement(class); ok {
 				return "DITA `<" + elem.DITAElement + ">` (" + elem.Domain + ") — " + elem.Description
 			}
-			if se, ok := vocabulary.LookupStepElementByName(class); ok {
+			if se, ok := vocabulary.LookupStepElement(class); ok {
 				return "DITA `<" + se.DITAElement + ">` — " + se.Description
 			}
 		}
