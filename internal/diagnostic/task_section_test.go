@@ -137,3 +137,78 @@ Neither is this.
 		})
 	}
 }
+
+func TestRelLinksNonLinkContent(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     []string
+		wantDiag bool
+	}{
+		{
+			name: "related links with non-link content",
+			text: []string{
+				"---", "$schema: urn:oasis:names:tc:dita:xsd:task.xsd", "---", "",
+				"# Install {.task}", "", "Short desc.", "",
+				"1. Do the thing.", "",
+				"## Related information", "",
+				"- [Good link](link.md)", "",
+				"This is bad non-link content.", "",
+			},
+			wantDiag: true,
+		},
+		{
+			name: "related links with only valid links",
+			text: []string{
+				"---", "$schema: urn:oasis:names:tc:dita:xsd:task.xsd", "---", "",
+				"# Install {.task}", "", "Short desc.", "",
+				"1. Do the thing.", "",
+				"## Related information", "",
+				"- [Link 1](link1.md)", "",
+				"* [Link 2](link2.md)", "",
+			},
+			wantDiag: false,
+		},
+		{
+			name: "related links with empty lines",
+			text: []string{
+				"---", "$schema: urn:oasis:names:tc:dita:xsd:task.xsd", "---", "",
+				"# Install {.task}", "", "Short desc.", "",
+				"1. Do the thing.", "",
+				"## Related information", "",
+				"", "",
+				"- [Link 1](link1.md)", "",
+			},
+			wantDiag: false,
+		},
+		{
+			name: "related links followed by next heading",
+			text: []string{
+				"---", "$schema: urn:oasis:names:tc:dita:xsd:task.xsd", "---", "",
+				"# Install {.task}", "", "Short desc.", "",
+				"1. Do the thing.", "",
+				"## Related information", "",
+				"- [Link 1](link1.md)", "",
+				"## Next section", "",
+			},
+			wantDiag: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			doc := makeDoc("file:///test.md", tt.text...)
+			f := makeFolder(doc)
+			diags := Check(doc, f)
+			found := false
+			for _, d := range diags {
+				if d.Code == CodeRelLinksNonLinkContent {
+					found = true
+					break
+				}
+			}
+			if found != tt.wantDiag {
+				t.Errorf("got diagnostic=%v, want %v", found, tt.wantDiag)
+			}
+		})
+	}
+}

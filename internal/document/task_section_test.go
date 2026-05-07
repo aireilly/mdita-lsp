@@ -157,6 +157,48 @@ This heading is not recognized as a task section.
 	}
 }
 
+func TestRelatedLinksDetection(t *testing.T) {
+	text := `---
+$schema: urn:oasis:names:tc:dita:xsd:task.xsd
+---
+
+# Install {.task}
+
+Short desc.
+
+1. Do the thing.
+
+## Related information
+
+- [Concept](concept.md)
+- [Reference](reference.md)
+`
+	doc := New("file:///test.md", 1, text)
+	if doc.RelLinks == nil {
+		t.Fatal("expected RelLinks to be set")
+	}
+	if doc.RelLinks.HeadingLine != 10 {
+		t.Errorf("RelLinks.HeadingLine = %d, want 10", doc.RelLinks.HeadingLine)
+	}
+	if len(doc.RelLinks.Links) != 2 {
+		t.Errorf("len(RelLinks.Links) = %d, want 2", len(doc.RelLinks.Links))
+	}
+	if len(doc.RelLinks.Links) >= 2 {
+		if doc.RelLinks.Links[0].Text != "Concept" {
+			t.Errorf("RelLinks.Links[0].Text = %q, want %q", doc.RelLinks.Links[0].Text, "Concept")
+		}
+		if doc.RelLinks.Links[0].URL != "concept.md" {
+			t.Errorf("RelLinks.Links[0].URL = %q, want %q", doc.RelLinks.Links[0].URL, "concept.md")
+		}
+		if doc.RelLinks.Links[1].Text != "Reference" {
+			t.Errorf("RelLinks.Links[1].Text = %q, want %q", doc.RelLinks.Links[1].Text, "Reference")
+		}
+		if doc.RelLinks.Links[1].URL != "reference.md" {
+			t.Errorf("RelLinks.Links[1].URL = %q, want %q", doc.RelLinks.Links[1].URL, "reference.md")
+		}
+	}
+}
+
 func TestResolveRelatedLinks(t *testing.T) {
 	tests := []struct {
 		name     string

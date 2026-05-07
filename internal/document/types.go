@@ -189,6 +189,11 @@ const (
 	TaskSectionTroubleshooting
 )
 
+type RelatedLinksInfo struct {
+	HeadingLine int
+	Links       []*MdLink
+}
+
 type SymKind int
 
 const (

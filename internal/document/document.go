@@ -18,6 +18,7 @@ type Document struct {
 	Kind        DocKind
 	InlineAttrs []InlineAttribute
 	BlockAttrs  []BlockAttribute
+	RelLinks    *RelatedLinksInfo
 }
 
 func New(uri string, version int, text string) *Document {
@@ -55,6 +56,7 @@ func New(uri string, version int, text string) *Document {
 	}
 	doc.Symbols = extractSymbols(doc)
 	resolveTaskSections(doc)
+	resolveRelatedLinks(doc)
 	return doc
 }
 
@@ -266,5 +268,26 @@ func taskSectionKindFromClass(class string) TaskSectionKind {
 		return TaskSectionTroubleshooting
 	default:
 		return TaskSectionNone
+	}
+}
+
+func resolveRelatedLinks(doc *Document) {
+	for _, e := range doc.Elements {
+		h, ok := e.(*Heading)
+		if !ok || !h.IsRelLinks {
+			continue
+		}
+		rl := &RelatedLinksInfo{HeadingLine: h.Range.Start.Line}
+		for _, el := range doc.Elements {
+			ml, ok := el.(*MdLink)
+			if !ok {
+				continue
+			}
+			if ml.Range.Start.Line > h.Range.Start.Line {
+				rl.Links = append(rl.Links, ml)
+			}
+		}
+		doc.RelLinks = rl
+		return
 	}
 }

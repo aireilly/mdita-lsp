@@ -54,6 +54,7 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 	diags = append(diags, checkAdmonitions(doc)...)
 	diags = append(diags, checkFootnotes(doc)...)
 	diags = append(diags, checkTaskSections(doc)...)
+	diags = append(diags, checkRelatedLinks(doc)...)
 	if doc.Index.Features.HasAttributes {
 		diags = append(diags, checkInlineAttributes(doc)...)
 		diags = append(diags, checkBlockAttributes(doc)...)
@@ -350,6 +351,35 @@ func checkBlockAttributes(doc *document.Document) []Diagnostic {
 					Code:     CodeUnknownConditionalAttribute,
 					Source:   source,
 					Message:  "Unknown conditional attribute \"" + key + "\"",
+				})
+			}
+		}
+	}
+	return diags
+}
+
+func checkRelatedLinks(doc *document.Document) []Diagnostic {
+	var diags []Diagnostic
+	for _, h := range doc.Index.Headings() {
+		if !h.IsRelLinks {
+			continue
+		}
+		lines := strings.Split(doc.Text, "\n")
+		for i := h.Range.Start.Line + 1; i < len(lines); i++ {
+			line := strings.TrimSpace(lines[i])
+			if line == "" {
+				continue
+			}
+			if strings.HasPrefix(line, "#") {
+				break
+			}
+			if !strings.HasPrefix(line, "- [") && !strings.HasPrefix(line, "* [") {
+				diags = append(diags, Diagnostic{
+					Range:    document.Rng(i, 0, i, len(lines[i])),
+					Severity: SeverityWarning,
+					Code:     CodeRelLinksNonLinkContent,
+					Source:   source,
+					Message:  "Related links section should contain only links",
 				})
 			}
 		}
