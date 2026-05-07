@@ -296,8 +296,8 @@ func TestLSPCodeAction(t *testing.T) {
 	if !strings.Contains(out, "\"id\":2") {
 		t.Error("missing code action response")
 	}
-	if !strings.Contains(out, "Generate table of contents") {
-		t.Error("expected ToC code action")
+	if !strings.Contains(out, "Add MDITA YAML front matter") {
+		t.Error("expected front matter code action")
 	}
 }
 

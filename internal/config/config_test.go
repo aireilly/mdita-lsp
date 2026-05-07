@@ -17,9 +17,6 @@ core:
 completion:
   max_candidates: 100
 code_actions:
-  toc:
-    enable: false
-    include_levels: [1, 2, 3]
   create_missing_file:
     enable: true
 diagnostics:
@@ -40,9 +37,6 @@ diagnostics:
 	if cfg.Completion.MaxCandidates != 100 {
 		t.Errorf("MaxCandidates = %d, want 100", cfg.Completion.MaxCandidates)
 	}
-	if cfg.CodeActions.ToC.Enable == nil || *cfg.CodeActions.ToC.Enable != false {
-		t.Errorf("ToC.Enable = %v, want false", cfg.CodeActions.ToC.Enable)
-	}
 	exts := cfg.Core.Mdita.MapExtensions
 	if len(exts) != 2 || exts[0] != "mditamap" || exts[1] != "ditamap" {
 		t.Errorf("MapExtensions = %v, want [mditamap ditamap]", exts)
@@ -59,9 +53,6 @@ func TestDefault(t *testing.T) {
 	}
 	if cfg.Completion.MaxCandidates != 50 {
 		t.Errorf("default MaxCandidates = %d, want 50", cfg.Completion.MaxCandidates)
-	}
-	if len(cfg.CodeActions.ToC.IncludeLevels) != 6 {
-		t.Errorf("default IncludeLevels len = %d, want 6", len(cfg.CodeActions.ToC.IncludeLevels))
 	}
 	if !BoolVal(cfg.Build.DitaOT.Enable) {
 		t.Error("default Build.DitaOT.Enable should be true")
@@ -93,8 +84,6 @@ core:
   mdita:
     enable: false
 code_actions:
-  toc:
-    enable: false
   create_missing_file:
     enable: false
 diagnostics:
@@ -106,9 +95,6 @@ diagnostics:
 
 	if BoolVal(merged.Core.Mdita.Enable) {
 		t.Error("merged Mdita.Enable should be false after overlay")
-	}
-	if BoolVal(merged.CodeActions.ToC.Enable) {
-		t.Error("merged ToC.Enable should be false after overlay")
 	}
 	if BoolVal(merged.CodeActions.CreateMissingFile.Enable) {
 		t.Error("merged CreateMissingFile.Enable should be false after overlay")
@@ -137,9 +123,6 @@ completion:
 	}
 	if !BoolVal(merged.Diagnostics.MditaCompliance) {
 		t.Error("unset overlay should preserve base MditaCompliance=true")
-	}
-	if !BoolVal(merged.CodeActions.ToC.Enable) {
-		t.Error("unset overlay should preserve base ToC.Enable=true")
 	}
 }
 

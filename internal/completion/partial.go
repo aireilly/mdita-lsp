@@ -108,7 +108,7 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 				Input:         input,
 				HasCloseBrace: hasClose,
 				Range: document.Range{
-					Start: document.Position{Line: pos.Line, Character: idx + 1},
+					Start: document.Position{Line: pos.Line, Character: idx},
 					End:   document.Position{Line: pos.Line, Character: col},
 				},
 			}

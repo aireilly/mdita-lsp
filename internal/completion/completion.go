@@ -20,6 +20,7 @@ type CompletionItem struct {
 	Label         string
 	Detail        string
 	InsertText    string
+	FilterText    string
 	Kind          int // 1=text, 6=variable, 17=keyword, 18=snippet
 	Documentation string
 	Data          map[string]string
@@ -27,8 +28,8 @@ type CompletionItem struct {
 }
 
 var yamlKeys = []string{
-	"author", "source", "publisher", "permissions", "audience",
-	"category", "keyword", "resourceid", "$schema",
+	"$schema", "id", "author", "source", "publisher", "permissions",
+	"audience", "category", "keyword", "resourceid",
 }
 
 func Complete(doc *document.Document, pos document.Position, folder *workspace.Folder) []CompletionItem {
@@ -345,12 +346,13 @@ func completeAttrOpen(input string, doc *document.Document, pos document.Positio
 			label := "." + c.class
 			if input == "" || strings.HasPrefix(label, input) {
 				items = append(items, CompletionItem{
-					Label:  label,
-					Detail: c.detail,
-					Kind:   6,
+					Label:      label,
+					Detail:     c.detail,
+					FilterText: "{" + label,
+					Kind:       6,
 					TextEdit: &TextEdit{
 						Range:   editRange,
-						NewText: label + suffix,
+						NewText: "{" + label + suffix,
 					},
 				})
 			}
@@ -358,12 +360,13 @@ func completeAttrOpen(input string, doc *document.Document, pos document.Positio
 		for _, ca := range vocabulary.AllConditionalAttributes() {
 			if input == "" || strings.HasPrefix(ca.Name, input) {
 				items = append(items, CompletionItem{
-					Label:  ca.Name,
-					Detail: ca.Description,
-					Kind:   6,
+					Label:      ca.Name,
+					Detail:     ca.Description,
+					FilterText: "{" + ca.Name,
+					Kind:       6,
 					TextEdit: &TextEdit{
 						Range:   editRange,
-						NewText: ca.Name + "=\"\"",
+						NewText: "{" + ca.Name + "=\"\"",
 					},
 				})
 			}
@@ -390,12 +393,13 @@ func completeAttrOpen(input string, doc *document.Document, pos document.Positio
 		label := "." + elem.DITAElement
 		if input == "" || strings.HasPrefix(label, input) {
 			items = append(items, CompletionItem{
-				Label:  label,
-				Detail: "<" + elem.DITAElement + "> (" + elem.Domain + ")",
-				Kind:   6,
+				Label:      label,
+				Detail:     "<" + elem.DITAElement + "> (" + elem.Domain + ")",
+				FilterText: "{" + label,
+				Kind:       6,
 				TextEdit: &TextEdit{
 					Range:   editRange,
-					NewText: label + suffix,
+					NewText: "{" + label + suffix,
 				},
 			})
 		}

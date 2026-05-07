@@ -10,9 +10,6 @@ completion:
   wiki_style: file-stem
   max_candidates: 100
 code_actions:
-  toc:
-    enable: true
-    include_levels: [1, 2, 3]
   create_missing_file:
     enable: true
 diagnostics:

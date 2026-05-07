@@ -18,7 +18,6 @@ func GetRanges(doc *document.Document) []FoldingRange {
 	var ranges []FoldingRange
 	ranges = append(ranges, foldHeadings(doc)...)
 	ranges = append(ranges, foldYAMLFrontMatter(doc)...)
-	ranges = append(ranges, foldToCMarkers(doc)...)
 	return ranges
 }
 
@@ -78,26 +77,6 @@ func foldYAMLFrontMatter(doc *document.Document) []FoldingRange {
 				}}
 			}
 			break
-		}
-	}
-	return nil
-}
-
-func foldToCMarkers(doc *document.Document) []FoldingRange {
-	lines := strings.Split(doc.Text, "\n")
-	startLine := -1
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.Contains(trimmed, "<!--toc:start-->") {
-			startLine = i
-		}
-		if strings.Contains(trimmed, "<!--toc:end-->") && startLine >= 0 {
-			return []FoldingRange{{
-				StartLine: startLine,
-				EndLine:   i,
-				Kind:      "region",
-			}}
 		}
 	}
 	return nil

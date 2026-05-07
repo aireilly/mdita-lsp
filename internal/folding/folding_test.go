@@ -36,22 +36,6 @@ func TestFoldYAMLFrontMatter(t *testing.T) {
 	}
 }
 
-func TestFoldToCMarkers(t *testing.T) {
-	doc := document.New("file:///project/doc.md", 1,
-		"# Title\n\n<!--toc:start-->\n- [A](#a)\n- [B](#b)\n<!--toc:end-->\n\n## A\n\n## B\n")
-	ranges := GetRanges(doc)
-
-	foundToC := false
-	for _, r := range ranges {
-		if r.StartLine == 2 && r.EndLine == 5 {
-			foundToC = true
-		}
-	}
-	if !foundToC {
-		t.Error("missing ToC folding range")
-	}
-}
-
 func TestNoFoldingForShortDoc(t *testing.T) {
 	doc := document.New("file:///project/doc.md", 1, "# Title\n")
 	ranges := GetRanges(doc)

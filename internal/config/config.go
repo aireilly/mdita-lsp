@@ -36,13 +36,7 @@ type CompletionConfig struct {
 }
 
 type CodeActionsConfig struct {
-	ToC               ToCConfig               `yaml:"toc"`
 	CreateMissingFile CreateMissingFileConfig `yaml:"create_missing_file"`
-}
-
-type ToCConfig struct {
-	Enable        *bool `yaml:"enable"`
-	IncludeLevels []int `yaml:"include_levels"`
 }
 
 type CreateMissingFileConfig struct {
@@ -93,10 +87,6 @@ func Default() *Config {
 			MaxCandidates: 50,
 		},
 		CodeActions: CodeActionsConfig{
-			ToC: ToCConfig{
-				Enable:        boolPtr(true),
-				IncludeLevels: []int{1, 2, 3, 4, 5, 6},
-			},
 			CreateMissingFile: CreateMissingFileConfig{
 				Enable: boolPtr(true),
 			},
@@ -167,10 +157,6 @@ func Merge(base, overlay *Config) *Config {
 		merged.Completion.MaxCandidates = overlay.Completion.MaxCandidates
 	}
 
-	merged.CodeActions.ToC.Enable = mergeBool(base.CodeActions.ToC.Enable, overlay.CodeActions.ToC.Enable)
-	if overlay.CodeActions.ToC.IncludeLevels != nil {
-		merged.CodeActions.ToC.IncludeLevels = overlay.CodeActions.ToC.IncludeLevels
-	}
 	merged.CodeActions.CreateMissingFile.Enable = mergeBool(base.CodeActions.CreateMissingFile.Enable, overlay.CodeActions.CreateMissingFile.Enable)
 
 	merged.Diagnostics.MditaCompliance = mergeBool(base.Diagnostics.MditaCompliance, overlay.Diagnostics.MditaCompliance)

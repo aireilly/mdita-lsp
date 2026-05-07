@@ -58,6 +58,23 @@ func TestCompleteYamlKey(t *testing.T) {
 	}
 }
 
+func TestCompleteYamlKeyID(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1, "---\ni")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	items := Complete(doc, document.Position{Line: 1, Character: 1}, f)
+	found := false
+	for _, item := range items {
+		if item.Label == "id" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected 'id' in YAML key completions")
+	}
+}
+
 func TestCompleteInlineLinkRelativePath(t *testing.T) {
 	doc1 := document.New("file:///project/docs/intro.md", 1, "# Introduction\n")
 	doc2 := document.New("file:///project/guide/user.md", 1, "# User Guide\n\n[link](")
@@ -225,10 +242,10 @@ func TestDetectPartialAttrOpenRange(t *testing.T) {
 		wantCloseBrace bool
 	}{
 		{
-			name:           "range starts after {",
+			name:           "range starts at {",
 			text:           "# Title\n\nClick **OK**{",
 			pos:            document.Position{Line: 2, Character: 13},
-			wantStart:      13,
+			wantStart:      12,
 			wantEnd:        13,
 			wantCloseBrace: false,
 		},
@@ -236,7 +253,7 @@ func TestDetectPartialAttrOpenRange(t *testing.T) {
 			name:           "range ends at cursor when auto-closed } present",
 			text:           "# Title\n\nClick **OK**{}",
 			pos:            document.Position{Line: 2, Character: 13},
-			wantStart:      13,
+			wantStart:      12,
 			wantEnd:        13,
 			wantCloseBrace: true,
 		},
@@ -297,8 +314,11 @@ func TestCompleteAttrOpenUsesTextEdit(t *testing.T) {
 	found := false
 	for _, item := range items {
 		if item.Label == ".shortcut" && item.TextEdit != nil {
-			if item.TextEdit.NewText != ".shortcut}" {
-				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, ".shortcut}")
+			if item.TextEdit.NewText != "{.shortcut}" {
+				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, "{.shortcut}")
+			}
+			if item.FilterText != "{.shortcut" {
+				t.Errorf("FilterText = %q, want %q", item.FilterText, "{.shortcut")
 			}
 			found = true
 		}
@@ -343,11 +363,15 @@ func TestCompleteAttrOpenAutoCloseOmitsCloseBrace(t *testing.T) {
 	found := false
 	for _, item := range items {
 		if item.Label == ".shortcut" && item.TextEdit != nil {
-			if item.TextEdit.NewText != ".shortcut" {
-				t.Errorf("NewText = %q, want %q (no } since editor already has one)", item.TextEdit.NewText, ".shortcut")
+			if item.TextEdit.NewText != "{.shortcut" {
+				t.Errorf("NewText = %q, want %q (no } since editor already has one)", item.TextEdit.NewText, "{.shortcut")
+			}
+			if item.TextEdit.Range.Start.Character != 12 {
+				t.Errorf("Range.Start.Character = %d, want 12 (range starts at {)",
+					item.TextEdit.Range.Start.Character)
 			}
 			if item.TextEdit.Range.End.Character != 13 {
-				t.Errorf("Range.End.Character = %d, want 13 (range ends at cursor, not past })",
+				t.Errorf("Range.End.Character = %d, want 13 (range ends at cursor)",
 					item.TextEdit.Range.End.Character)
 			}
 			found = true

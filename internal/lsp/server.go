@@ -214,6 +214,7 @@ type CompletionItemResult struct {
 	Label         string              `json:"label"`
 	Detail        string              `json:"detail,omitempty"`
 	InsertText    string              `json:"insertText,omitempty"`
+	FilterText    string              `json:"filterText,omitempty"`
 	Kind          int                 `json:"kind"`
 	Documentation *MarkupContent      `json:"documentation,omitempty"`
 	Data          map[string]string   `json:"data,omitempty"`
@@ -712,13 +713,15 @@ func (s *Server) handleCompletion(_ context.Context, rawParams json.RawMessage) 
 	}
 
 	items := completion.Complete(doc, params.Position, folder)
+
 	results := make([]CompletionItemResult, 0, len(items))
 	for _, item := range items {
 		r := CompletionItemResult{
-			Label:  item.Label,
-			Detail: item.Detail,
-			Kind:   item.Kind,
-			Data:   item.Data,
+			Label:      item.Label,
+			Detail:     item.Detail,
+			FilterText: item.FilterText,
+			Kind:       item.Kind,
+			Data:       item.Data,
 		}
 		if item.TextEdit != nil {
 			r.TextEdit = &CompletionTextEdit{

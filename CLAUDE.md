@@ -50,10 +50,10 @@ internal/
   references/           # Find references to headings via symbol graph
   completion/           # Completion: inline links, YAML keys, keyrefs, task sections, attribute classes, attribute open ({)
   rename/               # Heading rename
-  codeaction/           # ToC, create file, front matter, add to map, DITA OT, related links, task sections
+  codeaction/           # Create file, front matter, add to map, DITA OT, related links, task sections
   codelens/             # Reference count lenses on headings
   docsymbols/           # Hierarchical document symbol outline, workspace symbol search
-  folding/              # Folding ranges for headings, YAML front matter, ToC markers
+  folding/              # Folding ranges for headings, YAML front matter
   selection/            # Progressive selection expansion (line → element → section)
   linkededit/           # Linked editing of heading text
   formatting/           # Table alignment, trailing whitespace, heading spacing, trailing newline
