@@ -1,6 +1,7 @@
 package diagnostic
 
 import (
+	"fmt"
 	"path/filepath"
 	"strconv"
 
@@ -24,6 +25,7 @@ func CheckDitamap(doc *document.Document, folder *workspace.Folder) []Diagnostic
 	diags = append(diags, checkMapRefs(m, doc, folder)...)
 	diags = append(diags, checkCircularRefs(doc, folder)...)
 	diags = append(diags, checkMapHeadingHierarchy(m, doc, folder)...)
+	diags = append(diags, checkReltable(m)...)
 	return diags
 }
 
@@ -138,4 +140,26 @@ func hasCycle(uri string, folder *workspace.Folder, visited map[string]bool) boo
 
 	delete(visited, uri)
 	return false
+}
+
+func checkReltable(m *ditamap.MapStructure) []Diagnostic {
+	var diags []Diagnostic
+	for _, rt := range m.RelTables {
+		headerCols := len(rt.Header)
+		if headerCols == 0 {
+			continue
+		}
+		for _, row := range rt.Rows {
+			if len(row.Cells) != headerCols {
+				diags = append(diags, Diagnostic{
+					Range:    document.Rng(0, 0, 0, 0),
+					Severity: SeverityWarning,
+					Code:     CodeReltableInconsistentColumns,
+					Source:   source,
+					Message:  fmt.Sprintf("Relationship table row has %d columns, header has %d", len(row.Cells), headerCols),
+				})
+			}
+		}
+	}
+	return diags
 }
