@@ -7,15 +7,17 @@ import (
 )
 
 type Document struct {
-	URI      string
-	Version  int
-	Text     string
-	Lines    []int
-	Elements []Element
-	Symbols  []Symbol
-	Index    *Index
-	Meta     *YAMLMetadata
-	Kind     DocKind
+	URI         string
+	Version     int
+	Text        string
+	Lines       []int
+	Elements    []Element
+	Symbols     []Symbol
+	Index       *Index
+	Meta        *YAMLMetadata
+	Kind        DocKind
+	InlineAttrs []InlineAttribute
+	BlockAttrs  []BlockAttribute
 }
 
 func New(uri string, version int, text string) *Document {
@@ -33,15 +35,23 @@ func New(uri string, version int, text string) *Document {
 		idx.ShortDesc = findShortDesc(text, title)
 	}
 
+	inlineAttrs := ScanInlineAttributes(text)
+	blockAttrs := ScanBlockAttributes(text)
+	if len(inlineAttrs) > 0 || len(blockAttrs) > 0 {
+		bf.HasAttributes = true
+	}
+
 	doc := &Document{
-		URI:      uri,
-		Version:  version,
-		Text:     text,
-		Lines:    buildLineMap(text),
-		Elements: elements,
-		Index:    idx,
-		Meta:     meta,
-		Kind:     kind,
+		URI:         uri,
+		Version:     version,
+		Text:        text,
+		Lines:       buildLineMap(text),
+		Elements:    elements,
+		Index:       idx,
+		Meta:        meta,
+		Kind:        kind,
+		InlineAttrs: inlineAttrs,
+		BlockAttrs:  blockAttrs,
 	}
 	doc.Symbols = extractSymbols(doc)
 	return doc

@@ -65,6 +65,7 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 		),
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(),
+			parser.WithAttribute(),
 		),
 	)
 
@@ -91,12 +92,38 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 			if id == "" {
 				id = paths.Slugify(headingText)
 			}
+
+			var headingAttrs *ParsedAttribute
+			if nodeAttrs := node.Attributes(); len(nodeAttrs) > 0 {
+				pa := ParsedAttribute{KeyValues: make(map[string]string)}
+				for _, attr := range nodeAttrs {
+					key := string(attr.Name)
+					val := ""
+					switch v := attr.Value.(type) {
+					case []byte:
+						val = string(v)
+					}
+					switch key {
+					case "class":
+						pa.Classes = strings.Fields(val)
+					case "id":
+						// already handled above
+					default:
+						pa.KeyValues[key] = val
+					}
+				}
+				pa.Range = nodeRange(node, src)
+				headingAttrs = &pa
+				bf.HasAttributes = true
+			}
+
 			elements = append(elements, &Heading{
-				Level: node.Level,
-				Text:  headingText,
-				ID:    id,
-				Slug:  paths.SlugOf(headingText),
-				Range: nodeRange(node, src),
+				Level:      node.Level,
+				Text:       headingText,
+				ID:         id,
+				Slug:       paths.SlugOf(headingText),
+				Range:      nodeRange(node, src),
+				Attributes: headingAttrs,
 			})
 
 		case *ast.Link:

@@ -85,11 +85,12 @@ type Element interface {
 }
 
 type Heading struct {
-	Level int
-	Text  string
-	ID    string
-	Slug  paths.Slug
-	Range Range
+	Level      int
+	Text       string
+	ID         string
+	Slug       paths.Slug
+	Range      Range
+	Attributes *ParsedAttribute
 }
 
 func (h *Heading) Rng() Range    { return h.Range }
@@ -153,6 +154,26 @@ type BlockFeatures struct {
 type Admonition struct {
 	Type  string
 	Range Range
+}
+
+type ParsedAttribute struct {
+	Classes   []string
+	ID        string
+	KeyValues map[string]string
+	Range     Range
+}
+
+type InlineAttribute struct {
+	Attr       ParsedAttribute
+	TargetKind string // "bold", "italic", "code", "paragraph"
+	TargetText string
+	Line       int
+	Col        int
+}
+
+type BlockAttribute struct {
+	Attr ParsedAttribute
+	Line int
 }
 
 type SymKind int
