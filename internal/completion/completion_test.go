@@ -212,4 +212,113 @@ func TestDetectPartialAttrOpen(t *testing.T) {
 	}
 }
 
+func TestDetectPartialAttrOpenRange(t *testing.T) {
+	// "Click **OK**{" — { is at index 12, cursor at 13
+	tests := []struct {
+		name      string
+		text      string
+		pos       document.Position
+		wantStart int
+		wantEnd   int
+	}{
+		{
+			name:      "range covers { to cursor",
+			text:      "# Title\n\nClick **OK**{",
+			pos:       document.Position{Line: 2, Character: 13},
+			wantStart: 12,
+			wantEnd:   13,
+		},
+		{
+			name:      "range extends past auto-closed }",
+			text:      "# Title\n\nClick **OK**{}",
+			pos:       document.Position{Line: 2, Character: 13},
+			wantStart: 12,
+			wantEnd:   14,
+		},
+		{
+			name:      "AttrClass range from {. to cursor",
+			text:      "# Title\n\nClick **OK**{.ui",
+			pos:       document.Position{Line: 2, Character: 16},
+			wantStart: 12,
+			wantEnd:   16,
+		},
+		{
+			name:      "AttrClass range extends past auto-closed }",
+			text:      "# Title\n\nClick **OK**{.ui}",
+			pos:       document.Position{Line: 2, Character: 16},
+			wantStart: 12,
+			wantEnd:   17,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pe := DetectPartial(tt.text, tt.pos)
+			if pe == nil {
+				t.Fatal("expected partial element, got nil")
+			}
+			if pe.Range.Start.Character != tt.wantStart {
+				t.Errorf("Range.Start.Character = %d, want %d", pe.Range.Start.Character, tt.wantStart)
+			}
+			if pe.Range.End.Character != tt.wantEnd {
+				t.Errorf("Range.End.Character = %d, want %d", pe.Range.End.Character, tt.wantEnd)
+			}
+		})
+	}
+}
+
+func TestCompleteAttrOpenUsesTextEdit(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1, "# Title\n\nClick **OK**{")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	items := Complete(doc, document.Position{Line: 2, Character: 13}, f)
+	if len(items) == 0 {
+		t.Fatal("expected completion items")
+	}
+	for _, item := range items {
+		if item.TextEdit == nil {
+			t.Errorf("item %q has nil TextEdit, want TextEdit with range", item.Label)
+		}
+		if item.InsertText != "" {
+			t.Errorf("item %q has InsertText=%q, want empty (using TextEdit)", item.Label, item.InsertText)
+		}
+	}
+	found := false
+	for _, item := range items {
+		if item.Label == ".shortcut" && item.TextEdit != nil {
+			if item.TextEdit.NewText != "{.shortcut}" {
+				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, "{.shortcut}")
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected '.shortcut' completion item with TextEdit")
+	}
+}
+
+func TestCompleteAttrClassUsesTextEdit(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1, "# Title {.ta")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	items := Complete(doc, document.Position{Line: 0, Character: 12}, f)
+	if len(items) == 0 {
+		t.Fatal("expected completion items")
+	}
+	found := false
+	for _, item := range items {
+		if item.Label == "task" && item.TextEdit != nil {
+			if item.TextEdit.NewText != "{.task}" {
+				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, "{.task}")
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected 'task' completion item with TextEdit")
+	}
+}
+
 func ptrKind(k PartialKind) *PartialKind { return &k }

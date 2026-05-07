@@ -49,11 +49,11 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 	case PartialHeadingText:
 		return completeTaskSectionHeading(pe.Input, doc)
 	case PartialAttrClass:
-		return completeAttrClass(pe.Input, doc, pos)
+		return completeAttrClass(pe.Input, doc, pos, pe.Range)
 	case PartialBlockAttr:
-		return completeBlockAttr(pe.Input)
+		return completeBlockAttr(pe.Input, pe.Range)
 	case PartialAttrOpen:
-		return completeAttrOpen(pe.Input, doc, pos)
+		return completeAttrOpen(pe.Input, doc, pos, pe.Range)
 	}
 	return nil
 }
@@ -218,7 +218,7 @@ func completeTaskSectionHeading(input string, doc *document.Document) []Completi
 	return items
 }
 
-func completeAttrClass(input string, doc *document.Document, pos document.Position) []CompletionItem {
+func completeAttrClass(input string, doc *document.Document, pos document.Position, editRange document.Range) []CompletionItem {
 	var items []CompletionItem
 
 	isHeading := false
@@ -246,17 +246,19 @@ func completeAttrClass(input string, doc *document.Document, pos document.Positi
 		for _, c := range headingClasses {
 			if input == "" || strings.HasPrefix(c.class, input) {
 				items = append(items, CompletionItem{
-					Label:      c.class,
-					Detail:     c.detail,
-					InsertText: c.class + "}",
-					Kind:       6,
+					Label:  c.class,
+					Detail: c.detail,
+					Kind:   6,
+					TextEdit: &TextEdit{
+						Range:   editRange,
+						NewText: "{." + c.class + "}",
+					},
 				})
 			}
 		}
 		return items
 	}
 
-	// Inline context — will be extended in Task 4 with domain elements
 	parentKind := ""
 	if pos.Character > 0 && pos.Character <= len(line) {
 		before := line[:pos.Character]
@@ -275,33 +277,38 @@ func completeAttrClass(input string, doc *document.Document, pos document.Positi
 		}
 		if input == "" || strings.HasPrefix(elem.DITAElement, input) {
 			items = append(items, CompletionItem{
-				Label:      elem.DITAElement,
-				Detail:     "<" + elem.DITAElement + "> (" + elem.Domain + ")",
-				InsertText: elem.DITAElement + "}",
-				Kind:       6,
+				Label:  elem.DITAElement,
+				Detail: "<" + elem.DITAElement + "> (" + elem.Domain + ")",
+				Kind:   6,
+				TextEdit: &TextEdit{
+					Range:   editRange,
+					NewText: "{." + elem.DITAElement + "}",
+				},
 			})
 		}
 	}
 	return items
 }
 
-func completeBlockAttr(input string) []CompletionItem {
+func completeBlockAttr(input string, editRange document.Range) []CompletionItem {
 	var items []CompletionItem
 	for _, ca := range vocabulary.AllConditionalAttributes() {
-		snippet := ca.Name + "=\"\""
 		if input == "" || strings.HasPrefix(ca.Name, input) {
 			items = append(items, CompletionItem{
-				Label:      ca.Name,
-				Detail:     ca.Description,
-				InsertText: snippet,
-				Kind:       6,
+				Label:  ca.Name,
+				Detail: ca.Description,
+				Kind:   6,
+				TextEdit: &TextEdit{
+					Range:   editRange,
+					NewText: "{" + ca.Name + "=\"\"",
+				},
 			})
 		}
 	}
 	return items
 }
 
-func completeAttrOpen(input string, doc *document.Document, pos document.Position) []CompletionItem {
+func completeAttrOpen(input string, doc *document.Document, pos document.Position, editRange document.Range) []CompletionItem {
 	var items []CompletionItem
 
 	lines := strings.Split(doc.Text, "\n")
@@ -328,20 +335,26 @@ func completeAttrOpen(input string, doc *document.Document, pos document.Positio
 			label := "." + c.class
 			if input == "" || strings.HasPrefix(label, input) {
 				items = append(items, CompletionItem{
-					Label:      label,
-					Detail:     c.detail,
-					InsertText: label + "}",
-					Kind:       6,
+					Label:  label,
+					Detail: c.detail,
+					Kind:   6,
+					TextEdit: &TextEdit{
+						Range:   editRange,
+						NewText: "{" + label + "}",
+					},
 				})
 			}
 		}
 		for _, ca := range vocabulary.AllConditionalAttributes() {
 			if input == "" || strings.HasPrefix(ca.Name, input) {
 				items = append(items, CompletionItem{
-					Label:      ca.Name,
-					Detail:     ca.Description,
-					InsertText: ca.Name + "=\"\"",
-					Kind:       6,
+					Label:  ca.Name,
+					Detail: ca.Description,
+					Kind:   6,
+					TextEdit: &TextEdit{
+						Range:   editRange,
+						NewText: "{" + ca.Name + "=\"\"",
+					},
 				})
 			}
 		}
@@ -367,10 +380,13 @@ func completeAttrOpen(input string, doc *document.Document, pos document.Positio
 		label := "." + elem.DITAElement
 		if input == "" || strings.HasPrefix(label, input) {
 			items = append(items, CompletionItem{
-				Label:      label,
-				Detail:     "<" + elem.DITAElement + "> (" + elem.Domain + ")",
-				InsertText: label + "}",
-				Kind:       6,
+				Label:  label,
+				Detail: "<" + elem.DITAElement + "> (" + elem.Domain + ")",
+				Kind:   6,
+				TextEdit: &TextEdit{
+					Range:   editRange,
+					NewText: "{" + label + "}",
+				},
 			})
 		}
 	}

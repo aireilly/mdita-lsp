@@ -54,9 +54,21 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 	trimmed := strings.TrimSpace(prefix)
 	if strings.HasPrefix(trimmed, "{") && !strings.Contains(trimmed, "}") && !strings.Contains(line, "#") {
 		input := strings.TrimPrefix(trimmed, "{")
+		startChar := strings.Index(line, "{")
+		endChar := col
+		if col < len(line) {
+			suffix := line[col:]
+			if bi := strings.Index(suffix, "}"); bi >= 0 && strings.TrimSpace(suffix[:bi]) == "" {
+				endChar = col + bi + 1
+			}
+		}
 		return &PartialElement{
 			Kind:  PartialBlockAttr,
 			Input: input,
+			Range: document.Range{
+				Start: document.Position{Line: pos.Line, Character: startChar},
+				End:   document.Position{Line: pos.Line, Character: endChar},
+			},
 		}
 	}
 
@@ -64,9 +76,20 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 	if idx := strings.LastIndex(prefix, "{."); idx >= 0 {
 		if !strings.Contains(prefix[idx:], "}") {
 			input := prefix[idx+2:]
+			endChar := col
+			if col < len(line) {
+				suffix := line[col:]
+				if bi := strings.Index(suffix, "}"); bi >= 0 && strings.TrimSpace(suffix[:bi]) == "" {
+					endChar = col + bi + 1
+				}
+			}
 			return &PartialElement{
 				Kind:  PartialAttrClass,
 				Input: input,
+				Range: document.Range{
+					Start: document.Position{Line: pos.Line, Character: idx},
+					End:   document.Position{Line: pos.Line, Character: endChar},
+				},
 			}
 		}
 	}
@@ -76,9 +99,20 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 		before := prefix[:idx]
 		if isAttrContext(before) {
 			input := prefix[idx+1:]
+			endChar := col
+			if col < len(line) {
+				suffix := line[col:]
+				if bi := strings.Index(suffix, "}"); bi >= 0 && strings.TrimSpace(suffix[:bi]) == "" {
+					endChar = col + bi + 1
+				}
+			}
 			return &PartialElement{
 				Kind:  PartialAttrOpen,
 				Input: input,
+				Range: document.Range{
+					Start: document.Position{Line: pos.Line, Character: idx},
+					End:   document.Position{Line: pos.Line, Character: endChar},
+				},
 			}
 		}
 	}
