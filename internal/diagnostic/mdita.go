@@ -58,6 +58,7 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 	if doc.Index.Features.HasAttributes {
 		diags = append(diags, checkInlineAttributes(doc)...)
 		diags = append(diags, checkBlockAttributes(doc)...)
+		diags = append(diags, checkStepElements(doc)...)
 	}
 
 	return diags
@@ -351,6 +352,39 @@ func checkBlockAttributes(doc *document.Document) []Diagnostic {
 					Code:     CodeUnknownConditionalAttribute,
 					Source:   source,
 					Message:  "Unknown conditional attribute \"" + key + "\"",
+				})
+			}
+		}
+	}
+	return diags
+}
+
+func checkStepElements(doc *document.Document) []Diagnostic {
+	var diags []Diagnostic
+	isTask := doc.Meta != nil && doc.Meta.Schema == document.SchemaTask
+	if !isTask {
+		title := doc.Index.Title()
+		if title != nil && title.Attributes != nil {
+			for _, c := range title.Attributes.Classes {
+				if c == "task" {
+					isTask = true
+					break
+				}
+			}
+		}
+	}
+	if isTask {
+		return diags
+	}
+	for _, ia := range doc.InlineAttrs {
+		for _, class := range ia.Attr.Classes {
+			if _, ok := vocabulary.LookupStepElement(class); ok {
+				diags = append(diags, Diagnostic{
+					Range:    ia.Attr.Range,
+					Severity: SeverityWarning,
+					Code:     CodeStepElementOutsideStep,
+					Source:   source,
+					Message:  class + " is only valid inside a task topic",
 				})
 			}
 		}
