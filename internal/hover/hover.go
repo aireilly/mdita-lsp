@@ -8,11 +8,16 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
 	"github.com/aireilly/mdita-lsp/internal/paths"
+	"github.com/aireilly/mdita-lsp/internal/vocabulary"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
 func GetHover(doc *document.Document, pos document.Position, folder *workspace.Folder) string {
 	if h := hoverYAMLKey(doc, pos); h != "" {
+		return h
+	}
+
+	if h := hoverInlineAttribute(doc, pos); h != "" {
 		return h
 	}
 
@@ -217,4 +222,29 @@ func hoverHeadingClass(h *document.Heading) string {
 		return "DITA `<" + class + ">` — " + desc
 	}
 	return "**" + h.Text + "** (level " + itoa(h.Level) + ", class: " + class + ")"
+}
+
+func hoverInlineAttribute(doc *document.Document, pos document.Position) string {
+	for _, ia := range doc.InlineAttrs {
+		if ia.Line != pos.Line {
+			continue
+		}
+		if pos.Character < ia.Col || pos.Character > ia.Attr.Range.End.Character {
+			continue
+		}
+		for _, class := range ia.Attr.Classes {
+			if elem, ok := vocabulary.LookupDomainElementByName(class); ok {
+				return "DITA `<" + elem.DITAElement + ">` (" + elem.Domain + ") — " + elem.Description
+			}
+			if se, ok := vocabulary.LookupStepElementByName(class); ok {
+				return "DITA `<" + se.DITAElement + ">` — " + se.Description
+			}
+		}
+		for key := range ia.Attr.KeyValues {
+			if vocabulary.IsConditionalAttribute(key) {
+				return "DITA conditional processing attribute `" + key + "`"
+			}
+		}
+	}
+	return ""
 }

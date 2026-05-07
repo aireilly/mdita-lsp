@@ -35,9 +35,11 @@ type ConditionalAttribute struct {
 
 var (
 	domainElementsByClass   map[string]DomainElement
+	domainElementsByName    map[string]DomainElement
 	taskSectionsByTitle     map[string]TaskSection
 	taskSectionsByClass     map[string]TaskSection
 	stepElementsByClass     map[string]StepElement
+	stepElementsByName      map[string]StepElement
 	conditionalAttributeSet map[string]bool
 
 	allDomainElements        []DomainElement
@@ -263,8 +265,10 @@ func init() {
 
 	// Build lookup maps
 	domainElementsByClass = make(map[string]DomainElement, len(domainElements))
+	domainElementsByName = make(map[string]DomainElement, len(domainElements))
 	for _, elem := range domainElements {
 		domainElementsByClass[elem.Class] = elem
+		domainElementsByName[elem.DITAElement] = elem
 	}
 
 	taskSectionsByTitle = make(map[string]TaskSection, len(taskSections))
@@ -276,8 +280,10 @@ func init() {
 	}
 
 	stepElementsByClass = make(map[string]StepElement, len(stepElements))
+	stepElementsByName = make(map[string]StepElement, len(stepElements))
 	for _, elem := range stepElements {
 		stepElementsByClass[elem.Class] = elem
+		stepElementsByName[elem.DITAElement] = elem
 	}
 
 	conditionalAttributeSet = make(map[string]bool, len(conditionalAttributes))
@@ -298,6 +304,13 @@ func LookupDomainElement(class string) (DomainElement, bool) {
 	return elem, found
 }
 
+// LookupDomainElementByName returns the domain element with the given DITA element name.
+// For example, "uicontrol" instead of the full class "+ topic/ph ui-d/uicontrol".
+func LookupDomainElementByName(name string) (DomainElement, bool) {
+	elem, found := domainElementsByName[name]
+	return elem, found
+}
+
 // LookupTaskSection returns the task section with the given title.
 // The lookup is case-insensitive.
 func LookupTaskSection(title string) (TaskSection, bool) {
@@ -314,6 +327,13 @@ func LookupTaskSectionByClass(class string) (TaskSection, bool) {
 // LookupStepElement returns the step element with the given class attribute value.
 func LookupStepElement(class string) (StepElement, bool) {
 	elem, found := stepElementsByClass[class]
+	return elem, found
+}
+
+// LookupStepElementByName returns the step element with the given DITA element name.
+// For example, "stepresult" instead of the full class "+ topic/itemgroup task/stepresult".
+func LookupStepElementByName(name string) (StepElement, bool) {
+	elem, found := stepElementsByName[name]
 	return elem, found
 }
 

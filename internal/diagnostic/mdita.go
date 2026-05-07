@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/aireilly/mdita-lsp/internal/document"
+	"github.com/aireilly/mdita-lsp/internal/vocabulary"
 )
 
 var validAdmonitionTypes = map[string]bool{
@@ -53,6 +54,9 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 	diags = append(diags, checkAdmonitions(doc)...)
 	diags = append(diags, checkFootnotes(doc)...)
 	diags = append(diags, checkTaskSections(doc)...)
+	if doc.Index.Features.HasAttributes {
+		diags = append(diags, checkInlineAttributes(doc)...)
+	}
 
 	return diags
 }
@@ -291,4 +295,45 @@ func taskSectionOrder(kind document.TaskSectionKind) int {
 	default:
 		return 0
 	}
+}
+
+func checkInlineAttributes(doc *document.Document) []Diagnostic {
+	var diags []Diagnostic
+	for _, ia := range doc.InlineAttrs {
+		for _, class := range ia.Attr.Classes {
+			elem, ok := vocabulary.LookupDomainElementByName(class)
+			if !ok {
+				_, isStep := vocabulary.LookupStepElementByName(class)
+				if !isStep {
+					diags = append(diags, Diagnostic{
+						Range:    ia.Attr.Range,
+						Severity: SeverityWarning,
+						Code:     CodeUnknownOutputclass,
+						Source:   source,
+						Message:  "Unknown outputclass \"{." + class + "}\"",
+					})
+				}
+				continue
+			}
+			if elem.ParentKind != ia.TargetKind {
+				diags = append(diags, Diagnostic{
+					Range:    ia.Attr.Range,
+					Severity: SeverityWarning,
+					Code:     CodeDomainClassWrongParent,
+					Source:   source,
+					Message:  "Domain class \"" + class + "\" expects " + elem.ParentKind + ", not " + ia.TargetKind,
+				})
+			}
+			if class == "menucascade" && !strings.Contains(ia.TargetText, " > ") {
+				diags = append(diags, Diagnostic{
+					Range:    ia.Attr.Range,
+					Severity: SeverityWarning,
+					Code:     CodeMenucascadeMissingSeparator,
+					Source:   source,
+					Message:  "menucascade requires \" > \" separator between menu items",
+				})
+			}
+		}
+	}
+	return diags
 }
