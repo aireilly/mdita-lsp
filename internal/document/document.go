@@ -272,19 +272,32 @@ func taskSectionKindFromClass(class string) TaskSectionKind {
 }
 
 func resolveRelatedLinks(doc *Document) {
-	for _, e := range doc.Elements {
+	for i, e := range doc.Elements {
 		h, ok := e.(*Heading)
 		if !ok || !h.IsRelLinks {
 			continue
 		}
 		rl := &RelatedLinksInfo{HeadingLine: h.Range.Start.Line}
+
+		// Find the next heading to determine section boundary
+		nextHeadingLine := -1
+		for j := i + 1; j < len(doc.Elements); j++ {
+			if nextH, ok := doc.Elements[j].(*Heading); ok {
+				nextHeadingLine = nextH.Range.Start.Line
+				break
+			}
+		}
+
+		// Collect links in the related links section
 		for _, el := range doc.Elements {
 			ml, ok := el.(*MdLink)
 			if !ok {
 				continue
 			}
 			if ml.Range.Start.Line > h.Range.Start.Line {
-				rl.Links = append(rl.Links, ml)
+				if nextHeadingLine == -1 || ml.Range.Start.Line < nextHeadingLine {
+					rl.Links = append(rl.Links, ml)
+				}
 			}
 		}
 		doc.RelLinks = rl

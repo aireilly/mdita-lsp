@@ -199,6 +199,35 @@ Short desc.
 	}
 }
 
+func TestRelatedLinksStopsAtNextSection(t *testing.T) {
+	text := `---
+$schema: urn:oasis:names:tc:dita:xsd:task.xsd
+---
+
+# Install {.task}
+
+Short desc.
+
+1. Do the thing.
+
+## Related information
+
+- [Concept](concept.md)
+- [Reference](reference.md)
+
+## Next section
+
+- [Should not be included](other.md)
+`
+	doc := New("file:///test.md", 1, text)
+	if doc.RelLinks == nil {
+		t.Fatal("expected RelLinks to be set")
+	}
+	if len(doc.RelLinks.Links) != 2 {
+		t.Errorf("len(RelLinks.Links) = %d, want 2 (should not include links from next section)", len(doc.RelLinks.Links))
+	}
+}
+
 func TestResolveRelatedLinks(t *testing.T) {
 	tests := []struct {
 		name     string
