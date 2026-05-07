@@ -126,7 +126,7 @@ func checkSchemaSpecific(doc *document.Document) []Diagnostic {
 	}
 
 	if doc.Kind == document.Map {
-		hasNonLinkContent := bf.HasOrderedList || bf.HasTable || bf.HasDefinitionList
+		hasNonLinkContent := bf.HasOrderedList || bf.HasDefinitionList
 		if hasNonLinkContent {
 			diags = append(diags, Diagnostic{
 				Range:    document.Rng(0, 0, 0, 0),
