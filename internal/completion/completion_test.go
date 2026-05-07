@@ -1,7 +1,6 @@
 package completion
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/aireilly/mdita-lsp/internal/config"
@@ -214,16 +213,15 @@ func TestDetectPartialAttrOpen(t *testing.T) {
 }
 
 func TestDetectPartialAttrOpenRange(t *testing.T) {
-	// Range ends at cursor (never extends to cover auto-closed }).
-	// HasCloseBrace indicates whether } exists so completion functions
-	// can decide whether to append } to NewText.
+	// Range starts AFTER { (or {.) to align with editor word boundaries.
+	// When auto-closed } exists, range extends to cover it so the editor
+	// treats the completion as a replacement (not a zero-width insertion).
 	tests := []struct {
 		name      string
 		text      string
 		pos       document.Position
 		wantStart int
 		wantEnd   int
-		wantClose bool
 	}{
 		{
 			name:      "range starts after {",
@@ -231,15 +229,13 @@ func TestDetectPartialAttrOpenRange(t *testing.T) {
 			pos:       document.Position{Line: 2, Character: 13},
 			wantStart: 13,
 			wantEnd:   13,
-			wantClose: false,
 		},
 		{
-			name:      "auto-closed } sets HasCloseBrace",
+			name:      "range covers auto-closed }",
 			text:      "# Title\n\nClick **OK**{}",
 			pos:       document.Position{Line: 2, Character: 13},
 			wantStart: 13,
-			wantEnd:   13,
-			wantClose: true,
+			wantEnd:   14,
 		},
 		{
 			name:      "AttrClass range starts after {.",
@@ -247,15 +243,13 @@ func TestDetectPartialAttrOpenRange(t *testing.T) {
 			pos:       document.Position{Line: 2, Character: 16},
 			wantStart: 14,
 			wantEnd:   16,
-			wantClose: false,
 		},
 		{
-			name:      "AttrClass auto-closed } sets HasCloseBrace",
+			name:      "AttrClass range covers auto-closed }",
 			text:      "# Title\n\nClick **OK**{.ui}",
 			pos:       document.Position{Line: 2, Character: 16},
 			wantStart: 14,
-			wantEnd:   16,
-			wantClose: true,
+			wantEnd:   17,
 		},
 	}
 
@@ -270,9 +264,6 @@ func TestDetectPartialAttrOpenRange(t *testing.T) {
 			}
 			if pe.Range.End.Character != tt.wantEnd {
 				t.Errorf("Range.End.Character = %d, want %d", pe.Range.End.Character, tt.wantEnd)
-			}
-			if pe.HasCloseBrace != tt.wantClose {
-				t.Errorf("HasCloseBrace = %v, want %v", pe.HasCloseBrace, tt.wantClose)
 			}
 		})
 	}
@@ -332,7 +323,7 @@ func TestCompleteAttrClassUsesTextEdit(t *testing.T) {
 	}
 }
 
-func TestCompleteAttrOpenAutoCloseOmitsCloseBrace(t *testing.T) {
+func TestCompleteAttrOpenAutoCloseReplacesCloseBrace(t *testing.T) {
 	doc := document.New("file:///project/doc.md", 1, "# Title\n\nClick **OK**{}")
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
@@ -341,17 +332,15 @@ func TestCompleteAttrOpenAutoCloseOmitsCloseBrace(t *testing.T) {
 	if len(items) == 0 {
 		t.Fatal("expected completion items")
 	}
-	for _, item := range items {
-		if item.TextEdit != nil && strings.HasSuffix(item.TextEdit.NewText, "}") {
-			t.Errorf("item %q NewText=%q should not end with } when auto-close brace exists",
-				item.Label, item.TextEdit.NewText)
-		}
-	}
 	found := false
 	for _, item := range items {
 		if item.Label == ".shortcut" && item.TextEdit != nil {
-			if item.TextEdit.NewText != ".shortcut" {
-				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, ".shortcut")
+			if item.TextEdit.NewText != ".shortcut}" {
+				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, ".shortcut}")
+			}
+			if item.TextEdit.Range.End.Character != 14 {
+				t.Errorf("Range.End.Character = %d, want 14 (covering auto-closed })",
+					item.TextEdit.Range.End.Character)
 			}
 			found = true
 		}
@@ -361,7 +350,7 @@ func TestCompleteAttrOpenAutoCloseOmitsCloseBrace(t *testing.T) {
 	}
 }
 
-func TestCompleteAttrClassAutoCloseOmitsCloseBrace(t *testing.T) {
+func TestCompleteAttrClassAutoCloseReplacesCloseBrace(t *testing.T) {
 	doc := document.New("file:///project/doc.md", 1, "# Title {.ta}")
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
@@ -373,8 +362,12 @@ func TestCompleteAttrClassAutoCloseOmitsCloseBrace(t *testing.T) {
 	found := false
 	for _, item := range items {
 		if item.Label == "task" && item.TextEdit != nil {
-			if item.TextEdit.NewText != "task" {
-				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, "task")
+			if item.TextEdit.NewText != "task}" {
+				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, "task}")
+			}
+			if item.TextEdit.Range.End.Character != 13 {
+				t.Errorf("Range.End.Character = %d, want 13 (covering auto-closed })",
+					item.TextEdit.Range.End.Character)
 			}
 			found = true
 		}

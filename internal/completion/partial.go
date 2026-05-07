@@ -21,11 +21,10 @@ const (
 )
 
 type PartialElement struct {
-	Kind          PartialKind
-	Input         string
-	DocPart       string
-	Range         document.Range
-	HasCloseBrace bool
+	Kind    PartialKind
+	Input   string
+	DocPart string
+	Range   document.Range
 }
 
 func DetectPartial(text string, pos document.Position) *PartialElement {
@@ -72,20 +71,19 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 		if !strings.Contains(prefix[idx:], "}") {
 			input := prefix[idx+2:]
 			startChar := idx + 2
-			hasClose := false
+			endChar := col
 			if col < len(line) {
 				suffix := line[col:]
 				if bi := strings.Index(suffix, "}"); bi >= 0 && strings.TrimSpace(suffix[:bi]) == "" {
-					hasClose = true
+					endChar = col + bi + 1
 				}
 			}
 			return &PartialElement{
-				Kind:          PartialAttrClass,
-				Input:         input,
-				HasCloseBrace: hasClose,
+				Kind:  PartialAttrClass,
+				Input: input,
 				Range: document.Range{
 					Start: document.Position{Line: pos.Line, Character: startChar},
-					End:   document.Position{Line: pos.Line, Character: col},
+					End:   document.Position{Line: pos.Line, Character: endChar},
 				},
 			}
 		}
@@ -96,20 +94,19 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 		before := prefix[:idx]
 		if isAttrContext(before) {
 			input := prefix[idx+1:]
-			hasClose := false
+			endChar := col
 			if col < len(line) {
 				suffix := line[col:]
 				if bi := strings.Index(suffix, "}"); bi >= 0 && strings.TrimSpace(suffix[:bi]) == "" {
-					hasClose = true
+					endChar = col + bi + 1
 				}
 			}
 			return &PartialElement{
-				Kind:          PartialAttrOpen,
-				Input:         input,
-				HasCloseBrace: hasClose,
+				Kind:  PartialAttrOpen,
+				Input: input,
 				Range: document.Range{
 					Start: document.Position{Line: pos.Line, Character: idx + 1},
-					End:   document.Position{Line: pos.Line, Character: col},
+					End:   document.Position{Line: pos.Line, Character: endChar},
 				},
 			}
 		}

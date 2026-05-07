@@ -49,11 +49,11 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 	case PartialHeadingText:
 		return completeTaskSectionHeading(pe.Input, doc)
 	case PartialAttrClass:
-		return completeAttrClass(pe.Input, doc, pos, pe.Range, pe.HasCloseBrace)
+		return completeAttrClass(pe.Input, doc, pos, pe.Range)
 	case PartialBlockAttr:
 		return completeBlockAttr(pe.Input, pe.Range)
 	case PartialAttrOpen:
-		return completeAttrOpen(pe.Input, doc, pos, pe.Range, pe.HasCloseBrace)
+		return completeAttrOpen(pe.Input, doc, pos, pe.Range)
 	}
 	return nil
 }
@@ -218,13 +218,8 @@ func completeTaskSectionHeading(input string, doc *document.Document) []Completi
 	return items
 }
 
-func completeAttrClass(input string, doc *document.Document, pos document.Position, editRange document.Range, hasCloseBrace bool) []CompletionItem {
+func completeAttrClass(input string, doc *document.Document, pos document.Position, editRange document.Range) []CompletionItem {
 	var items []CompletionItem
-
-	closeSuffix := "}"
-	if hasCloseBrace {
-		closeSuffix = ""
-	}
 
 	isHeading := false
 	lines := strings.Split(doc.Text, "\n")
@@ -256,7 +251,7 @@ func completeAttrClass(input string, doc *document.Document, pos document.Positi
 					Kind:   6,
 					TextEdit: &TextEdit{
 						Range:   editRange,
-						NewText: c.class + closeSuffix,
+						NewText: c.class + "}",
 					},
 				})
 			}
@@ -287,7 +282,7 @@ func completeAttrClass(input string, doc *document.Document, pos document.Positi
 				Kind:   6,
 				TextEdit: &TextEdit{
 					Range:   editRange,
-					NewText: elem.DITAElement + closeSuffix,
+					NewText: elem.DITAElement + "}",
 				},
 			})
 		}
@@ -313,13 +308,8 @@ func completeBlockAttr(input string, editRange document.Range) []CompletionItem 
 	return items
 }
 
-func completeAttrOpen(input string, doc *document.Document, pos document.Position, editRange document.Range, hasCloseBrace bool) []CompletionItem {
+func completeAttrOpen(input string, doc *document.Document, pos document.Position, editRange document.Range) []CompletionItem {
 	var items []CompletionItem
-
-	closeSuffix := "}"
-	if hasCloseBrace {
-		closeSuffix = ""
-	}
 
 	lines := strings.Split(doc.Text, "\n")
 	line := ""
@@ -350,7 +340,7 @@ func completeAttrOpen(input string, doc *document.Document, pos document.Positio
 					Kind:   6,
 					TextEdit: &TextEdit{
 						Range:   editRange,
-						NewText: label + closeSuffix,
+						NewText: label + "}",
 					},
 				})
 			}
@@ -395,7 +385,7 @@ func completeAttrOpen(input string, doc *document.Document, pos document.Positio
 				Kind:   6,
 				TextEdit: &TextEdit{
 					Range:   editRange,
-					NewText: label + closeSuffix,
+					NewText: label + "}",
 				},
 			})
 		}
