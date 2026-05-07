@@ -381,7 +381,6 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			ExecuteCommandProvider: &ExecuteCommandOptions{
 				Commands: []string{
 					"mdita-lsp.createFile",
-					"mdita-lsp.findReferences",
 					"mdita-lsp.addToMap",
 					"mdita-lsp.ditaOtBuild",
 				},
@@ -946,14 +945,19 @@ func (s *Server) handleCodeLens(_ context.Context, rawParams json.RawMessage) (a
 	lenses := codelens.GetLenses(doc, s.graph, folder)
 	results := make([]CodeLensResult, 0, len(lenses))
 	for _, l := range lenses {
+		locs := make([]LocationResult, 0, len(l.Locations))
+		for _, loc := range l.Locations {
+			locs = append(locs, LocationResult{URI: loc.URI, Range: loc.Range})
+		}
 		results = append(results, CodeLensResult{
 			Range: l.Range,
 			Command: CommandResult{
 				Title:   l.Title,
 				Command: l.Command,
 				Arguments: []any{
-					params.TextDocument.URI,
+					l.URI,
 					l.Position,
+					locs,
 				},
 			},
 		})
@@ -1255,8 +1259,6 @@ func (s *Server) handleExecuteCommand(_ context.Context, rawParams json.RawMessa
 	}
 
 	switch params.Command {
-	case "mdita-lsp.findReferences":
-		return s.executeFindReferences(params.Arguments)
 	case "mdita-lsp.createFile":
 		return s.executeCreateFile(stringArgs(params.Arguments))
 	case "mdita-lsp.addToMap":
@@ -1276,32 +1278,6 @@ func stringArgs(raw []json.RawMessage) []string {
 		}
 	}
 	return args
-}
-
-func (s *Server) executeFindReferences(args []json.RawMessage) (any, error) {
-	if len(args) < 2 {
-		return nil, nil
-	}
-	var uri string
-	if err := json.Unmarshal(args[0], &uri); err != nil {
-		return nil, nil
-	}
-	var pos document.Position
-	if err := json.Unmarshal(args[1], &pos); err != nil {
-		return nil, nil
-	}
-
-	doc, folder := s.workspace.FindDoc(uri)
-	if doc == nil || folder == nil {
-		return nil, nil
-	}
-
-	locs := references.FindRefs(doc, pos, folder, s.graph)
-	results := make([]LocationResult, 0, len(locs))
-	for _, loc := range locs {
-		results = append(results, LocationResult{URI: loc.URI, Range: loc.Range})
-	}
-	return results, nil
 }
 
 func (s *Server) executeCreateFile(args []string) (any, error) {
