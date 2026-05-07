@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/aireilly/mdita-lsp/internal/config"
@@ -213,13 +214,16 @@ func TestDetectPartialAttrOpen(t *testing.T) {
 }
 
 func TestDetectPartialAttrOpenRange(t *testing.T) {
-	// Range starts AFTER { (or {.) to align with editor word boundaries
+	// Range ends at cursor (never extends to cover auto-closed }).
+	// HasCloseBrace indicates whether } exists so completion functions
+	// can decide whether to append } to NewText.
 	tests := []struct {
 		name      string
 		text      string
 		pos       document.Position
 		wantStart int
 		wantEnd   int
+		wantClose bool
 	}{
 		{
 			name:      "range starts after {",
@@ -227,13 +231,15 @@ func TestDetectPartialAttrOpenRange(t *testing.T) {
 			pos:       document.Position{Line: 2, Character: 13},
 			wantStart: 13,
 			wantEnd:   13,
+			wantClose: false,
 		},
 		{
-			name:      "range covers auto-closed }",
+			name:      "auto-closed } sets HasCloseBrace",
 			text:      "# Title\n\nClick **OK**{}",
 			pos:       document.Position{Line: 2, Character: 13},
 			wantStart: 13,
-			wantEnd:   14,
+			wantEnd:   13,
+			wantClose: true,
 		},
 		{
 			name:      "AttrClass range starts after {.",
@@ -241,13 +247,15 @@ func TestDetectPartialAttrOpenRange(t *testing.T) {
 			pos:       document.Position{Line: 2, Character: 16},
 			wantStart: 14,
 			wantEnd:   16,
+			wantClose: false,
 		},
 		{
-			name:      "AttrClass range covers auto-closed }",
+			name:      "AttrClass auto-closed } sets HasCloseBrace",
 			text:      "# Title\n\nClick **OK**{.ui}",
 			pos:       document.Position{Line: 2, Character: 16},
 			wantStart: 14,
-			wantEnd:   17,
+			wantEnd:   16,
+			wantClose: true,
 		},
 	}
 
@@ -262,6 +270,9 @@ func TestDetectPartialAttrOpenRange(t *testing.T) {
 			}
 			if pe.Range.End.Character != tt.wantEnd {
 				t.Errorf("Range.End.Character = %d, want %d", pe.Range.End.Character, tt.wantEnd)
+			}
+			if pe.HasCloseBrace != tt.wantClose {
+				t.Errorf("HasCloseBrace = %v, want %v", pe.HasCloseBrace, tt.wantClose)
 			}
 		})
 	}
@@ -318,6 +329,58 @@ func TestCompleteAttrClassUsesTextEdit(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected 'task' completion item with TextEdit")
+	}
+}
+
+func TestCompleteAttrOpenAutoCloseOmitsCloseBrace(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1, "# Title\n\nClick **OK**{}")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	items := Complete(doc, document.Position{Line: 2, Character: 13}, f)
+	if len(items) == 0 {
+		t.Fatal("expected completion items")
+	}
+	for _, item := range items {
+		if item.TextEdit != nil && strings.HasSuffix(item.TextEdit.NewText, "}") {
+			t.Errorf("item %q NewText=%q should not end with } when auto-close brace exists",
+				item.Label, item.TextEdit.NewText)
+		}
+	}
+	found := false
+	for _, item := range items {
+		if item.Label == ".shortcut" && item.TextEdit != nil {
+			if item.TextEdit.NewText != ".shortcut" {
+				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, ".shortcut")
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected '.shortcut' completion item")
+	}
+}
+
+func TestCompleteAttrClassAutoCloseOmitsCloseBrace(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1, "# Title {.ta}")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	items := Complete(doc, document.Position{Line: 0, Character: 12}, f)
+	if len(items) == 0 {
+		t.Fatal("expected completion items")
+	}
+	found := false
+	for _, item := range items {
+		if item.Label == "task" && item.TextEdit != nil {
+			if item.TextEdit.NewText != "task" {
+				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, "task")
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected 'task' completion item")
 	}
 }
 
