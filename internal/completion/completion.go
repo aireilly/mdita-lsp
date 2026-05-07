@@ -7,6 +7,7 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
 	"github.com/aireilly/mdita-lsp/internal/paths"
+	"github.com/aireilly/mdita-lsp/internal/vocabulary"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
@@ -45,6 +46,10 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 		return completeYamlKey(pe.Input)
 	case PartialKeyref:
 		return completeKeyref(pe.Input, doc, folder, pe.Range)
+	case PartialHeadingText:
+		return completeTaskSectionHeading(pe.Input, doc)
+	case PartialAttrClass:
+		return completeAttrClass(pe.Input, doc, pos)
 	}
 	return nil
 }
@@ -150,6 +155,125 @@ func completeYamlKey(input string) []CompletionItem {
 			items = append(items, CompletionItem{
 				Label:      key,
 				InsertText: key + ": ",
+				Kind:       6,
+			})
+		}
+	}
+	return items
+}
+
+func completeTaskSectionHeading(input string, doc *document.Document) []CompletionItem {
+	isTask := doc.Meta != nil && doc.Meta.Schema == document.SchemaTask
+	if !isTask {
+		for _, e := range doc.Elements {
+			if h, ok := e.(*document.Heading); ok && h.IsTitle() && h.Attributes != nil {
+				for _, c := range h.Attributes.Classes {
+					if c == "task" {
+						isTask = true
+						break
+					}
+				}
+			}
+			if isTask {
+				break
+			}
+		}
+	}
+	if !isTask {
+		return nil
+	}
+
+	existing := make(map[string]bool)
+	for _, h := range doc.Index.Headings() {
+		existing[strings.ToLower(h.Text)] = true
+	}
+
+	titles := []struct{ title, detail string }{
+		{"Prerequisites", "prereq — before the task"},
+		{"About this task", "context — background info"},
+		{"Verification", "result — expected outcome"},
+		{"Next steps", "postreq — follow-up actions"},
+		{"Related information", "related-links — links after body"},
+	}
+
+	var items []CompletionItem
+	for _, t := range titles {
+		if existing[strings.ToLower(t.title)] {
+			continue
+		}
+		if input != "" && !strings.Contains(strings.ToLower(t.title), strings.ToLower(input)) {
+			continue
+		}
+		items = append(items, CompletionItem{
+			Label:      t.title,
+			Detail:     t.detail,
+			InsertText: t.title,
+			Kind:       17,
+		})
+	}
+	return items
+}
+
+func completeAttrClass(input string, doc *document.Document, pos document.Position) []CompletionItem {
+	var items []CompletionItem
+
+	isHeading := false
+	lines := strings.Split(doc.Text, "\n")
+	line := ""
+	if pos.Line < len(lines) {
+		line = lines[pos.Line]
+	}
+	if strings.HasPrefix(strings.TrimSpace(line), "#") {
+		isHeading = true
+	}
+
+	if isHeading {
+		headingClasses := []struct{ class, detail string }{
+			{"task", "Task topic type"},
+			{"concept", "Concept topic type"},
+			{"reference", "Reference topic type"},
+			{"prereq", "Task prerequisite section"},
+			{"context", "Task context section"},
+			{"result", "Task result section"},
+			{"postreq", "Task post-requisite section"},
+			{"tasktroubleshooting", "Task troubleshooting section"},
+			{"related-links", "Related links section"},
+		}
+		for _, c := range headingClasses {
+			if input == "" || strings.HasPrefix(c.class, input) {
+				items = append(items, CompletionItem{
+					Label:      c.class,
+					Detail:     c.detail,
+					InsertText: c.class + "}",
+					Kind:       6,
+				})
+			}
+		}
+		return items
+	}
+
+	// Inline context — will be extended in Task 4 with domain elements
+	parentKind := ""
+	if pos.Character > 0 && pos.Character <= len(line) {
+		before := line[:pos.Character]
+		if strings.Contains(before, "**") || strings.Contains(before, "__") {
+			parentKind = "bold"
+		} else if strings.Contains(before, "`") {
+			parentKind = "code"
+		} else if strings.Contains(before, "*") {
+			parentKind = "italic"
+		}
+	}
+
+	for _, elem := range vocabulary.AllDomainElements() {
+		if parentKind != "" && elem.ParentKind != parentKind {
+			continue
+		}
+		if input == "" || strings.HasPrefix(elem.DITAElement, input) {
+			items = append(items, CompletionItem{
+				Label:      elem.DITAElement,
+				Detail:     "<" + elem.DITAElement + "> (" + elem.Domain + ")",
+				InsertText: elem.DITAElement + "}",
 				Kind:       6,
 			})
 		}

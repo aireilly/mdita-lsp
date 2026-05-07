@@ -52,6 +52,7 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 	diags = append(diags, checkExtendedFeatures(doc)...)
 	diags = append(diags, checkAdmonitions(doc)...)
 	diags = append(diags, checkFootnotes(doc)...)
+	diags = append(diags, checkTaskSections(doc)...)
 
 	return diags
 }
@@ -235,4 +236,59 @@ func checkAdmonitions(doc *document.Document) []Diagnostic {
 		}
 	}
 	return diags
+}
+
+func checkTaskSections(doc *document.Document) []Diagnostic {
+	var diags []Diagnostic
+	seen := make(map[document.TaskSectionKind]bool)
+	lastOrder := 0
+
+	for _, h := range doc.Index.Headings() {
+		if h.TaskSection == document.TaskSectionNone {
+			continue
+		}
+		if seen[h.TaskSection] {
+			diags = append(diags, Diagnostic{
+				Range:    h.Range,
+				Severity: SeverityError,
+				Code:     CodeDuplicateTaskSection,
+				Source:   source,
+				Message:  "Duplicate task section: \"" + h.Text + "\"",
+			})
+			continue
+		}
+		seen[h.TaskSection] = true
+
+		order := taskSectionOrder(h.TaskSection)
+		if order > 0 && order < lastOrder {
+			diags = append(diags, Diagnostic{
+				Range:    h.Range,
+				Severity: SeverityWarning,
+				Code:     CodeTaskSectionOutOfOrder,
+				Source:   source,
+				Message:  "Task section \"" + h.Text + "\" should appear earlier",
+			})
+		}
+		if order > lastOrder {
+			lastOrder = order
+		}
+	}
+	return diags
+}
+
+func taskSectionOrder(kind document.TaskSectionKind) int {
+	switch kind {
+	case document.TaskSectionPrereq:
+		return 1
+	case document.TaskSectionContext:
+		return 2
+	case document.TaskSectionResult:
+		return 4
+	case document.TaskSectionPostreq:
+		return 5
+	case document.TaskSectionTroubleshooting:
+		return 6
+	default:
+		return 0
+	}
 }

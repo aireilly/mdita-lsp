@@ -22,6 +22,15 @@ func GetHover(doc *document.Document, pos document.Position, folder *workspace.F
 		case *document.MdLink:
 			return hoverMdLink(el, doc, folder)
 		case *document.Heading:
+			if el.IsRelLinks {
+				return "DITA `<related-links>` — Links placed after the topic body in DITA output"
+			}
+			if el.TaskSection != document.TaskSectionNone {
+				return hoverTaskSection(el)
+			}
+			if el.Attributes != nil && len(el.Attributes.Classes) > 0 {
+				return hoverHeadingClass(el)
+			}
 			return "**" + el.Text + "** (level " + itoa(el.Level) + ")"
 		}
 	}
@@ -181,4 +190,31 @@ func detectURL(text string, pos document.Position) string {
 
 func itoa(n int) string {
 	return fmt.Sprintf("%d", n)
+}
+
+func hoverTaskSection(h *document.Heading) string {
+	desc := map[document.TaskSectionKind]struct{ elem, text string }{
+		document.TaskSectionPrereq:          {"prereq", "Content required before performing the task"},
+		document.TaskSectionContext:         {"context", "Background information for the task"},
+		document.TaskSectionResult:          {"result", "Expected result after completing the task"},
+		document.TaskSectionPostreq:         {"postreq", "Follow-up actions after completing the task"},
+		document.TaskSectionTroubleshooting: {"tasktroubleshooting", "Troubleshooting information for the task"},
+	}
+	if d, ok := desc[h.TaskSection]; ok {
+		return "DITA `<" + d.elem + ">` — " + d.text
+	}
+	return "**" + h.Text + "** (level " + itoa(h.Level) + ")"
+}
+
+func hoverHeadingClass(h *document.Heading) string {
+	class := h.Attributes.Classes[0]
+	topicTypes := map[string]string{
+		"task":      "Task topic — procedure-oriented content with steps",
+		"concept":   "Concept topic — explanatory or overview content",
+		"reference": "Reference topic — lookup-oriented content (tables, lists)",
+	}
+	if desc, ok := topicTypes[class]; ok {
+		return "DITA `<" + class + ">` — " + desc
+	}
+	return "**" + h.Text + "** (level " + itoa(h.Level) + ", class: " + class + ")"
 }

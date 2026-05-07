@@ -54,6 +54,7 @@ func New(uri string, version int, text string) *Document {
 		BlockAttrs:  blockAttrs,
 	}
 	doc.Symbols = extractSymbols(doc)
+	resolveTaskSections(doc)
 	return doc
 }
 
@@ -184,4 +185,86 @@ func extractSymbols(doc *Document) []Symbol {
 		}
 	}
 	return syms
+}
+
+func resolveTaskSections(doc *Document) {
+	isTask := doc.Meta != nil && doc.Meta.Schema == SchemaTask
+	if !isTask {
+		for _, e := range doc.Elements {
+			if h, ok := e.(*Heading); ok && h.IsTitle() && h.Attributes != nil {
+				for _, c := range h.Attributes.Classes {
+					if c == "task" {
+						isTask = true
+					}
+				}
+			}
+		}
+	}
+
+	for _, e := range doc.Elements {
+		h, ok := e.(*Heading)
+		if !ok || h.Level < 2 {
+			continue
+		}
+		// Always check related links regardless of task status
+		lowerText := strings.ToLower(h.Text)
+		if lowerText == "related information" || lowerText == "related links" {
+			h.IsRelLinks = true
+		}
+		if h.Attributes != nil {
+			for _, c := range h.Attributes.Classes {
+				if c == "related-links" {
+					h.IsRelLinks = true
+				}
+			}
+		}
+
+		if !isTask {
+			continue
+		}
+		// Resolve task section from class first, then title
+		if h.Attributes != nil {
+			for _, c := range h.Attributes.Classes {
+				h.TaskSection = taskSectionKindFromClass(c)
+				if h.TaskSection != TaskSectionNone {
+					break
+				}
+			}
+		}
+		if h.TaskSection == TaskSectionNone {
+			h.TaskSection = taskSectionKindFromTitle(h.Text)
+		}
+	}
+}
+
+func taskSectionKindFromTitle(title string) TaskSectionKind {
+	switch strings.ToLower(title) {
+	case "prerequisites":
+		return TaskSectionPrereq
+	case "about this task":
+		return TaskSectionContext
+	case "verification":
+		return TaskSectionResult
+	case "next steps":
+		return TaskSectionPostreq
+	default:
+		return TaskSectionNone
+	}
+}
+
+func taskSectionKindFromClass(class string) TaskSectionKind {
+	switch class {
+	case "prereq":
+		return TaskSectionPrereq
+	case "context":
+		return TaskSectionContext
+	case "result":
+		return TaskSectionResult
+	case "postreq":
+		return TaskSectionPostreq
+	case "tasktroubleshooting":
+		return TaskSectionTroubleshooting
+	default:
+		return TaskSectionNone
+	}
 }

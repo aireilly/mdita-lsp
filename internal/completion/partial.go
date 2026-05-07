@@ -14,6 +14,8 @@ const (
 	PartialRefLink
 	PartialYamlKey
 	PartialKeyref
+	PartialHeadingText
+	PartialAttrClass
 )
 
 type PartialElement struct {
@@ -44,6 +46,28 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 			}
 		}
 		return nil
+	}
+
+	// Detect attribute class completion ({. pattern) - check before heading text
+	if idx := strings.LastIndex(prefix, "{."); idx >= 0 {
+		if !strings.Contains(prefix[idx:], "}") {
+			input := prefix[idx+2:]
+			return &PartialElement{
+				Kind:  PartialAttrClass,
+				Input: input,
+			}
+		}
+	}
+
+	// Detect heading text completion (## prefix)
+	trimmed := strings.TrimSpace(prefix)
+	if strings.HasPrefix(trimmed, "##") && !strings.Contains(prefix, "[") {
+		after := strings.TrimPrefix(trimmed, "##")
+		after = strings.TrimPrefix(after, " ")
+		return &PartialElement{
+			Kind:  PartialHeadingText,
+			Input: after,
+		}
 	}
 
 	if idx := strings.LastIndex(prefix, "]("); idx >= 0 {

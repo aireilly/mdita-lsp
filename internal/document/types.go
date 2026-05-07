@@ -85,12 +85,14 @@ type Element interface {
 }
 
 type Heading struct {
-	Level      int
-	Text       string
-	ID         string
-	Slug       paths.Slug
-	Range      Range
-	Attributes *ParsedAttribute
+	Level       int
+	Text        string
+	ID          string
+	Slug        paths.Slug
+	Range       Range
+	Attributes  *ParsedAttribute
+	TaskSection TaskSectionKind
+	IsRelLinks  bool
 }
 
 func (h *Heading) Rng() Range    { return h.Range }
@@ -175,6 +177,17 @@ type BlockAttribute struct {
 	Attr ParsedAttribute
 	Line int
 }
+
+type TaskSectionKind int
+
+const (
+	TaskSectionNone TaskSectionKind = iota
+	TaskSectionPrereq
+	TaskSectionContext
+	TaskSectionResult
+	TaskSectionPostreq
+	TaskSectionTroubleshooting
+)
 
 type SymKind int
 

@@ -34,6 +34,16 @@ const (
 	CodeBrokenMapReference              = "17"
 	CodeCircularMapReference            = "18"
 	CodeInconsistentMapHeadingHierarchy = "19"
+	CodeUnknownOutputclass              = "20"
+	CodeDomainClassWrongParent          = "21"
+	CodeExtendedProfileRequired         = "22"
+	CodeUnknownConditionalAttribute     = "23"
+	CodeTaskSectionOutOfOrder           = "24"
+	CodeDuplicateTaskSection            = "25"
+	CodeRelLinksNonLinkContent          = "26"
+	CodeMenucascadeMissingSeparator     = "27"
+	CodeStepElementOutsideStep          = "28"
+	CodeReltableInconsistentColumns     = "29"
 )
 
 type Diagnostic struct {
