@@ -213,7 +213,7 @@ func TestDetectPartialAttrOpen(t *testing.T) {
 }
 
 func TestDetectPartialAttrOpenRange(t *testing.T) {
-	// "Click **OK**{" — { is at index 12, cursor at 13
+	// Range starts AFTER { (or {.) to align with editor word boundaries
 	tests := []struct {
 		name      string
 		text      string
@@ -222,31 +222,31 @@ func TestDetectPartialAttrOpenRange(t *testing.T) {
 		wantEnd   int
 	}{
 		{
-			name:      "range covers { to cursor",
+			name:      "range starts after {",
 			text:      "# Title\n\nClick **OK**{",
 			pos:       document.Position{Line: 2, Character: 13},
-			wantStart: 12,
+			wantStart: 13,
 			wantEnd:   13,
 		},
 		{
-			name:      "range extends past auto-closed }",
+			name:      "range covers auto-closed }",
 			text:      "# Title\n\nClick **OK**{}",
 			pos:       document.Position{Line: 2, Character: 13},
-			wantStart: 12,
+			wantStart: 13,
 			wantEnd:   14,
 		},
 		{
-			name:      "AttrClass range from {. to cursor",
+			name:      "AttrClass range starts after {.",
 			text:      "# Title\n\nClick **OK**{.ui",
 			pos:       document.Position{Line: 2, Character: 16},
-			wantStart: 12,
+			wantStart: 14,
 			wantEnd:   16,
 		},
 		{
-			name:      "AttrClass range extends past auto-closed }",
+			name:      "AttrClass range covers auto-closed }",
 			text:      "# Title\n\nClick **OK**{.ui}",
 			pos:       document.Position{Line: 2, Character: 16},
-			wantStart: 12,
+			wantStart: 14,
 			wantEnd:   17,
 		},
 	}
@@ -287,8 +287,8 @@ func TestCompleteAttrOpenUsesTextEdit(t *testing.T) {
 	found := false
 	for _, item := range items {
 		if item.Label == ".shortcut" && item.TextEdit != nil {
-			if item.TextEdit.NewText != "{.shortcut}" {
-				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, "{.shortcut}")
+			if item.TextEdit.NewText != ".shortcut}" {
+				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, ".shortcut}")
 			}
 			found = true
 		}
@@ -310,8 +310,8 @@ func TestCompleteAttrClassUsesTextEdit(t *testing.T) {
 	found := false
 	for _, item := range items {
 		if item.Label == "task" && item.TextEdit != nil {
-			if item.TextEdit.NewText != "{.task}" {
-				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, "{.task}")
+			if item.TextEdit.NewText != "task}" {
+				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, "task}")
 			}
 			found = true
 		}

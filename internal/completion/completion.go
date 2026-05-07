@@ -251,7 +251,7 @@ func completeAttrClass(input string, doc *document.Document, pos document.Positi
 					Kind:   6,
 					TextEdit: &TextEdit{
 						Range:   editRange,
-						NewText: "{." + c.class + "}",
+						NewText: c.class + "}",
 					},
 				})
 			}
@@ -282,7 +282,7 @@ func completeAttrClass(input string, doc *document.Document, pos document.Positi
 				Kind:   6,
 				TextEdit: &TextEdit{
 					Range:   editRange,
-					NewText: "{." + elem.DITAElement + "}",
+					NewText: elem.DITAElement + "}",
 				},
 			})
 		}
@@ -300,7 +300,7 @@ func completeBlockAttr(input string, editRange document.Range) []CompletionItem 
 				Kind:   6,
 				TextEdit: &TextEdit{
 					Range:   editRange,
-					NewText: "{" + ca.Name + "=\"\"",
+					NewText: ca.Name + "=\"\"",
 				},
 			})
 		}
@@ -340,7 +340,7 @@ func completeAttrOpen(input string, doc *document.Document, pos document.Positio
 					Kind:   6,
 					TextEdit: &TextEdit{
 						Range:   editRange,
-						NewText: "{" + label + "}",
+						NewText: label + "}",
 					},
 				})
 			}
@@ -353,7 +353,7 @@ func completeAttrOpen(input string, doc *document.Document, pos document.Positio
 					Kind:   6,
 					TextEdit: &TextEdit{
 						Range:   editRange,
-						NewText: "{" + ca.Name + "=\"\"",
+						NewText: ca.Name + "=\"\"",
 					},
 				})
 			}
@@ -385,7 +385,7 @@ func completeAttrOpen(input string, doc *document.Document, pos document.Positio
 				Kind:   6,
 				TextEdit: &TextEdit{
 					Range:   editRange,
-					NewText: "{" + label + "}",
+					NewText: label + "}",
 				},
 			})
 		}
