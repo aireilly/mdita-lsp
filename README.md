@@ -116,7 +116,7 @@ diagnostics:
 | Feature | Description |
 |---------|-------------|
 | Diagnostics | 29 codes: MDITA compliance, link validation, heading hierarchy, footnotes, keyrefs, ditamap validation, domain elements, task sections, conditional attributes, relationship tables |
-| Completion | Inline links (`](`), YAML keys, heading anchors (`#`), keyrefs (`[`), task section headings, attribute classes, conditional attributes |
+| Completion | Inline links (`](`), YAML keys, heading anchors (`#`), keyrefs (`[`), task section headings, attribute classes (`{.`), attribute open (`{` after inline elements/headings), conditional attributes |
 | Go to Definition | Markdown links and keyref shortcut references |
 | Hover | Document titles, heading text, keyref targets, YAML front matter keys, domain elements, task sections, conditional attributes |
 | Find References | All references to a heading across the workspace |

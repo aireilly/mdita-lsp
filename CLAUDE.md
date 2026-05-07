@@ -48,7 +48,7 @@ internal/
   definition/           # Go-to-definition for markdown links and keyrefs
   hover/                # Hover for markdown links, keyrefs, headings, YAML keys, domain elements, task sections
   references/           # Find references to headings via symbol graph
-  completion/           # Completion: inline links, YAML keys, keyrefs, task sections, attribute classes
+  completion/           # Completion: inline links, YAML keys, keyrefs, task sections, attribute classes, attribute open ({)
   rename/               # Heading rename
   codeaction/           # ToC, create file, front matter, add to map, DITA OT, related links, task sections
   codelens/             # Reference count lenses on headings
@@ -70,7 +70,7 @@ testdata/               # Test fixtures
 ## LSP capabilities
 
 - TextDocumentSync: Incremental (mode 2) with 200ms diagnostic debouncing
-- Completion (inline links, YAML keys, keyrefs, task sections, attribute classes) with resolve
+- Completion (inline links, YAML keys, keyrefs, task sections, attribute classes, attribute open) with resolve
 - Definition (markdown links, keyrefs)
 - Hover (markdown links, keyrefs, headings, YAML keys, domain elements, task sections, conditional attrs)
 - Document Highlight, References, Rename (with prepare), Code Actions, Code Lens

@@ -52,6 +52,8 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 		return completeAttrClass(pe.Input, doc, pos)
 	case PartialBlockAttr:
 		return completeBlockAttr(pe.Input)
+	case PartialAttrOpen:
+		return completeAttrOpen(pe.Input, doc, pos)
 	}
 	return nil
 }
@@ -292,6 +294,82 @@ func completeBlockAttr(input string) []CompletionItem {
 				Label:      ca.Name,
 				Detail:     ca.Description,
 				InsertText: snippet,
+				Kind:       6,
+			})
+		}
+	}
+	return items
+}
+
+func completeAttrOpen(input string, doc *document.Document, pos document.Position) []CompletionItem {
+	var items []CompletionItem
+
+	lines := strings.Split(doc.Text, "\n")
+	line := ""
+	if pos.Line < len(lines) {
+		line = lines[pos.Line]
+	}
+
+	isHeading := strings.HasPrefix(strings.TrimSpace(line), "#")
+
+	if isHeading {
+		headingClasses := []struct{ class, detail string }{
+			{"task", "Task topic type"},
+			{"concept", "Concept topic type"},
+			{"reference", "Reference topic type"},
+			{"prereq", "Task prerequisite section"},
+			{"context", "Task context section"},
+			{"result", "Task result section"},
+			{"postreq", "Task post-requisite section"},
+			{"tasktroubleshooting", "Task troubleshooting section"},
+			{"related-links", "Related links section"},
+		}
+		for _, c := range headingClasses {
+			label := "." + c.class
+			if input == "" || strings.HasPrefix(label, input) {
+				items = append(items, CompletionItem{
+					Label:      label,
+					Detail:     c.detail,
+					InsertText: label + "}",
+					Kind:       6,
+				})
+			}
+		}
+		for _, ca := range vocabulary.AllConditionalAttributes() {
+			if input == "" || strings.HasPrefix(ca.Name, input) {
+				items = append(items, CompletionItem{
+					Label:      ca.Name,
+					Detail:     ca.Description,
+					InsertText: ca.Name + "=\"\"",
+					Kind:       6,
+				})
+			}
+		}
+		return items
+	}
+
+	parentKind := ""
+	if pos.Character > 0 && pos.Character <= len(line) {
+		before := line[:pos.Character]
+		if strings.Contains(before, "**") || strings.Contains(before, "__") {
+			parentKind = "bold"
+		} else if strings.Contains(before, "`") {
+			parentKind = "code"
+		} else if strings.Contains(before, "*") {
+			parentKind = "italic"
+		}
+	}
+
+	for _, elem := range vocabulary.AllDomainElements() {
+		if parentKind != "" && elem.ParentKind != parentKind {
+			continue
+		}
+		label := "." + elem.DITAElement
+		if input == "" || strings.HasPrefix(label, input) {
+			items = append(items, CompletionItem{
+				Label:      label,
+				Detail:     "<" + elem.DITAElement + "> (" + elem.Domain + ")",
+				InsertText: label + "}",
 				Kind:       6,
 			})
 		}

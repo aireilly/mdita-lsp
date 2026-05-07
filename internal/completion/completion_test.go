@@ -130,3 +130,86 @@ func TestCompleteKeyref(t *testing.T) {
 		t.Errorf("expected 'install' keyref completion, got %v", items)
 	}
 }
+
+func TestDetectPartialAttrOpen(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		pos      document.Position
+		wantKind *PartialKind
+		wantIn   string
+	}{
+		{
+			name:     "bare { after bold",
+			text:     "# Title\n\nClick **OK**{",
+			pos:      document.Position{Line: 2, Character: 16},
+			wantKind: ptrKind(PartialAttrOpen),
+			wantIn:   "",
+		},
+		{
+			name:     "bare { after code",
+			text:     "# Title\n\nRun `cmd`{",
+			pos:      document.Position{Line: 2, Character: 13},
+			wantKind: ptrKind(PartialAttrOpen),
+			wantIn:   "",
+		},
+		{
+			name:     "bare { after italic",
+			text:     "# Title\n\nSee *note*{",
+			pos:      document.Position{Line: 2, Character: 14},
+			wantKind: ptrKind(PartialAttrOpen),
+			wantIn:   "",
+		},
+		{
+			name:     "bare { in heading",
+			text:     "# My Topic {",
+			pos:      document.Position{Line: 0, Character: 12},
+			wantKind: ptrKind(PartialAttrOpen),
+			wantIn:   "",
+		},
+		{
+			name:     "bare { with partial input",
+			text:     "# Title\n\nClick **OK**{.ui",
+			pos:      document.Position{Line: 2, Character: 19},
+			wantKind: ptrKind(PartialAttrClass),
+			wantIn:   "ui",
+		},
+		{
+			name:     "bare { in plain text not detected",
+			text:     "# Title\n\nUse {braces",
+			pos:      document.Position{Line: 2, Character: 14},
+			wantKind: nil,
+			wantIn:   "",
+		},
+		{
+			name:     "standalone { is block attr",
+			text:     "# Title\n\n{aud",
+			pos:      document.Position{Line: 2, Character: 4},
+			wantKind: ptrKind(PartialBlockAttr),
+			wantIn:   "aud",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pe := DetectPartial(tt.text, tt.pos)
+			if tt.wantKind == nil {
+				if pe != nil {
+					t.Errorf("expected nil partial, got kind=%v", pe.Kind)
+				}
+				return
+			}
+			if pe == nil {
+				t.Fatal("expected partial element, got nil")
+			}
+			if pe.Kind != *tt.wantKind {
+				t.Errorf("Kind = %v, want %v", pe.Kind, *tt.wantKind)
+			}
+			if pe.Input != tt.wantIn {
+				t.Errorf("Input = %q, want %q", pe.Input, tt.wantIn)
+			}
+		})
+	}
+}
+
+func ptrKind(k PartialKind) *PartialKind { return &k }

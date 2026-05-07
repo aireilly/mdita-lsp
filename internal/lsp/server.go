@@ -354,7 +354,7 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 		Capabilities: ServerCapabilities{
 			TextDocumentSync: 2,
 			CompletionProvider: &CompletionOptions{
-				TriggerCharacters: []string{"[", "#", "("},
+				TriggerCharacters: []string{"[", "#", "(", "{"},
 				ResolveProvider:   true,
 			},
 			DefinitionProvider:              true,
