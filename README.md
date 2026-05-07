@@ -2,7 +2,7 @@
 
 An LSP server for [MDITA](https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=dita) (Markdown DITA) documents.
 
-Provides comprehensive language support for `.md` and `.mditamap` files with 19 diagnostic codes, keyref resolution, incremental text sync, and full IDE integration.
+Provides comprehensive language support for `.md` and `.mditamap` files with 29 diagnostic codes, MDITA extended profile support (domain specializations, task sections, conditional processing), keyref resolution, incremental text sync, and full IDE integration.
 
 ## Install
 
@@ -115,13 +115,13 @@ diagnostics:
 
 | Feature | Description |
 |---------|-------------|
-| Diagnostics | 19 codes: MDITA compliance, link validation, heading hierarchy, footnotes, keyrefs, ditamap validation, map heading consistency |
-| Completion | Inline links (`](`), YAML keys, heading anchors (`#`), keyrefs (`[`) with lazy documentation resolve |
+| Diagnostics | 29 codes: MDITA compliance, link validation, heading hierarchy, footnotes, keyrefs, ditamap validation, domain elements, task sections, conditional attributes, relationship tables |
+| Completion | Inline links (`](`), YAML keys, heading anchors (`#`), keyrefs (`[`), task section headings, attribute classes, conditional attributes |
 | Go to Definition | Markdown links and keyref shortcut references |
-| Hover | Document titles, heading text, keyref targets, YAML front matter keys |
+| Hover | Document titles, heading text, keyref targets, YAML front matter keys, domain elements, task sections, conditional attributes |
 | Find References | All references to a heading across the workspace |
 | Rename | Heading rename |
-| Code Actions | Generate ToC, create missing files, add YAML front matter, add to mditamap, quick-fix NBSP/footnotes/heading hierarchy, build XHTML/DITA with DITA OT |
+| Code Actions | Generate ToC, create missing files, add YAML front matter, add to mditamap, add related links, add task sections, quick-fix NBSP/footnotes/heading hierarchy, build XHTML/DITA with DITA OT |
 | Code Lens | Reference counts on headings |
 | Document Links | Clickable links for external URLs |
 | Document Symbols | Hierarchical heading outline tree |
@@ -130,9 +130,9 @@ diagnostics:
 | Selection Ranges | Progressive selection expansion by line/element/section |
 | Linked Editing | Linked editing of heading text |
 | Formatting | Trim trailing whitespace, normalize headings, align tables, ensure trailing newline (full + range) |
-| Inlay Hints | Show resolved markdown link targets and keyref targets inline |
+| Inlay Hints | Show resolved markdown link targets, keyref targets, and DITA domain element mappings inline |
 | Document Highlight | Highlight all same-document references to heading under cursor |
-| Semantic Tokens | Semantic token encoding (full + range) |
+| Semantic Tokens | Semantic token encoding (full + range) with attribute decorator highlighting |
 | File Rename | Auto-update markdown links and map references on file rename |
 | File Create | Auto-populate new `.md` files with MDITA YAML front matter |
 | Execute Command | Create files, add documents to map, build XHTML/DITA via DITA OT |
@@ -163,6 +163,55 @@ diagnostics:
 | 17 | Broken map reference | Error |
 | 18 | Circular map reference | Error |
 | 19 | Inconsistent map heading hierarchy | Info |
+| 20 | Unknown outputclass | Warning |
+| 21 | Domain class wrong parent | Warning |
+| 22 | Extended profile required | Warning |
+| 23 | Unknown conditional attribute | Warning |
+| 24 | Task section out of order | Warning |
+| 25 | Duplicate task section | Error |
+| 26 | Related links non-link content | Warning |
+| 27 | Menucascade missing separator | Warning |
+| 28 | Step element outside task | Warning |
+| 29 | Reltable inconsistent columns | Warning |
+
+## MDITA extended profile
+
+mdita-lsp supports the MDITA extended profile with inline attribute syntax for DITA domain specializations:
+
+```markdown
+# Install the software {.task}
+
+## Prerequisites
+
+{platform="linux"}
+
+1. Click **File > Open**{.menucascade} to open the dialog.
+2. Edit `config.yaml`{.filepath} to set options.
+3. Run the `installer`{.cmdname} command.
+
+## Related information
+
+- [User Guide](user-guide.md)
+```
+
+### Supported domain elements
+
+| Domain | Elements |
+|--------|----------|
+| UI (ui-d) | `{.uicontrol}`, `{.wintitle}`, `{.menucascade}`, `{.shortcut}` on **bold** |
+| Software (sw-d) | `{.filepath}`, `{.cmdname}`, `{.userinput}`, `{.systemoutput}`, `{.varname}`, `{.msgph}` on `` `code` `` |
+| Programming (pr-d) | `{.codeph}`, `{.option}`, `{.parmname}`, `{.apiname}`, `{.kwd}` on `` `code` `` |
+| Topic | `{.cite}` on *italic*, `{.draft-comment}` on paragraph |
+
+### Conditional processing
+
+Block-level attributes for DITA profiling:
+
+```markdown
+{platform="linux" audience="admin"}
+```
+
+Supported attributes: `audience`, `platform`, `product`, `otherprops`, `deliveryTarget`, `props`, `rev`.
 
 ## MDITA map format
 
@@ -179,11 +228,25 @@ diagnostics:
 
 Keys are derived from filenames (e.g., `install.md` → key `install`). Use `[install]` in topic files to create keyref shortcut references.
 
+### Relationship tables
+
+Tables in `.mditamap` files are parsed as DITA relationship tables:
+
+```markdown
+| [Overview](overview.md) | [Install](install.md) |
+|-------------------------|----------------------|
+| [Config](config.md)     | [Troubleshoot](ts.md) |
+```
+
+### Map references
+
+Links to `.ditamap` or `.mditamap` files are treated as map references (mapref).
+
 ## Development
 
 ```bash
 make build     # Build binary
-make test      # Run 202 tests with race detection
+make test      # Run 210+ tests with race detection
 make lint      # Run golangci-lint
 make publish   # Cross-compile for 5 platforms (~3.5 MB each)
 make clean     # Remove build artifacts
