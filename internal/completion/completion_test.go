@@ -213,43 +213,48 @@ func TestDetectPartialAttrOpen(t *testing.T) {
 }
 
 func TestDetectPartialAttrOpenRange(t *testing.T) {
-	// Range starts AFTER { (or {.) to align with editor word boundaries.
-	// When auto-closed } exists, range extends to cover it so the editor
-	// treats the completion as a replacement (not a zero-width insertion).
+	// Range always ends at the cursor (never extends past it to cover }).
+	// HasCloseBrace signals whether } follows the cursor so completion
+	// functions can omit } from NewText when the editor already has one.
 	tests := []struct {
-		name      string
-		text      string
-		pos       document.Position
-		wantStart int
-		wantEnd   int
+		name           string
+		text           string
+		pos            document.Position
+		wantStart      int
+		wantEnd        int
+		wantCloseBrace bool
 	}{
 		{
-			name:      "range starts after {",
-			text:      "# Title\n\nClick **OK**{",
-			pos:       document.Position{Line: 2, Character: 13},
-			wantStart: 13,
-			wantEnd:   13,
+			name:           "range starts after {",
+			text:           "# Title\n\nClick **OK**{",
+			pos:            document.Position{Line: 2, Character: 13},
+			wantStart:      13,
+			wantEnd:        13,
+			wantCloseBrace: false,
 		},
 		{
-			name:      "range covers auto-closed }",
-			text:      "# Title\n\nClick **OK**{}",
-			pos:       document.Position{Line: 2, Character: 13},
-			wantStart: 13,
-			wantEnd:   14,
+			name:           "range ends at cursor when auto-closed } present",
+			text:           "# Title\n\nClick **OK**{}",
+			pos:            document.Position{Line: 2, Character: 13},
+			wantStart:      13,
+			wantEnd:        13,
+			wantCloseBrace: true,
 		},
 		{
-			name:      "AttrClass range starts after {.",
-			text:      "# Title\n\nClick **OK**{.ui",
-			pos:       document.Position{Line: 2, Character: 16},
-			wantStart: 14,
-			wantEnd:   16,
+			name:           "AttrClass range starts after {.",
+			text:           "# Title\n\nClick **OK**{.ui",
+			pos:            document.Position{Line: 2, Character: 16},
+			wantStart:      14,
+			wantEnd:        16,
+			wantCloseBrace: false,
 		},
 		{
-			name:      "AttrClass range covers auto-closed }",
-			text:      "# Title\n\nClick **OK**{.ui}",
-			pos:       document.Position{Line: 2, Character: 16},
-			wantStart: 14,
-			wantEnd:   17,
+			name:           "AttrClass range ends at cursor when auto-closed } present",
+			text:           "# Title\n\nClick **OK**{.ui}",
+			pos:            document.Position{Line: 2, Character: 16},
+			wantStart:      14,
+			wantEnd:        16,
+			wantCloseBrace: true,
 		},
 	}
 
@@ -264,6 +269,9 @@ func TestDetectPartialAttrOpenRange(t *testing.T) {
 			}
 			if pe.Range.End.Character != tt.wantEnd {
 				t.Errorf("Range.End.Character = %d, want %d", pe.Range.End.Character, tt.wantEnd)
+			}
+			if pe.HasCloseBrace != tt.wantCloseBrace {
+				t.Errorf("HasCloseBrace = %v, want %v", pe.HasCloseBrace, tt.wantCloseBrace)
 			}
 		})
 	}
@@ -323,7 +331,7 @@ func TestCompleteAttrClassUsesTextEdit(t *testing.T) {
 	}
 }
 
-func TestCompleteAttrOpenAutoCloseReplacesCloseBrace(t *testing.T) {
+func TestCompleteAttrOpenAutoCloseOmitsCloseBrace(t *testing.T) {
 	doc := document.New("file:///project/doc.md", 1, "# Title\n\nClick **OK**{}")
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
@@ -335,11 +343,11 @@ func TestCompleteAttrOpenAutoCloseReplacesCloseBrace(t *testing.T) {
 	found := false
 	for _, item := range items {
 		if item.Label == ".shortcut" && item.TextEdit != nil {
-			if item.TextEdit.NewText != ".shortcut}" {
-				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, ".shortcut}")
+			if item.TextEdit.NewText != ".shortcut" {
+				t.Errorf("NewText = %q, want %q (no } since editor already has one)", item.TextEdit.NewText, ".shortcut")
 			}
-			if item.TextEdit.Range.End.Character != 14 {
-				t.Errorf("Range.End.Character = %d, want 14 (covering auto-closed })",
+			if item.TextEdit.Range.End.Character != 13 {
+				t.Errorf("Range.End.Character = %d, want 13 (range ends at cursor, not past })",
 					item.TextEdit.Range.End.Character)
 			}
 			found = true
@@ -350,7 +358,7 @@ func TestCompleteAttrOpenAutoCloseReplacesCloseBrace(t *testing.T) {
 	}
 }
 
-func TestCompleteAttrClassAutoCloseReplacesCloseBrace(t *testing.T) {
+func TestCompleteAttrClassAutoCloseOmitsCloseBrace(t *testing.T) {
 	doc := document.New("file:///project/doc.md", 1, "# Title {.ta}")
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
@@ -362,11 +370,11 @@ func TestCompleteAttrClassAutoCloseReplacesCloseBrace(t *testing.T) {
 	found := false
 	for _, item := range items {
 		if item.Label == "task" && item.TextEdit != nil {
-			if item.TextEdit.NewText != "task}" {
-				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, "task}")
+			if item.TextEdit.NewText != "task" {
+				t.Errorf("NewText = %q, want %q (no } since editor already has one)", item.TextEdit.NewText, "task")
 			}
-			if item.TextEdit.Range.End.Character != 13 {
-				t.Errorf("Range.End.Character = %d, want 13 (covering auto-closed })",
+			if item.TextEdit.Range.End.Character != 12 {
+				t.Errorf("Range.End.Character = %d, want 12 (range ends at cursor, not past })",
 					item.TextEdit.Range.End.Character)
 			}
 			found = true
