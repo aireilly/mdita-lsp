@@ -21,6 +21,10 @@ func GetHover(doc *document.Document, pos document.Position, folder *workspace.F
 		return h
 	}
 
+	if h := hoverBlockAttribute(doc, pos); h != "" {
+		return h
+	}
+
 	elem := doc.ElementAt(pos)
 	if elem != nil {
 		switch el := elem.(type) {
@@ -243,6 +247,24 @@ func hoverInlineAttribute(doc *document.Document, pos document.Position) string 
 		for key := range ia.Attr.KeyValues {
 			if vocabulary.IsConditionalAttribute(key) {
 				return "DITA conditional processing attribute `" + key + "`"
+			}
+		}
+	}
+	return ""
+}
+
+func hoverBlockAttribute(doc *document.Document, pos document.Position) string {
+	for _, ba := range doc.BlockAttrs {
+		if ba.Line != pos.Line {
+			continue
+		}
+		for key, val := range ba.Attr.KeyValues {
+			if vocabulary.IsConditionalAttribute(key) {
+				for _, ca := range vocabulary.AllConditionalAttributes() {
+					if ca.Name == key {
+						return "DITA conditional processing attribute `" + key + "` — " + ca.Description + "\n\nCurrent value: `" + val + "`"
+					}
+				}
 			}
 		}
 	}

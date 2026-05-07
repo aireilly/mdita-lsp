@@ -73,3 +73,37 @@ func TestValidDomainClass(t *testing.T) {
 		}
 	}
 }
+
+func TestUnknownConditionalAttribute(t *testing.T) {
+	doc := makeDoc("file:///test.md",
+		"---", "$schema: urn:oasis:names:tc:mdita:extended:rng:topic.rng", "---", "",
+		"# Topic", "", "Short desc.", "",
+		"{badattr=\"value\"}", "", "- Step one",
+	)
+	f := makeFolder(doc)
+	diags := Check(doc, f)
+	found := false
+	for _, d := range diags {
+		if d.Code == CodeUnknownConditionalAttribute {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected CodeUnknownConditionalAttribute diagnostic")
+	}
+}
+
+func TestValidConditionalAttribute(t *testing.T) {
+	doc := makeDoc("file:///test.md",
+		"---", "$schema: urn:oasis:names:tc:mdita:extended:rng:topic.rng", "---", "",
+		"# Topic", "", "Short desc.", "",
+		"{platform=\"linux\"}", "", "- Step one",
+	)
+	f := makeFolder(doc)
+	diags := Check(doc, f)
+	for _, d := range diags {
+		if d.Code == CodeUnknownConditionalAttribute {
+			t.Errorf("unexpected diagnostic for valid attr: %s", d.Message)
+		}
+	}
+}

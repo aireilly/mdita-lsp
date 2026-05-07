@@ -16,6 +16,7 @@ const (
 	PartialKeyref
 	PartialHeadingText
 	PartialAttrClass
+	PartialBlockAttr
 )
 
 type PartialElement struct {
@@ -48,6 +49,16 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 		return nil
 	}
 
+	// Detect block attribute completion ({key=" pattern on standalone line)
+	trimmed := strings.TrimSpace(prefix)
+	if strings.HasPrefix(trimmed, "{") && !strings.Contains(trimmed, "}") && !strings.Contains(line, "#") {
+		input := strings.TrimPrefix(trimmed, "{")
+		return &PartialElement{
+			Kind:  PartialBlockAttr,
+			Input: input,
+		}
+	}
+
 	// Detect attribute class completion ({. pattern) - check before heading text
 	if idx := strings.LastIndex(prefix, "{."); idx >= 0 {
 		if !strings.Contains(prefix[idx:], "}") {
@@ -60,7 +71,7 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 	}
 
 	// Detect heading text completion (## prefix)
-	trimmed := strings.TrimSpace(prefix)
+	trimmed = strings.TrimSpace(prefix)
 	if strings.HasPrefix(trimmed, "##") && !strings.Contains(prefix, "[") {
 		after := strings.TrimPrefix(trimmed, "##")
 		after = strings.TrimPrefix(after, " ")

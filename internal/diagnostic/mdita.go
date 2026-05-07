@@ -56,6 +56,7 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 	diags = append(diags, checkTaskSections(doc)...)
 	if doc.Index.Features.HasAttributes {
 		diags = append(diags, checkInlineAttributes(doc)...)
+		diags = append(diags, checkBlockAttributes(doc)...)
 	}
 
 	return diags
@@ -331,6 +332,24 @@ func checkInlineAttributes(doc *document.Document) []Diagnostic {
 					Code:     CodeMenucascadeMissingSeparator,
 					Source:   source,
 					Message:  "menucascade requires \" > \" separator between menu items",
+				})
+			}
+		}
+	}
+	return diags
+}
+
+func checkBlockAttributes(doc *document.Document) []Diagnostic {
+	var diags []Diagnostic
+	for _, ba := range doc.BlockAttrs {
+		for key := range ba.Attr.KeyValues {
+			if !vocabulary.IsConditionalAttribute(key) {
+				diags = append(diags, Diagnostic{
+					Range:    ba.Attr.Range,
+					Severity: SeverityWarning,
+					Code:     CodeUnknownConditionalAttribute,
+					Source:   source,
+					Message:  "Unknown conditional attribute \"" + key + "\"",
 				})
 			}
 		}

@@ -50,6 +50,8 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 		return completeTaskSectionHeading(pe.Input, doc)
 	case PartialAttrClass:
 		return completeAttrClass(pe.Input, doc, pos)
+	case PartialBlockAttr:
+		return completeBlockAttr(pe.Input)
 	}
 	return nil
 }
@@ -274,6 +276,22 @@ func completeAttrClass(input string, doc *document.Document, pos document.Positi
 				Label:      elem.DITAElement,
 				Detail:     "<" + elem.DITAElement + "> (" + elem.Domain + ")",
 				InsertText: elem.DITAElement + "}",
+				Kind:       6,
+			})
+		}
+	}
+	return items
+}
+
+func completeBlockAttr(input string) []CompletionItem {
+	var items []CompletionItem
+	for _, ca := range vocabulary.AllConditionalAttributes() {
+		snippet := ca.Name + "=\"\""
+		if input == "" || strings.HasPrefix(ca.Name, input) {
+			items = append(items, CompletionItem{
+				Label:      ca.Name,
+				Detail:     ca.Description,
+				InsertText: snippet,
 				Kind:       6,
 			})
 		}
