@@ -53,8 +53,6 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 		return completeAttrClass(pe.Input, doc, pos, pe.Range, pe.HasCloseBrace)
 	case PartialBlockAttr:
 		return completeBlockAttr(pe.Input, pe.Range)
-	case PartialAttrOpen:
-		return completeAttrOpen(pe.Input, doc, pos, pe.Range, pe.HasCloseBrace)
 	}
 	return nil
 }
@@ -307,99 +305,6 @@ func completeBlockAttr(input string, editRange document.Range) []CompletionItem 
 				TextEdit: &TextEdit{
 					Range:   editRange,
 					NewText: ca.Name + "=\"\"",
-				},
-			})
-		}
-	}
-	return items
-}
-
-func completeAttrOpen(input string, doc *document.Document, pos document.Position, editRange document.Range, hasCloseBrace bool) []CompletionItem {
-	var items []CompletionItem
-
-	suffix := ""
-	if !hasCloseBrace {
-		suffix = "}"
-	}
-
-	lines := strings.Split(doc.Text, "\n")
-	line := ""
-	if pos.Line < len(lines) {
-		line = lines[pos.Line]
-	}
-
-	isHeading := strings.HasPrefix(strings.TrimSpace(line), "#")
-
-	if isHeading {
-		headingClasses := []struct{ class, detail string }{
-			{"task", "Task topic type"},
-			{"concept", "Concept topic type"},
-			{"reference", "Reference topic type"},
-			{"prereq", "Task prerequisite section"},
-			{"context", "Task context section"},
-			{"result", "Task result section"},
-			{"postreq", "Task post-requisite section"},
-			{"tasktroubleshooting", "Task troubleshooting section"},
-			{"related-links", "Related links section"},
-		}
-		for _, c := range headingClasses {
-			label := "." + c.class
-			if input == "" || strings.HasPrefix(label, input) {
-				items = append(items, CompletionItem{
-					Label:      label,
-					Detail:     c.detail,
-					FilterText: "{" + label,
-					Kind:       6,
-					TextEdit: &TextEdit{
-						Range:   editRange,
-						NewText: "{" + label + suffix,
-					},
-				})
-			}
-		}
-		for _, ca := range vocabulary.AllConditionalAttributes() {
-			if input == "" || strings.HasPrefix(ca.Name, input) {
-				items = append(items, CompletionItem{
-					Label:      ca.Name,
-					Detail:     ca.Description,
-					FilterText: "{" + ca.Name,
-					Kind:       6,
-					TextEdit: &TextEdit{
-						Range:   editRange,
-						NewText: "{" + ca.Name + "=\"\"",
-					},
-				})
-			}
-		}
-		return items
-	}
-
-	parentKind := ""
-	if pos.Character > 0 && pos.Character <= len(line) {
-		before := line[:pos.Character]
-		if strings.Contains(before, "**") || strings.Contains(before, "__") {
-			parentKind = "bold"
-		} else if strings.Contains(before, "`") {
-			parentKind = "code"
-		} else if strings.Contains(before, "*") {
-			parentKind = "italic"
-		}
-	}
-
-	for _, elem := range vocabulary.AllDomainElements() {
-		if parentKind != "" && elem.ParentKind != parentKind {
-			continue
-		}
-		label := "." + elem.DITAElement
-		if input == "" || strings.HasPrefix(label, input) {
-			items = append(items, CompletionItem{
-				Label:      label,
-				Detail:     "<" + elem.DITAElement + "> (" + elem.Domain + ")",
-				FilterText: "{" + label,
-				Kind:       6,
-				TextEdit: &TextEdit{
-					Range:   editRange,
-					NewText: "{" + label + suffix,
 				},
 			})
 		}

@@ -162,7 +162,7 @@ Headings map to DITA topic titles (H1) and sections (H2). The LSP provides:
 When `$schema` declares a task, the plug-in maps markdown constructs to DITA task elements. The LSP provides:
 
 - **Diagnostics** for task missing procedure (code 8), concept has procedure (code 9), task section order (code 24), and duplicate sections (code 25)
-- **Completion** of task section headings: Prerequisites, About this task, Verification, Next steps
+- **Completion** of task section headings: Prerequisites, About this task, Verification, Next steps, Troubleshooting
 - **Code actions** to insert missing task sections
 - **Hover** on task section headings showing their DITA element mapping
 
@@ -172,6 +172,7 @@ When `$schema` declares a task, the plug-in maps markdown constructs to DITA tas
 | About this task | `<context>` |
 | Verification | `<result>` |
 | Next steps | `<postreq>` |
+| Troubleshooting | `<tasktroubleshooting>` |
 
 The plug-in also maps:
 
@@ -275,7 +276,7 @@ Edit `config.yaml`{.filepath} to set options.
 See *RFC 7231*{.cite} for details.
 ```
 
-- **Completion** of domain element classes after `{.` and `{`
+- **Completion** of domain element classes after `{.`
 - **Hover** showing the DITA element name, domain, and description
 - **Inlay hints** showing DITA element mappings inline
 - **Diagnostics** for unknown outputclass (code 20) and wrong parent element (code 21)
@@ -390,7 +391,6 @@ Tables in `.mditamap` files are parsed as DITA `<reltable>`:
 
 | Code | Name | Severity | DITA plug-in feature |
 |------|------|----------|---------------------|
-| 1 | Ambiguous link | Warning | Link auto-classification |
 | 2 | Broken link | Error | Link processing |
 | 3 | Non-breaking whitespace | Warning | Heading/title processing |
 | 4 | Missing YAML front matter | Warning | `$schema` topic type detection |
@@ -411,7 +411,6 @@ Tables in `.mditamap` files are parsed as DITA `<reltable>`:
 | 19 | Inconsistent map heading hierarchy | Info | Map nesting validation |
 | 20 | Unknown outputclass | Warning | Domain element classes |
 | 21 | Domain class wrong parent | Warning | Domain specialization rules |
-| 22 | Extended profile required | Warning | Profile feature gating |
 | 23 | Unknown conditional attribute | Warning | Conditional processing |
 | 24 | Task section out of order | Warning | Task section ordering |
 | 25 | Duplicate task section | Error | Task section uniqueness |

@@ -148,7 +148,7 @@ func TestCompleteKeyref(t *testing.T) {
 	}
 }
 
-func TestDetectPartialAttrOpen(t *testing.T) {
+func TestDetectPartialAttrContext(t *testing.T) {
 	tests := []struct {
 		name     string
 		text     string
@@ -157,35 +157,7 @@ func TestDetectPartialAttrOpen(t *testing.T) {
 		wantIn   string
 	}{
 		{
-			name:     "bare { after bold",
-			text:     "# Title\n\nClick **OK**{",
-			pos:      document.Position{Line: 2, Character: 16},
-			wantKind: ptrKind(PartialAttrOpen),
-			wantIn:   "",
-		},
-		{
-			name:     "bare { after code",
-			text:     "# Title\n\nRun `cmd`{",
-			pos:      document.Position{Line: 2, Character: 13},
-			wantKind: ptrKind(PartialAttrOpen),
-			wantIn:   "",
-		},
-		{
-			name:     "bare { after italic",
-			text:     "# Title\n\nSee *note*{",
-			pos:      document.Position{Line: 2, Character: 14},
-			wantKind: ptrKind(PartialAttrOpen),
-			wantIn:   "",
-		},
-		{
-			name:     "bare { in heading",
-			text:     "# My Topic {",
-			pos:      document.Position{Line: 0, Character: 12},
-			wantKind: ptrKind(PartialAttrOpen),
-			wantIn:   "",
-		},
-		{
-			name:     "bare { with partial input",
+			name:     "bare { with partial input triggers AttrClass",
 			text:     "# Title\n\nClick **OK**{.ui",
 			pos:      document.Position{Line: 2, Character: 19},
 			wantKind: ptrKind(PartialAttrClass),
@@ -229,10 +201,7 @@ func TestDetectPartialAttrOpen(t *testing.T) {
 	}
 }
 
-func TestDetectPartialAttrOpenRange(t *testing.T) {
-	// Range always ends at the cursor (never extends past it to cover }).
-	// HasCloseBrace signals whether } follows the cursor so completion
-	// functions can omit } from NewText when the editor already has one.
+func TestDetectPartialAttrClassRange(t *testing.T) {
 	tests := []struct {
 		name           string
 		text           string
@@ -241,22 +210,6 @@ func TestDetectPartialAttrOpenRange(t *testing.T) {
 		wantEnd        int
 		wantCloseBrace bool
 	}{
-		{
-			name:           "range starts at {",
-			text:           "# Title\n\nClick **OK**{",
-			pos:            document.Position{Line: 2, Character: 13},
-			wantStart:      12,
-			wantEnd:        13,
-			wantCloseBrace: false,
-		},
-		{
-			name:           "range ends at cursor when auto-closed } present",
-			text:           "# Title\n\nClick **OK**{}",
-			pos:            document.Position{Line: 2, Character: 13},
-			wantStart:      12,
-			wantEnd:        13,
-			wantCloseBrace: true,
-		},
 		{
 			name:           "AttrClass range starts after {.",
 			text:           "# Title\n\nClick **OK**{.ui",
@@ -294,40 +247,6 @@ func TestDetectPartialAttrOpenRange(t *testing.T) {
 	}
 }
 
-func TestCompleteAttrOpenUsesTextEdit(t *testing.T) {
-	doc := document.New("file:///project/doc.md", 1, "# Title\n\nClick **OK**{")
-	cfg := config.Default()
-	f := workspace.NewFolder("file:///project", cfg)
-	f.AddDoc(doc)
-	items := Complete(doc, document.Position{Line: 2, Character: 13}, f)
-	if len(items) == 0 {
-		t.Fatal("expected completion items")
-	}
-	for _, item := range items {
-		if item.TextEdit == nil {
-			t.Errorf("item %q has nil TextEdit, want TextEdit with range", item.Label)
-		}
-		if item.InsertText != "" {
-			t.Errorf("item %q has InsertText=%q, want empty (using TextEdit)", item.Label, item.InsertText)
-		}
-	}
-	found := false
-	for _, item := range items {
-		if item.Label == ".shortcut" && item.TextEdit != nil {
-			if item.TextEdit.NewText != "{.shortcut}" {
-				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, "{.shortcut}")
-			}
-			if item.FilterText != "{.shortcut" {
-				t.Errorf("FilterText = %q, want %q", item.FilterText, "{.shortcut")
-			}
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected '.shortcut' completion item with TextEdit")
-	}
-}
-
 func TestCompleteAttrClassUsesTextEdit(t *testing.T) {
 	doc := document.New("file:///project/doc.md", 1, "# Title {.ta")
 	cfg := config.Default()
@@ -348,37 +267,6 @@ func TestCompleteAttrClassUsesTextEdit(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected 'task' completion item with TextEdit")
-	}
-}
-
-func TestCompleteAttrOpenAutoCloseOmitsCloseBrace(t *testing.T) {
-	doc := document.New("file:///project/doc.md", 1, "# Title\n\nClick **OK**{}")
-	cfg := config.Default()
-	f := workspace.NewFolder("file:///project", cfg)
-	f.AddDoc(doc)
-	items := Complete(doc, document.Position{Line: 2, Character: 13}, f)
-	if len(items) == 0 {
-		t.Fatal("expected completion items")
-	}
-	found := false
-	for _, item := range items {
-		if item.Label == ".shortcut" && item.TextEdit != nil {
-			if item.TextEdit.NewText != "{.shortcut" {
-				t.Errorf("NewText = %q, want %q (no } since editor already has one)", item.TextEdit.NewText, "{.shortcut")
-			}
-			if item.TextEdit.Range.Start.Character != 12 {
-				t.Errorf("Range.Start.Character = %d, want 12 (range starts at {)",
-					item.TextEdit.Range.Start.Character)
-			}
-			if item.TextEdit.Range.End.Character != 13 {
-				t.Errorf("Range.End.Character = %d, want 13 (range ends at cursor)",
-					item.TextEdit.Range.End.Character)
-			}
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected '.shortcut' completion item")
 	}
 }
 
