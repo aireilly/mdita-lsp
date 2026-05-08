@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/aireilly/mdita-lsp/internal/config"
@@ -157,6 +158,34 @@ func TestDetectPartialAttrContext(t *testing.T) {
 		wantIn   string
 	}{
 		{
+			name:     "bare { after bold",
+			text:     "# Title\n\nClick **OK**{",
+			pos:      document.Position{Line: 2, Character: 16},
+			wantKind: ptrKind(PartialAttrOpen),
+			wantIn:   "",
+		},
+		{
+			name:     "bare { after code",
+			text:     "# Title\n\nRun `cmd`{",
+			pos:      document.Position{Line: 2, Character: 13},
+			wantKind: ptrKind(PartialAttrOpen),
+			wantIn:   "",
+		},
+		{
+			name:     "bare { after italic",
+			text:     "# Title\n\nSee *note*{",
+			pos:      document.Position{Line: 2, Character: 14},
+			wantKind: ptrKind(PartialAttrOpen),
+			wantIn:   "",
+		},
+		{
+			name:     "bare { in heading",
+			text:     "# My Topic {",
+			pos:      document.Position{Line: 0, Character: 12},
+			wantKind: ptrKind(PartialAttrOpen),
+			wantIn:   "",
+		},
+		{
 			name:     "bare { with partial input triggers AttrClass",
 			text:     "# Title\n\nClick **OK**{.ui",
 			pos:      document.Position{Line: 2, Character: 19},
@@ -201,7 +230,7 @@ func TestDetectPartialAttrContext(t *testing.T) {
 	}
 }
 
-func TestDetectPartialAttrClassRange(t *testing.T) {
+func TestDetectPartialAttrRange(t *testing.T) {
 	tests := []struct {
 		name           string
 		text           string
@@ -210,6 +239,22 @@ func TestDetectPartialAttrClassRange(t *testing.T) {
 		wantEnd        int
 		wantCloseBrace bool
 	}{
+		{
+			name:           "AttrOpen range starts after {",
+			text:           "# Title\n\nClick **OK**{",
+			pos:            document.Position{Line: 2, Character: 13},
+			wantStart:      13,
+			wantEnd:        13,
+			wantCloseBrace: false,
+		},
+		{
+			name:           "AttrOpen range with auto-closed }",
+			text:           "# Title\n\nClick **OK**{}",
+			pos:            document.Position{Line: 2, Character: 13},
+			wantStart:      13,
+			wantEnd:        13,
+			wantCloseBrace: true,
+		},
 		{
 			name:           "AttrClass range starts after {.",
 			text:           "# Title\n\nClick **OK**{.ui",
@@ -244,6 +289,71 @@ func TestDetectPartialAttrClassRange(t *testing.T) {
 				t.Errorf("HasCloseBrace = %v, want %v", pe.HasCloseBrace, tt.wantCloseBrace)
 			}
 		})
+	}
+}
+
+func TestCompleteAttrOpenInsertsWithoutBrace(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1, "# Title\n\nClick **OK**{")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	items := Complete(doc, document.Position{Line: 2, Character: 13}, f)
+	if len(items) == 0 {
+		t.Fatal("expected completion items")
+	}
+	for _, item := range items {
+		if item.TextEdit == nil {
+			t.Errorf("item %q has nil TextEdit", item.Label)
+			continue
+		}
+		if strings.HasPrefix(item.TextEdit.NewText, "{") {
+			t.Errorf("item %q NewText = %q starts with { — should not include opening brace",
+				item.Label, item.TextEdit.NewText)
+		}
+		if strings.Contains(item.TextEdit.NewText, "\n") {
+			t.Errorf("item %q NewText = %q contains newline", item.Label, item.TextEdit.NewText)
+		}
+	}
+	found := false
+	for _, item := range items {
+		if item.Label == ".shortcut" && item.TextEdit != nil {
+			if item.TextEdit.NewText != ".shortcut}" {
+				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, ".shortcut}")
+			}
+			if item.FilterText != "{.shortcut" {
+				t.Errorf("FilterText = %q, want %q", item.FilterText, "{.shortcut")
+			}
+			if item.TextEdit.Range.Start.Character != 13 {
+				t.Errorf("Range.Start.Character = %d, want 13 (after {)", item.TextEdit.Range.Start.Character)
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected '.shortcut' completion item")
+	}
+}
+
+func TestCompleteAttrOpenAutoCloseOmitsCloseBrace(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1, "# Title\n\nClick **OK**{}")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	items := Complete(doc, document.Position{Line: 2, Character: 13}, f)
+	if len(items) == 0 {
+		t.Fatal("expected completion items")
+	}
+	found := false
+	for _, item := range items {
+		if item.Label == ".shortcut" && item.TextEdit != nil {
+			if item.TextEdit.NewText != ".shortcut" {
+				t.Errorf("NewText = %q, want %q (no } since editor already has one)", item.TextEdit.NewText, ".shortcut")
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected '.shortcut' completion item")
 	}
 }
 

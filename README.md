@@ -276,7 +276,7 @@ Edit `config.yaml`{.filepath} to set options.
 See *RFC 7231*{.cite} for details.
 ```
 
-- **Completion** of domain element classes after `{.`
+- **Completion** of domain element classes after `{.` and `{`
 - **Hover** showing the DITA element name, domain, and description
 - **Inlay hints** showing DITA element mappings inline
 - **Diagnostics** for unknown outputclass (code 20) and wrong parent element (code 21)

@@ -17,6 +17,7 @@ const (
 	PartialHeadingText
 	PartialAttrClass
 	PartialBlockAttr
+	PartialAttrOpen
 )
 
 type PartialElement struct {
@@ -90,6 +91,30 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 		}
 	}
 
+	// Detect bare { in inline/heading attribute context
+	if idx := strings.LastIndex(prefix, "{"); idx >= 0 && !strings.Contains(prefix[idx:], "}") {
+		before := prefix[:idx]
+		if isAttrContext(before) {
+			input := prefix[idx+1:]
+			hasClose := false
+			if col < len(line) {
+				suffix := line[col:]
+				if bi := strings.Index(suffix, "}"); bi >= 0 && strings.TrimSpace(suffix[:bi]) == "" {
+					hasClose = true
+				}
+			}
+			return &PartialElement{
+				Kind:          PartialAttrOpen,
+				Input:         input,
+				HasCloseBrace: hasClose,
+				Range: document.Range{
+					Start: document.Position{Line: pos.Line, Character: idx + 1},
+					End:   document.Position{Line: pos.Line, Character: col},
+				},
+			}
+		}
+	}
+
 	// Detect heading text completion (## prefix)
 	trimmed = strings.TrimSpace(prefix)
 	if strings.HasPrefix(trimmed, "##") && !strings.Contains(prefix, "[") {
@@ -140,6 +165,19 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 	}
 
 	return nil
+}
+
+func isAttrContext(before string) bool {
+	if before == "" {
+		return false
+	}
+	if strings.HasPrefix(strings.TrimSpace(before), "#") {
+		return true
+	}
+	return strings.HasSuffix(before, "**") ||
+		strings.HasSuffix(before, "__") ||
+		strings.HasSuffix(before, "`") ||
+		strings.HasSuffix(before, "*")
 }
 
 func inYamlBlock(lines []string, lineNum int) bool {
