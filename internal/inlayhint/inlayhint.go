@@ -74,7 +74,9 @@ func keyrefHints(doc *document.Document, rng document.Range, table keyref.KeyTab
 			continue
 		}
 		label := entry.Href
-		if entry.Title != "" {
+		if entry.Value != "" {
+			label = entry.Value
+		} else if entry.Title != "" {
 			label = entry.Title
 		}
 		hints = append(hints, InlayHint{

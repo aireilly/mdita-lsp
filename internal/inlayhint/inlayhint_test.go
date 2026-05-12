@@ -87,3 +87,41 @@ func TestNoHintsForPlainText(t *testing.T) {
 		t.Errorf("expected no hints, got %d", len(hints))
 	}
 }
+
+func TestDoubleCurlyKeyrefHint(t *testing.T) {
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"---\nkeys:\n  product-name: \"Red Hat OpenShift\"\n---\n# Map\n")
+	source := document.New("file:///project/doc.md", 1,
+		"# Doc\n\nInstall {{product-name}} now.\n")
+	folder := testFolder(mapDoc, source)
+
+	hints := GetHints(source, fullRange(), folder)
+	found := false
+	for _, h := range hints {
+		if h.Label == " → Red Hat OpenShift" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected inlay hint with resolved value, got %v", hints)
+	}
+}
+
+func TestDoubleCurlyKeyrefHintURL(t *testing.T) {
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"---\nkeys:\n  docs-url: \"https://docs.example.com\"\n---\n# Map\n")
+	source := document.New("file:///project/doc.md", 1,
+		"# Doc\n\nVisit {{docs-url}} for help.\n")
+	folder := testFolder(mapDoc, source)
+
+	hints := GetHints(source, fullRange(), folder)
+	found := false
+	for _, h := range hints {
+		if h.Label == " → https://docs.example.com" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected inlay hint with href, got %v", hints)
+	}
+}
