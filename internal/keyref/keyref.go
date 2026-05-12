@@ -10,6 +10,7 @@ import (
 type KeyEntry struct {
 	Href  string
 	Title string
+	Value string
 }
 
 type KeyTable map[string]KeyEntry
