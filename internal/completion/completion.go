@@ -29,7 +29,7 @@ type CompletionItem struct {
 
 var yamlKeys = []string{
 	"$schema", "id", "author", "source", "publisher", "permissions",
-	"audience", "category", "keyword", "resourceid",
+	"audience", "category", "keyword", "resourceid", "keys",
 }
 
 func Complete(doc *document.Document, pos document.Position, folder *workspace.Folder) []CompletionItem {
@@ -55,6 +55,8 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 		return completeBlockAttr(pe.Input, pe.Range)
 	case PartialAttrOpen:
 		return completeAttrOpen(pe.Input, doc, pos, pe.Range, pe.HasCloseBrace)
+	case PartialDoubleCurlyKeyref:
+		return completeDoubleCurlyKeyref(pe.Input, doc, folder, pe.Range)
 	}
 	return nil
 }
@@ -400,6 +402,34 @@ func completeAttrOpen(input string, doc *document.Document, pos document.Positio
 				TextEdit: &TextEdit{
 					Range:   editRange,
 					NewText: label + suffix,
+				},
+			})
+		}
+	}
+	return items
+}
+
+func completeDoubleCurlyKeyref(input string, doc *document.Document, folder *workspace.Folder, editRange document.Range) []CompletionItem {
+	table := keyref.BuildMergedTable(folder.MapTexts())
+
+	var items []CompletionItem
+	for _, key := range keyref.AllKeys(table) {
+		if input == "" || strings.Contains(strings.ToLower(key), strings.ToLower(input)) {
+			entry := table[key]
+			detail := entry.Href
+			if entry.Value != "" {
+				detail = entry.Value
+			} else if entry.Title != "" {
+				detail = entry.Title + " (" + entry.Href + ")"
+			}
+			items = append(items, CompletionItem{
+				Label:  key,
+				Detail: detail,
+				Kind:   6,
+				Data:   map[string]string{"kind": "keyref"},
+				TextEdit: &TextEdit{
+					Range:   editRange,
+					NewText: "{{" + key + "}}",
 				},
 			})
 		}

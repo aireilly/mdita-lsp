@@ -408,3 +408,60 @@ func TestCompleteAttrClassAutoCloseOmitsCloseBrace(t *testing.T) {
 }
 
 func ptrKind(k PartialKind) *PartialKind { return &k }
+
+func TestDetectPartialDoubleCurlyKeyref(t *testing.T) {
+	text := "# Title\n\nInstall {{prod"
+	pe := DetectPartial(text, document.Position{Line: 2, Character: 16})
+	if pe == nil {
+		t.Fatal("expected partial element")
+	}
+	if pe.Kind != PartialDoubleCurlyKeyref {
+		t.Errorf("Kind = %v, want PartialDoubleCurlyKeyref", pe.Kind)
+	}
+	if pe.Input != "prod" {
+		t.Errorf("Input = %q, want %q", pe.Input, "prod")
+	}
+}
+
+func TestDetectPartialDoubleCurlyEmpty(t *testing.T) {
+	text := "# Title\n\nInstall {{"
+	pe := DetectPartial(text, document.Position{Line: 2, Character: 12})
+	if pe == nil {
+		t.Fatal("expected partial element")
+	}
+	if pe.Kind != PartialDoubleCurlyKeyref {
+		t.Errorf("Kind = %v, want PartialDoubleCurlyKeyref", pe.Kind)
+	}
+	if pe.Input != "" {
+		t.Errorf("Input = %q, want empty", pe.Input)
+	}
+}
+
+func TestCompleteDoubleCurlyKeyref(t *testing.T) {
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"---\nkeys:\n  product-name: \"Red Hat OpenShift\"\n  version: \"4.15\"\n---\n# Map\n\n- [Install](install.md)\n")
+	topicDoc := document.New("file:///project/topic.md", 1,
+		"# Topic\n\nInstall {{prod")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(mapDoc)
+	f.AddDoc(topicDoc)
+	items := Complete(topicDoc, document.Position{Line: 2, Character: 16}, f)
+	found := false
+	for _, item := range items {
+		if item.Label == "product-name" {
+			found = true
+			if item.Kind != 6 {
+				t.Errorf("Kind = %d, want 6 (variable)", item.Kind)
+			}
+		}
+	}
+	if !found {
+		labels := make([]string, len(items))
+		for i, it := range items {
+			labels[i] = it.Label
+		}
+		t.Errorf("expected 'product-name' completion, got %v", labels)
+	}
+}

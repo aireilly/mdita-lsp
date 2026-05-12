@@ -18,6 +18,7 @@ const (
 	PartialAttrClass
 	PartialBlockAttr
 	PartialAttrOpen
+	PartialDoubleCurlyKeyref
 )
 
 type PartialElement struct {
@@ -49,6 +50,29 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 			}
 		}
 		return nil
+	}
+
+	// Detect {{key}} double-curly keyref
+	if idx := strings.LastIndex(prefix, "{{"); idx >= 0 {
+		if !strings.Contains(prefix[idx:], "}}") {
+			input := prefix[idx+2:]
+			startChar := idx
+			endChar := col
+			if col < len(line) {
+				suffix := line[col:]
+				if ci := strings.Index(suffix, "}}"); ci >= 0 {
+					endChar = col + ci + 2
+				}
+			}
+			return &PartialElement{
+				Kind:  PartialDoubleCurlyKeyref,
+				Input: input,
+				Range: document.Range{
+					Start: document.Position{Line: pos.Line, Character: startChar},
+					End:   document.Position{Line: pos.Line, Character: endChar},
+				},
+			}
+		}
 	}
 
 	// Detect block attribute completion ({key=" pattern on standalone line)
