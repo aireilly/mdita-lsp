@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/aireilly/mdita-lsp/internal/ditamap"
+	"github.com/aireilly/mdita-lsp/internal/document"
 )
 
 type KeyEntry struct {
@@ -53,6 +54,18 @@ func AllKeys(table KeyTable) []string {
 	return keys
 }
 
+func isURLValue(s string) bool {
+	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
+		return true
+	}
+	for _, ext := range []string{".md", ".dita", ".html", ".xml"} {
+		if strings.HasSuffix(s, ext) {
+			return true
+		}
+	}
+	return false
+}
+
 func BuildMergedTable(mapTexts []string) KeyTable {
 	merged := make(KeyTable)
 	for _, text := range mapTexts {
@@ -64,6 +77,17 @@ func BuildMergedTable(mapTexts []string) KeyTable {
 		for k, v := range table {
 			if _, exists := merged[k]; !exists {
 				merged[k] = v
+			}
+		}
+
+		meta := document.ParseYAMLMeta(text)
+		if meta != nil && meta.Keys != nil {
+			for k, v := range meta.Keys {
+				if isURLValue(v) {
+					merged[k] = KeyEntry{Href: v}
+				} else {
+					merged[k] = KeyEntry{Value: v, Title: v}
+				}
 			}
 		}
 	}
