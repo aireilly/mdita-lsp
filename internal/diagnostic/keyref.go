@@ -48,5 +48,20 @@ func CheckKeyrefs(doc *document.Document, folder *workspace.Folder) []Diagnostic
 		}
 	}
 
+	// {{key}} double-curly keyrefs
+	dcLocs := keyref.DetectAllDoubleCurly(doc.Text)
+	for _, loc := range dcLocs {
+		if _, ok := keyref.Resolve(merged, loc.Key); !ok {
+			startChar := loc.EndChar - len(loc.Key) - 4 // account for {{ and }}
+			diags = append(diags, Diagnostic{
+				Range:    document.Rng(loc.Line, startChar, loc.Line, loc.EndChar),
+				Severity: SeverityWarning,
+				Code:     CodeUnresolvedKeyref,
+				Source:   source,
+				Message:  "Unresolved keyref: " + loc.Key,
+			})
+		}
+	}
+
 	return diags
 }
