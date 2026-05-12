@@ -43,3 +43,49 @@ func TestGotoDefNoResult(t *testing.T) {
 		t.Errorf("expected no locations, got %d", len(locs))
 	}
 }
+
+func TestGotoDefDoubleCurlyKeyref(t *testing.T) {
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"---\nkeys:\n  product-name: \"Red Hat OpenShift\"\n---\n# Map\n\n- [Install](install.md)\n")
+	install := document.New("file:///project/install.md", 1,
+		"# Installation\n")
+	topicDoc := document.New("file:///project/topic.md", 1,
+		"# Topic\n\nInstall {{product-name}} now.\n")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(mapDoc)
+	f.AddDoc(install)
+	f.AddDoc(topicDoc)
+
+	locs := GotoDef(topicDoc, document.Position{Line: 2, Character: 14}, f)
+	if len(locs) == 0 {
+		t.Fatal("expected definition location for {{product-name}}")
+	}
+	if locs[0].URI != "file:///project/map.mditamap" {
+		t.Errorf("expected map URI, got %q", locs[0].URI)
+	}
+}
+
+func TestGotoDefDoubleCurlyKeyrefHref(t *testing.T) {
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"# Map\n\n- [Install Guide](install.md)\n")
+	install := document.New("file:///project/install.md", 1,
+		"# Installation\n")
+	topicDoc := document.New("file:///project/topic.md", 1,
+		"# Topic\n\nSee {{install}} for details.\n")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(mapDoc)
+	f.AddDoc(install)
+	f.AddDoc(topicDoc)
+
+	locs := GotoDef(topicDoc, document.Position{Line: 2, Character: 8}, f)
+	if len(locs) == 0 {
+		t.Fatal("expected definition location for {{install}}")
+	}
+	if locs[0].URI != "file:///project/install.md" {
+		t.Errorf("expected install.md URI, got %q", locs[0].URI)
+	}
+}

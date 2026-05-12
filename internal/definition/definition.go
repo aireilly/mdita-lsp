@@ -2,6 +2,7 @@ package definition
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
@@ -66,6 +67,23 @@ func resolveKeyref(kr *keyref.KeyrefAtPos, doc *document.Document, folder *works
 		return nil
 	}
 
+	// YAML-defined text keydef: navigate to the map file's keys: block
+	if entry.Value != "" && entry.Href == "" {
+		for _, mapDoc := range folder.AllDocs() {
+			if mapDoc.Kind != document.Map {
+				continue
+			}
+			if mapDoc.Meta != nil && mapDoc.Meta.Keys != nil {
+				if _, ok := mapDoc.Meta.Keys[kr.Label]; ok {
+					defRange := findYAMLKeyLine(mapDoc.Text, kr.Label)
+					return []Location{{URI: mapDoc.URI, Range: defRange}}
+				}
+			}
+		}
+		return nil
+	}
+
+	// Href-based keydef: navigate to target topic file
 	for _, mapDoc := range folder.AllDocs() {
 		if mapDoc.Kind != document.Map {
 			continue
@@ -84,4 +102,15 @@ func resolveKeyref(kr *keyref.KeyrefAtPos, doc *document.Document, folder *works
 		}
 	}
 	return nil
+}
+
+func findYAMLKeyLine(text string, key string) document.Range {
+	lines := strings.Split(text, "\n")
+	target := "  " + key + ":"
+	for i, line := range lines {
+		if strings.HasPrefix(line, target) {
+			return document.Rng(i, 2, i, 2+len(key))
+		}
+	}
+	return document.Rng(0, 0, 0, 0)
 }
