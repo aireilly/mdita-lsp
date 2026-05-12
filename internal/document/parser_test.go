@@ -148,3 +148,31 @@ func filterLinkDefs(elems []Element) []*LinkDef {
 	}
 	return result
 }
+
+func TestParseYAMLKeys(t *testing.T) {
+	source := "---\n$schema: urn:oasis:names:tc:dita:xsd:map.xsd\nkeys:\n  product-name: \"Red Hat OpenShift\"\n  version: \"4.15\"\n---\n# Map\n"
+	_, _, meta := Parse(source)
+	if meta == nil {
+		t.Fatal("expected metadata")
+	}
+	if meta.Keys == nil {
+		t.Fatal("expected Keys to be parsed")
+	}
+	if meta.Keys["product-name"] != "Red Hat OpenShift" {
+		t.Errorf("product-name = %q, want %q", meta.Keys["product-name"], "Red Hat OpenShift")
+	}
+	if meta.Keys["version"] != "4.15" {
+		t.Errorf("version = %q, want %q", meta.Keys["version"], "4.15")
+	}
+}
+
+func TestParseYAMLKeysEmpty(t *testing.T) {
+	source := "---\nauthor: Jane\n---\n# Doc\n"
+	_, _, meta := Parse(source)
+	if meta == nil {
+		t.Fatal("expected metadata")
+	}
+	if meta.Keys != nil {
+		t.Errorf("expected nil Keys when no keys: block, got %v", meta.Keys)
+	}
+}

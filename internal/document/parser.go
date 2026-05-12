@@ -213,6 +213,15 @@ func parseYAMLMeta(yamlContent string) *YAMLMetadata {
 			meta.Schema = DitaSchemaFromString(sval)
 		case "keyword":
 			meta.Keywords = parseKeywords(val)
+		case "keys":
+			if m, ok := val.(map[string]any); ok {
+				meta.Keys = make(map[string]string, len(m))
+				for k, v := range m {
+					if s, ok := v.(string); ok {
+						meta.Keys[k] = s
+					}
+				}
+			}
 		default:
 			if sval != "" {
 				meta.OtherMeta[key] = sval
@@ -236,6 +245,23 @@ func parseKeywords(val any) []string {
 		return result
 	}
 	return nil
+}
+
+// ParseYAMLMeta extracts YAML front matter from text without running the full goldmark parse.
+// Returns nil if no YAML front matter is present.
+func ParseYAMLMeta(text string) *YAMLMetadata {
+	if !strings.HasPrefix(text, "---\n") && !strings.HasPrefix(text, "---\r\n") {
+		return nil
+	}
+	closeIdx := strings.Index(text[4:], "\n---")
+	if closeIdx < 0 {
+		closeIdx = strings.Index(text[4:], "\n...")
+	}
+	if closeIdx < 0 {
+		return nil
+	}
+	yamlBlock := text[4 : 4+closeIdx]
+	return parseYAMLMeta(yamlBlock)
 }
 
 var linkDefRegex = regexp.MustCompile(`(?m)^\[([^\]]+)\]:\s+(.+)$`)
