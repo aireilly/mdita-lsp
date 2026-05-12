@@ -158,3 +158,53 @@ func TestHoverNotOnURL(t *testing.T) {
 		t.Errorf("expected no hover on non-URL text, got %q", result)
 	}
 }
+
+func TestHoverDoubleCurlyKeyref(t *testing.T) {
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"---\nkeys:\n  product-name: \"Red Hat OpenShift\"\n---\n# Map\n")
+	topicDoc := document.New("file:///project/topic.md", 1,
+		"# Topic\n\nInstall {{product-name}} now.\n")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(mapDoc)
+	f.AddDoc(topicDoc)
+	result := GetHover(topicDoc, document.Position{Line: 2, Character: 14}, f)
+	if result == "" {
+		t.Fatal("expected hover content for {{keyref}}")
+	}
+	if !strings.Contains(result, "product-name") {
+		t.Errorf("hover = %q, expected to contain 'product-name'", result)
+	}
+	if !strings.Contains(result, "Red Hat OpenShift") {
+		t.Errorf("hover = %q, expected to contain resolved value", result)
+	}
+}
+
+func TestHoverDoubleCurlyKeyrefUnresolved(t *testing.T) {
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"# Map\n\n- [Install](install.md)\n")
+	topicDoc := document.New("file:///project/topic.md", 1,
+		"# Topic\n\nInstall {{nonexistent-key}} now.\n")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(mapDoc)
+	f.AddDoc(topicDoc)
+	result := GetHover(topicDoc, document.Position{Line: 2, Character: 14}, f)
+	if result != "" {
+		t.Errorf("expected empty hover for unresolved {{keyref}}, got %q", result)
+	}
+}
+
+func TestHoverYAMLKeysEntry(t *testing.T) {
+	doc := document.New("file:///project/map.mditamap", 1,
+		"---\nkeys:\n  product-name: \"Red Hat OpenShift\"\n---\n# Map\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	result := GetHover(doc, document.Position{Line: 1, Character: 2}, f)
+	if !strings.Contains(result, "keys") {
+		t.Errorf("expected hover for 'keys', got %q", result)
+	}
+}

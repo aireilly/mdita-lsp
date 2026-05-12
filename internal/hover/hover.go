@@ -65,6 +65,7 @@ var yamlKeyDocs = map[string]string{
 	"category":    "Topic category for classification",
 	"keyword":     "Keywords for indexing and search (comma-separated or YAML list)",
 	"resourceid":  "Unique resource identifier for cross-references",
+	"keys":        "Key definitions for keyword keyrefs (map files only)",
 }
 
 func hoverYAMLKey(doc *document.Document, pos document.Position) string {
@@ -114,9 +115,11 @@ func hoverKeyref(kr *keyref.KeyrefAtPos, folder *workspace.Folder) string {
 		return ""
 	}
 	result := "**" + kr.Label + "** (keyref)"
-	if entry.Title != "" {
+	if entry.Value != "" {
+		result += "\n\nValue: " + entry.Value
+	} else if entry.Title != "" {
 		result += "\n\nTarget: " + entry.Title + " (" + entry.Href + ")"
-	} else {
+	} else if entry.Href != "" {
 		result += "\n\nTarget: " + entry.Href
 	}
 	return result
