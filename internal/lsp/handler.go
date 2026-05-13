@@ -10,6 +10,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 var errMethodNotFound = errors.New("method not found")
@@ -40,6 +41,8 @@ type Notification struct {
 }
 
 func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
+	out = &lockedWriter{w: out}
+
 	scanner := bufio.NewScanner(in)
 	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
 	scanner.Split(scanLSPMessages)
@@ -174,12 +177,35 @@ func (s *Server) dispatchNotification(ctx context.Context, method string, params
 	}
 }
 
+type lockedWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func (lw *lockedWriter) Write(p []byte) (int, error) {
+	lw.mu.Lock()
+	defer lw.mu.Unlock()
+	return lw.w.Write(p)
+}
+
 func writeMessage(w io.Writer, msg any) error {
 	body, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}
 	header := fmt.Sprintf("Content-Length: %d\r\n\r\n", len(body))
+
+	if lw, ok := w.(*lockedWriter); ok {
+		lw.mu.Lock()
+		defer lw.mu.Unlock()
+		_, err = io.WriteString(lw.w, header)
+		if err != nil {
+			return err
+		}
+		_, err = lw.w.Write(body)
+		return err
+	}
+
 	_, err = io.WriteString(w, header)
 	if err != nil {
 		return err

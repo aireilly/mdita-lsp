@@ -50,11 +50,11 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 	case PartialHeadingText:
 		return completeTaskSectionHeading(pe.Input, doc)
 	case PartialAttrClass:
-		return completeAttrClass(pe.Input, doc, pos, pe.Range, pe.HasCloseBrace)
+		return completeAttrClass(pe.Input, doc, pos, pe.Range)
 	case PartialBlockAttr:
 		return completeBlockAttr(pe.Input, pe.Range)
 	case PartialAttrOpen:
-		return completeAttrOpen(pe.Input, doc, pos, pe.Range, pe.HasCloseBrace)
+		return completeAttrOpen(pe.Input, doc, pos, pe.Range)
 	case PartialDoubleCurlyKeyref:
 		return completeDoubleCurlyKeyref(pe.Input, doc, folder, pe.Range)
 	}
@@ -221,13 +221,8 @@ func completeTaskSectionHeading(input string, doc *document.Document) []Completi
 	return items
 }
 
-func completeAttrClass(input string, doc *document.Document, pos document.Position, editRange document.Range, hasCloseBrace bool) []CompletionItem {
+func completeAttrClass(input string, doc *document.Document, pos document.Position, editRange document.Range) []CompletionItem {
 	var items []CompletionItem
-
-	suffix := ""
-	if !hasCloseBrace {
-		suffix = "}"
-	}
 
 	isHeading := false
 	lines := strings.Split(doc.Text, "\n")
@@ -259,7 +254,7 @@ func completeAttrClass(input string, doc *document.Document, pos document.Positi
 					Kind:   6,
 					TextEdit: &TextEdit{
 						Range:   editRange,
-						NewText: c.class + suffix,
+						NewText: c.class + "}",
 					},
 				})
 			}
@@ -290,7 +285,7 @@ func completeAttrClass(input string, doc *document.Document, pos document.Positi
 				Kind:   6,
 				TextEdit: &TextEdit{
 					Range:   editRange,
-					NewText: elem.DITAElement + suffix,
+					NewText: elem.DITAElement + "}",
 				},
 			})
 		}
@@ -308,7 +303,7 @@ func completeBlockAttr(input string, editRange document.Range) []CompletionItem 
 				Kind:   6,
 				TextEdit: &TextEdit{
 					Range:   editRange,
-					NewText: ca.Name + "=\"\"",
+					NewText: ca.Name + "=\"\"}",
 				},
 			})
 		}
@@ -316,13 +311,8 @@ func completeBlockAttr(input string, editRange document.Range) []CompletionItem 
 	return items
 }
 
-func completeAttrOpen(input string, doc *document.Document, pos document.Position, editRange document.Range, hasCloseBrace bool) []CompletionItem {
+func completeAttrOpen(input string, doc *document.Document, pos document.Position, editRange document.Range) []CompletionItem {
 	var items []CompletionItem
-
-	suffix := ""
-	if !hasCloseBrace {
-		suffix = "}"
-	}
 
 	lines := strings.Split(doc.Text, "\n")
 	line := ""
@@ -354,7 +344,7 @@ func completeAttrOpen(input string, doc *document.Document, pos document.Positio
 					Kind:       6,
 					TextEdit: &TextEdit{
 						Range:   editRange,
-						NewText: label + suffix,
+						NewText: label + "}",
 					},
 				})
 			}
@@ -368,7 +358,7 @@ func completeAttrOpen(input string, doc *document.Document, pos document.Positio
 					Kind:       6,
 					TextEdit: &TextEdit{
 						Range:   editRange,
-						NewText: ca.Name + "=\"\"",
+						NewText: ca.Name + "=\"\"}",
 					},
 				})
 			}
@@ -401,7 +391,7 @@ func completeAttrOpen(input string, doc *document.Document, pos document.Positio
 				Kind:       6,
 				TextEdit: &TextEdit{
 					Range:   editRange,
-					NewText: label + suffix,
+					NewText: label + "}",
 				},
 			})
 		}
@@ -423,10 +413,11 @@ func completeDoubleCurlyKeyref(input string, doc *document.Document, folder *wor
 				detail = entry.Title + " (" + entry.Href + ")"
 			}
 			items = append(items, CompletionItem{
-				Label:  key,
-				Detail: detail,
-				Kind:   6,
-				Data:   map[string]string{"kind": "keyref"},
+				Label:      key,
+				Detail:     detail,
+				FilterText: "{{" + key,
+				Kind:       6,
+				Data:       map[string]string{"kind": "keyref"},
 				TextEdit: &TextEdit{
 					Range:   editRange,
 					NewText: "{{" + key + "}}",

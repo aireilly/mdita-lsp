@@ -318,3 +318,16 @@ func TestBrokenMdLinkAnchor(t *testing.T) {
 		t.Error("expected broken link diagnostic for nonexistent heading in install.md")
 	}
 }
+
+func TestKeyrefLinkNotBroken(t *testing.T) {
+	doc := makeDoc("file:///project/doc.md",
+		"# Title", "", "[documentation]({{product-url}})")
+	f := makeFolder(doc)
+	diags := Check(doc, f)
+
+	for _, d := range diags {
+		if d.Code == CodeBrokenLink {
+			t.Errorf("should not report broken link for keyref URL, got: %s", d.Message)
+		}
+	}
+}
