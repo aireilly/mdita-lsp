@@ -232,44 +232,60 @@ func TestDetectPartialAttrContext(t *testing.T) {
 
 func TestDetectPartialAttrRange(t *testing.T) {
 	tests := []struct {
-		name           string
-		text           string
-		pos            document.Position
-		wantStart      int
-		wantEnd        int
-		wantCloseBrace bool
+		name      string
+		text      string
+		pos       document.Position
+		wantStart int
+		wantEnd   int
 	}{
 		{
-			name:           "AttrOpen range starts after {",
-			text:           "# Title\n\nClick **OK**{",
-			pos:            document.Position{Line: 2, Character: 13},
-			wantStart:      13,
-			wantEnd:        13,
-			wantCloseBrace: false,
+			name:      "AttrOpen range starts after {",
+			text:      "# Title\n\nClick **OK**{",
+			pos:       document.Position{Line: 2, Character: 13},
+			wantStart: 13,
+			wantEnd:   13,
 		},
 		{
-			name:           "AttrOpen range with auto-closed }",
-			text:           "# Title\n\nClick **OK**{}",
-			pos:            document.Position{Line: 2, Character: 13},
-			wantStart:      13,
-			wantEnd:        13,
-			wantCloseBrace: true,
+			name:      "AttrOpen range includes auto-closed }",
+			text:      "# Title\n\nClick **OK**{}",
+			pos:       document.Position{Line: 2, Character: 13},
+			wantStart: 13,
+			wantEnd:   14,
 		},
 		{
-			name:           "AttrClass range starts after {.",
-			text:           "# Title\n\nClick **OK**{.ui",
-			pos:            document.Position{Line: 2, Character: 16},
-			wantStart:      14,
-			wantEnd:        16,
-			wantCloseBrace: false,
+			name:      "AttrClass range starts after {.",
+			text:      "# Title\n\nClick **OK**{.ui",
+			pos:       document.Position{Line: 2, Character: 16},
+			wantStart: 14,
+			wantEnd:   16,
 		},
 		{
-			name:           "AttrClass range ends at cursor when auto-closed } present",
-			text:           "# Title\n\nClick **OK**{.ui}",
-			pos:            document.Position{Line: 2, Character: 16},
-			wantStart:      14,
-			wantEnd:        16,
-			wantCloseBrace: true,
+			name:      "AttrClass range includes auto-closed }",
+			text:      "# Title\n\nClick **OK**{.ui}",
+			pos:       document.Position{Line: 2, Character: 16},
+			wantStart: 14,
+			wantEnd:   17,
+		},
+		{
+			name:      "DoubleCurly range includes auto-closed }}",
+			text:      "# Title\n\nInstall {{}}",
+			pos:       document.Position{Line: 2, Character: 10},
+			wantStart: 8,
+			wantEnd:   12,
+		},
+		{
+			name:      "DoubleCurly range includes single auto-closed }",
+			text:      "# Title\n\nInstall {{}",
+			pos:       document.Position{Line: 2, Character: 10},
+			wantStart: 8,
+			wantEnd:   11,
+		},
+		{
+			name:      "BlockAttr range includes auto-closed }",
+			text:      "# Title\n\n{}",
+			pos:       document.Position{Line: 2, Character: 1},
+			wantStart: 1,
+			wantEnd:   2,
 		},
 	}
 
@@ -284,9 +300,6 @@ func TestDetectPartialAttrRange(t *testing.T) {
 			}
 			if pe.Range.End.Character != tt.wantEnd {
 				t.Errorf("Range.End.Character = %d, want %d", pe.Range.End.Character, tt.wantEnd)
-			}
-			if pe.HasCloseBrace != tt.wantCloseBrace {
-				t.Errorf("HasCloseBrace = %v, want %v", pe.HasCloseBrace, tt.wantCloseBrace)
 			}
 		})
 	}
@@ -334,7 +347,7 @@ func TestCompleteAttrOpenInsertsWithoutBrace(t *testing.T) {
 	}
 }
 
-func TestCompleteAttrOpenAutoCloseOmitsCloseBrace(t *testing.T) {
+func TestCompleteAttrOpenAutoCloseIncludesCloseBrace(t *testing.T) {
 	doc := document.New("file:///project/doc.md", 1, "# Title\n\nClick **OK**{}")
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
@@ -346,8 +359,12 @@ func TestCompleteAttrOpenAutoCloseOmitsCloseBrace(t *testing.T) {
 	found := false
 	for _, item := range items {
 		if item.Label == ".shortcut" && item.TextEdit != nil {
-			if item.TextEdit.NewText != ".shortcut" {
-				t.Errorf("NewText = %q, want %q (no } since editor already has one)", item.TextEdit.NewText, ".shortcut")
+			if item.TextEdit.NewText != ".shortcut}" {
+				t.Errorf("NewText = %q, want %q (range covers auto-closed })", item.TextEdit.NewText, ".shortcut}")
+			}
+			if item.TextEdit.Range.End.Character != 14 {
+				t.Errorf("Range.End.Character = %d, want 14 (includes auto-closed })",
+					item.TextEdit.Range.End.Character)
 			}
 			found = true
 		}
@@ -380,7 +397,7 @@ func TestCompleteAttrClassUsesTextEdit(t *testing.T) {
 	}
 }
 
-func TestCompleteAttrClassAutoCloseOmitsCloseBrace(t *testing.T) {
+func TestCompleteAttrClassAutoCloseIncludesCloseBrace(t *testing.T) {
 	doc := document.New("file:///project/doc.md", 1, "# Title {.ta}")
 	cfg := config.Default()
 	f := workspace.NewFolder("file:///project", cfg)
@@ -392,11 +409,11 @@ func TestCompleteAttrClassAutoCloseOmitsCloseBrace(t *testing.T) {
 	found := false
 	for _, item := range items {
 		if item.Label == "task" && item.TextEdit != nil {
-			if item.TextEdit.NewText != "task" {
-				t.Errorf("NewText = %q, want %q (no } since editor already has one)", item.TextEdit.NewText, "task")
+			if item.TextEdit.NewText != "task}" {
+				t.Errorf("NewText = %q, want %q (range covers auto-closed })", item.TextEdit.NewText, "task}")
 			}
-			if item.TextEdit.Range.End.Character != 12 {
-				t.Errorf("Range.End.Character = %d, want 12 (range ends at cursor, not past })",
+			if item.TextEdit.Range.End.Character != 13 {
+				t.Errorf("Range.End.Character = %d, want 13 (includes auto-closed })",
 					item.TextEdit.Range.End.Character)
 			}
 			found = true
@@ -463,5 +480,96 @@ func TestCompleteDoubleCurlyKeyref(t *testing.T) {
 			labels[i] = it.Label
 		}
 		t.Errorf("expected 'product-name' completion, got %v", labels)
+	}
+}
+
+func TestCompleteDoubleCurlyKeyrefAutoClose(t *testing.T) {
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"---\nkeys:\n  product-name: \"Red Hat OpenShift\"\n---\n# Map\n\n- [Install](install.md)\n")
+	topicDoc := document.New("file:///project/topic.md", 1,
+		"# Topic\n\nInstall {{}}")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(mapDoc)
+	f.AddDoc(topicDoc)
+	items := Complete(topicDoc, document.Position{Line: 2, Character: 10}, f)
+	found := false
+	for _, item := range items {
+		if item.Label == "product-name" {
+			found = true
+			if item.TextEdit == nil {
+				t.Fatal("expected TextEdit")
+			}
+			if item.TextEdit.NewText != "{{product-name}}" {
+				t.Errorf("NewText = %q, want %q", item.TextEdit.NewText, "{{product-name}}")
+			}
+			if item.TextEdit.Range.End.Character != 12 {
+				t.Errorf("Range.End.Character = %d, want 12 (includes auto-closed }})",
+					item.TextEdit.Range.End.Character)
+			}
+			if item.FilterText != "{{product-name" {
+				t.Errorf("FilterText = %q, want %q", item.FilterText, "{{product-name")
+			}
+		}
+	}
+	if !found {
+		t.Error("expected 'product-name' completion")
+	}
+}
+
+func TestCompleteDoubleCurlyKeyrefSingleAutoClose(t *testing.T) {
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"---\nkeys:\n  product-name: \"Red Hat OpenShift\"\n---\n# Map\n\n- [Install](install.md)\n")
+	topicDoc := document.New("file:///project/topic.md", 1,
+		"# Topic\n\nInstall {{}")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(mapDoc)
+	f.AddDoc(topicDoc)
+	items := Complete(topicDoc, document.Position{Line: 2, Character: 10}, f)
+	found := false
+	for _, item := range items {
+		if item.Label == "product-name" {
+			found = true
+			if item.TextEdit == nil {
+				t.Fatal("expected TextEdit")
+			}
+			if item.TextEdit.Range.End.Character != 11 {
+				t.Errorf("Range.End.Character = %d, want 11 (includes single auto-closed })",
+					item.TextEdit.Range.End.Character)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected 'product-name' completion")
+	}
+}
+
+func TestCompleteBlockAttrAutoClose(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1, "# Title\n\n{}")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+	items := Complete(doc, document.Position{Line: 2, Character: 1}, f)
+	if len(items) == 0 {
+		t.Fatal("expected completion items")
+	}
+	found := false
+	for _, item := range items {
+		if item.Label == "audience" && item.TextEdit != nil {
+			if !strings.HasSuffix(item.TextEdit.NewText, "}") {
+				t.Errorf("NewText = %q, want suffix }", item.TextEdit.NewText)
+			}
+			if item.TextEdit.Range.End.Character != 2 {
+				t.Errorf("Range.End.Character = %d, want 2 (includes auto-closed })",
+					item.TextEdit.Range.End.Character)
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected 'audience' completion item")
 	}
 }

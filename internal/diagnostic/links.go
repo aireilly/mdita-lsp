@@ -24,7 +24,8 @@ func checkLinks(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 				})
 			}
 		}
-		if ml.URL != "" && !strings.HasPrefix(ml.URL, "http://") && !strings.HasPrefix(ml.URL, "https://") {
+		if ml.URL != "" && !strings.HasPrefix(ml.URL, "http://") && !strings.HasPrefix(ml.URL, "https://") &&
+			(!strings.HasPrefix(ml.URL, "{{") || !strings.HasSuffix(ml.URL, "}}")) {
 			target := folder.ResolveLink(ml.URL, doc.URI)
 			if target == nil {
 				diags = append(diags, Diagnostic{
