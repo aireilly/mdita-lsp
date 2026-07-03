@@ -102,6 +102,45 @@ func TestBuildMergedTableYAMLKeys(t *testing.T) {
 	}
 }
 
+func TestBuildMergedTableRefStyleKeydefs(t *testing.T) {
+	mapText := "# Map\n\n- [Install](install.md)\n\n[prod-url]: https://example.com\n[prod-name]: Red Hat OpenShift\n"
+	table := BuildMergedTable([]string{mapText})
+
+	// href-based keydef from TopicRef
+	if _, ok := table["install"]; !ok {
+		t.Error("expected 'install' key from TopicRef")
+	}
+
+	// reference-style URL keydef
+	entry, ok := table["prod-url"]
+	if !ok {
+		t.Fatal("expected 'prod-url' key from reference-style link")
+	}
+	if entry.Href != "https://example.com" {
+		t.Errorf("Href = %q, want %q", entry.Href, "https://example.com")
+	}
+
+	// reference-style text keydef
+	entry2, ok := table["prod-name"]
+	if !ok {
+		t.Fatal("expected 'prod-name' key from reference-style link")
+	}
+	if entry2.Value != "Red Hat OpenShift" {
+		t.Errorf("Value = %q, want %q", entry2.Value, "Red Hat OpenShift")
+	}
+}
+
+func TestBuildMergedTableRefStylePrecedence(t *testing.T) {
+	mapText := "---\nkeys:\n  my-key: \"from YAML\"\n---\n# Map\n\n- [Install](install.md)\n\n[my-key]: https://from-refstyle.com\n"
+	table := BuildMergedTable([]string{mapText})
+
+	entry := table["my-key"]
+	// YAML keys take precedence over reference-style links
+	if entry.Value != "from YAML" {
+		t.Errorf("YAML key should take precedence: got Value=%q Href=%q", entry.Value, entry.Href)
+	}
+}
+
 func TestBuildMergedTableYAMLKeysPrecedence(t *testing.T) {
 	mapText := "---\nkeys:\n  install: \"Installation Guide\"\n---\n# Map\n\n- [Install](install.md)\n"
 	table := BuildMergedTable([]string{mapText})

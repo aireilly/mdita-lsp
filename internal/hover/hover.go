@@ -48,6 +48,10 @@ func GetHover(doc *document.Document, pos document.Position, folder *workspace.F
 		return hoverKeyref(kr, folder)
 	}
 
+	if h := hoverTaskList(doc, pos); h != "" {
+		return h
+	}
+
 	if url := detectURL(doc.Text, pos); url != "" {
 		return "[Follow link](" + url + ")"
 	}
@@ -254,6 +258,55 @@ func hoverInlineAttribute(doc *document.Document, pos document.Position) string 
 		}
 	}
 	return ""
+}
+
+var orderedListRegex = regexp.MustCompile(`^(\s*)\d+\.\s`)
+var unorderedListRegex = regexp.MustCompile(`^(\s*)[-*+]\s`)
+
+func hoverTaskList(doc *document.Document, pos document.Position) string {
+	if !isTaskTopic(doc) {
+		return ""
+	}
+	lines := strings.Split(doc.Text, "\n")
+	if pos.Line >= len(lines) {
+		return ""
+	}
+	line := lines[pos.Line]
+
+	if m := orderedListRegex.FindStringSubmatch(line); m != nil {
+		indent := len(m[1])
+		if indent == 0 {
+			elem, _ := vocabulary.LookupTaskListElement("steps")
+			return "DITA `<steps>` — " + elem.Description
+		}
+		elem, _ := vocabulary.LookupTaskListElement("substeps")
+		return "DITA `<substeps>` — " + elem.Description
+	}
+	if m := unorderedListRegex.FindStringSubmatch(line); m != nil {
+		indent := len(m[1])
+		if indent == 0 {
+			elem, _ := vocabulary.LookupTaskListElement("steps-unordered")
+			return "DITA `<steps-unordered>` — " + elem.Description
+		}
+		elem, _ := vocabulary.LookupTaskListElement("choices")
+		return "DITA `<choices>` — " + elem.Description
+	}
+	return ""
+}
+
+func isTaskTopic(doc *document.Document) bool {
+	if doc.Meta != nil && doc.Meta.Schema == document.SchemaTask {
+		return true
+	}
+	title := doc.Index.Title()
+	if title != nil && title.Attributes != nil {
+		for _, c := range title.Attributes.Classes {
+			if c == "task" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func hoverBlockAttribute(doc *document.Document, pos document.Position) string {

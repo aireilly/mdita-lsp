@@ -214,6 +214,39 @@ func TestDomainElementsByParentKind(t *testing.T) {
 	}
 }
 
+func TestLookupTaskListElement(t *testing.T) {
+	tests := []struct {
+		name        string
+		wantFound   bool
+		wantElement string
+	}{
+		{"steps", true, "steps"},
+		{"steps-unordered", true, "steps-unordered"},
+		{"substeps", true, "substeps"},
+		{"substep", true, "substep"},
+		{"choices", true, "choices"},
+		{"choice", true, "choice"},
+		{"unknown", false, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			elem, found := LookupTaskListElement(tt.name)
+			if found != tt.wantFound {
+				t.Errorf("LookupTaskListElement(%q) found = %v, want %v", tt.name, found, tt.wantFound)
+			}
+			if found {
+				if elem.DITAElement != tt.wantElement {
+					t.Errorf("DITAElement = %q, want %q", elem.DITAElement, tt.wantElement)
+				}
+				if strings.TrimSpace(elem.Description) == "" {
+					t.Errorf("task list element %q missing description", elem.Name)
+				}
+			}
+		})
+	}
+}
+
 func TestDescriptionsPopulated(t *testing.T) {
 	for _, elem := range AllDomainElements() {
 		if strings.TrimSpace(elem.Description) == "" {

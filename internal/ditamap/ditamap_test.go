@@ -52,6 +52,57 @@ func TestParseMapEmpty(t *testing.T) {
 	}
 }
 
+func TestParseMapTopicHead(t *testing.T) {
+	input := "# Map\n\n- Architecture Overview\n  - [Components](components.md)\n  - [Networking](networking.md)\n- [Install](install.md)\n"
+	m, err := ParseMap(input)
+	if err != nil {
+		t.Fatalf("ParseMap error: %v", err)
+	}
+	if len(m.TopicRefs) != 2 {
+		t.Fatalf("TopicRefs = %d, want 2", len(m.TopicRefs))
+	}
+
+	head := m.TopicRefs[0]
+	if head.Title != "Architecture Overview" {
+		t.Errorf("topic head Title = %q, want %q", head.Title, "Architecture Overview")
+	}
+	if head.Href != "" {
+		t.Errorf("topic head Href = %q, want empty", head.Href)
+	}
+	if len(head.Children) != 2 {
+		t.Fatalf("topic head Children = %d, want 2", len(head.Children))
+	}
+	if head.Children[0].Title != "Components" {
+		t.Errorf("child[0].Title = %q", head.Children[0].Title)
+	}
+}
+
+func TestParseMapTopicHeadOnly(t *testing.T) {
+	input := "# Map\n\n- Just a heading\n"
+	m, err := ParseMap(input)
+	if err != nil {
+		t.Fatalf("ParseMap error: %v", err)
+	}
+	if len(m.TopicRefs) != 1 {
+		t.Fatalf("TopicRefs = %d, want 1", len(m.TopicRefs))
+	}
+	if m.TopicRefs[0].Title != "Just a heading" {
+		t.Errorf("Title = %q, want %q", m.TopicRefs[0].Title, "Just a heading")
+	}
+	if m.TopicRefs[0].Href != "" {
+		t.Errorf("Href = %q, want empty", m.TopicRefs[0].Href)
+	}
+}
+
+func TestAllHrefsSkipsTopicHeads(t *testing.T) {
+	input := "# Map\n\n- Group heading\n  - [A](a.md)\n- [B](b.md)\n"
+	m, _ := ParseMap(input)
+	hrefs := m.AllHrefs()
+	if len(hrefs) != 2 {
+		t.Errorf("AllHrefs = %d, want 2 (should skip topic heads)", len(hrefs))
+	}
+}
+
 func TestAllHrefs(t *testing.T) {
 	input := "# Map\n\n- [A](a.md)\n  - [B](b.md)\n- [C](c.md)\n"
 	m, _ := ParseMap(input)

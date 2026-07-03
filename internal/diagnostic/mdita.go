@@ -92,13 +92,13 @@ func checkSchemaSpecific(doc *document.Document) []Diagnostic {
 
 	switch doc.Meta.Schema {
 	case document.SchemaTask:
-		if !bf.HasOrderedList {
+		if !bf.HasOrderedList && !bf.HasUnorderedList {
 			diags = append(diags, Diagnostic{
 				Range:    document.Rng(0, 0, 0, 0),
 				Severity: SeverityWarning,
 				Code:     CodeTaskMissingProcedure,
 				Source:   source,
-				Message:  "Task topic is missing a procedure (ordered list)",
+				Message:  "Task topic is missing a procedure (ordered or unordered list)",
 			})
 		}
 

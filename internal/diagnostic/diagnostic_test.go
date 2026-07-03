@@ -109,6 +109,39 @@ func TestTaskMissingProcedure(t *testing.T) {
 	}
 }
 
+func TestTaskWithUnorderedListIsValid(t *testing.T) {
+	doc := makeDoc("file:///project/doc.md",
+		"---", "$schema: urn:oasis:names:tc:dita:xsd:task.xsd", "---",
+		"# Task Title", "", "Some text.", "",
+		"- step one", "- step two")
+	f := makeFolder(doc)
+	diags := Check(doc, f)
+
+	for _, d := range diags {
+		if d.Code == CodeTaskMissingProcedure {
+			t.Error("should not report TaskMissingProcedure for unordered list (steps-unordered)")
+		}
+	}
+}
+
+func TestTaskMissingProcedureNoLists(t *testing.T) {
+	doc := makeDoc("file:///project/doc.md",
+		"---", "$schema: urn:oasis:names:tc:dita:xsd:task.xsd", "---",
+		"# Task Title", "", "Some text with no lists.")
+	f := makeFolder(doc)
+	diags := Check(doc, f)
+
+	found := false
+	for _, d := range diags {
+		if d.Code == CodeTaskMissingProcedure {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected TaskMissingProcedure when no lists present")
+	}
+}
+
 func TestConceptHasProcedure(t *testing.T) {
 	doc := makeDoc("file:///project/doc.md",
 		"---", "$schema: urn:oasis:names:tc:dita:xsd:concept.xsd", "---",
