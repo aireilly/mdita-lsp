@@ -80,6 +80,22 @@ func BuildMergedTable(mapTexts []string) KeyTable {
 			}
 		}
 
+		elements, _, _ := document.Parse(text)
+		for _, elem := range elements {
+			ld, ok := elem.(*document.LinkDef)
+			if !ok {
+				continue
+			}
+			if _, exists := merged[ld.Label]; exists {
+				continue
+			}
+			if isURLValue(ld.URL) {
+				merged[ld.Label] = KeyEntry{Href: ld.URL}
+			} else {
+				merged[ld.Label] = KeyEntry{Value: ld.URL, Title: ld.URL}
+			}
+		}
+
 		meta := document.ParseYAMLMeta(text)
 		if meta != nil && meta.Keys != nil {
 			for k, v := range meta.Keys {

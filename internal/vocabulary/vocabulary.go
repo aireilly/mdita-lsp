@@ -27,6 +27,13 @@ type StepElement struct {
 	Description string
 }
 
+// TaskListElement describes a DITA task list structure element (steps, substeps, choices).
+type TaskListElement struct {
+	Name        string
+	DITAElement string
+	Description string
+}
+
 // ConditionalAttribute represents a DITA conditional processing attribute.
 type ConditionalAttribute struct {
 	Name        string
@@ -38,6 +45,7 @@ var (
 	taskSectionsByTitle     map[string]TaskSection
 	taskSectionsByClass     map[string]TaskSection
 	stepElementsByClass     map[string]StepElement
+	taskListElementsByName  map[string]TaskListElement
 	conditionalAttributeSet map[string]bool
 
 	allDomainElements        []DomainElement
@@ -229,6 +237,40 @@ func init() {
 		},
 	}
 
+	// Initialize task list elements
+	taskListElements := []TaskListElement{
+		{
+			Name:        "steps",
+			DITAElement: "steps",
+			Description: "Ordered procedure steps. Each list item becomes a `<step>` element with the first paragraph as `<cmd>` and subsequent content as `<info>`.",
+		},
+		{
+			Name:        "steps-unordered",
+			DITAElement: "steps-unordered",
+			Description: "Unordered procedure steps. Each list item becomes a `<step>` element. Use when step order does not matter.",
+		},
+		{
+			Name:        "substeps",
+			DITAElement: "substeps",
+			Description: "A nested ordered list inside a step, rendered as `<substeps>`. Each sub-item becomes a `<substep>`.",
+		},
+		{
+			Name:        "substep",
+			DITAElement: "substep",
+			Description: "An individual sub-step within a `<substeps>` list.",
+		},
+		{
+			Name:        "choices",
+			DITAElement: "choices",
+			Description: "A nested unordered list inside a step, rendered as `<choices>`. Each item becomes a `<choice>`.",
+		},
+		{
+			Name:        "choice",
+			DITAElement: "choice",
+			Description: "An individual choice within a `<choices>` list.",
+		},
+	}
+
 	// Initialize conditional attributes
 	conditionalAttributes := []ConditionalAttribute{
 		{
@@ -280,6 +322,11 @@ func init() {
 		stepElementsByClass[elem.Class] = elem
 	}
 
+	taskListElementsByName = make(map[string]TaskListElement, len(taskListElements))
+	for _, elem := range taskListElements {
+		taskListElementsByName[elem.Name] = elem
+	}
+
 	conditionalAttributeSet = make(map[string]bool, len(conditionalAttributes))
 	for _, attr := range conditionalAttributes {
 		conditionalAttributeSet[attr.Name] = true
@@ -314,6 +361,12 @@ func LookupTaskSectionByClass(class string) (TaskSection, bool) {
 // LookupStepElement returns the step element with the given class attribute value.
 func LookupStepElement(class string) (StepElement, bool) {
 	elem, found := stepElementsByClass[class]
+	return elem, found
+}
+
+// LookupTaskListElement returns the task list element with the given name.
+func LookupTaskListElement(name string) (TaskListElement, bool) {
+	elem, found := taskListElementsByName[name]
 	return elem, found
 }
 

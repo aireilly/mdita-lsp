@@ -80,6 +80,8 @@ func parseListItems(list *ast.List, src []byte) []TopicRef {
 					ref.Href = string(link.Destination)
 					ref.Title = extractText(link, src)
 					ref.IsMapRef = isMapRefHref(ref.Href)
+				} else if ref.Title == "" {
+					ref.Title = extractText(n, src)
 				}
 			case *ast.List:
 				ref.Children = append(ref.Children, parseListItems(n, src)...)
