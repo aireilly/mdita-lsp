@@ -66,7 +66,7 @@ func TestExtractKeysFromSlug(t *testing.T) {
 }
 
 func TestBuildMergedTableRefStyleKeydefs(t *testing.T) {
-	mapText := "# Map\n\n- [Install](install.md)\n\n[prod-url]: https://example.com\n[prod-name]: Red Hat OpenShift\n"
+	mapText := "# Map\n\n- [Install](install.md)\n\n[prod-url]: https://example.com\n[prod-name]: Acme Platform\n"
 	table := BuildMergedTable([]string{mapText})
 
 	// href-based keydef from TopicRef
@@ -88,7 +88,7 @@ func TestBuildMergedTableRefStyleKeydefs(t *testing.T) {
 	if !ok {
 		t.Fatal("expected 'prod-name' key from reference-style link")
 	}
-	if entry2.Value != "Red Hat OpenShift" {
-		t.Errorf("Value = %q, want %q", entry2.Value, "Red Hat OpenShift")
+	if entry2.Value != "Acme Platform" {
+		t.Errorf("Value = %q, want %q", entry2.Value, "Acme Platform")
 	}
 }

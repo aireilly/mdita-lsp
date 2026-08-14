@@ -2,7 +2,7 @@
 
 ## Project overview
 
-mdita-lsp is an LSP server for MDITA (Markdown DITA) documents, written in Go. It is the Go rewrite of [mdita-marksman](https://github.com/aireilly/mdita-marksman) (F#), with full feature parity plus additional capabilities.
+mdita-lsp is an LSP server for MDITA (Markdown DITA) documents, written in Go. It aligns with the [org.lwdita](https://github.com/jelovirt/org.lwdita) DITA-OT plug-in feature set.
 
 - **Language:** Go
 - **Repository:** `git@github.com:aireilly/mdita-lsp.git`
@@ -13,10 +13,10 @@ mdita-lsp is an LSP server for MDITA (Markdown DITA) documents, written in Go. I
 
 ```bash
 make build      # Build the binary
-make test       # Run tests with race detection (210+ tests across 27 packages)
+make test       # Run tests with race detection across 27 packages
 make lint       # Run golangci-lint
 make install    # Build and install to ~/.local/bin
-make publish    # Cross-compile for 5 platforms (3.5 MB binary)
+make publish    # Cross-compile for 5 platforms (~3.7 MB binary)
 make clean      # Clean build artifacts
 ```
 
@@ -32,37 +32,37 @@ export PATH=$PATH:~/go/bin  # add to ~/.bashrc for persistence
 cmd/mdita-lsp/          # Entry point (stdio JSON-RPC server)
 internal/
   paths/                # URI/path utilities, slug generation
-  config/               # YAML config loading with 3-level merging
-  document/             # Document parsing, indexing, symbol extraction
-    types.go            # Element types, symbols, DITA schemas, footnote labels
-    parser.go           # goldmark parser, footnote/admonition regex
+  config/               # YAML config loading with 3-level merging, profile selection
+  document/             # Document parsing, indexing, symbol extraction, conref elements
+    types.go            # Element types, symbols, DITA schemas, implicit sections, conref
+    parser.go           # goldmark parser, footnote regex, conref HTML scanning
     index.go            # Heading/link index with slug-based lookups
-    document.go         # Document type with incremental change support
-    attributes.go       # Inline/block attribute parsing ({.class}, {key="value"})
-  vocabulary/           # DITA domain element registry (17 elements, 5 task sections, 7 conditional attrs)
-  ditamap/              # .mditamap parsing (nested markdown lists → TopicRef tree, reltable, mapref)
+    document.go         # Document type with incremental change support, implicit task sections
+    attributes.go       # Block attribute parsing ({#id .class key="value"})
+  conref/               # Content reference resolution (data-conref, data-conkeyref)
+  ditamap/              # .mditamap parsing (nested markdown lists, TopicRef tree, reltable, mapref)
   workspace/            # Folder/workspace management, file scanning
   symbols/              # Symbol graph with bidirectional ref/def resolution
-  diagnostic/           # 29 diagnostic codes, MDITA compliance, link/map/keyref/attribute validation
-  keyref/               # Key extraction, resolution, cursor detection for keyrefs
-  definition/           # Go-to-definition for markdown links and keyrefs
-  hover/                # Hover for markdown links, keyrefs, headings, YAML keys, domain elements, task sections
+  diagnostic/           # 19 diagnostic codes, MDITA compliance, profile, conref, link/map/keyref validation
+  keyref/               # Reference-style keydefs, [text][key] refs, data-keyref detection
+  definition/           # Go-to-definition for markdown links, keyrefs, conrefs
+  hover/                # Hover for links, keyrefs, headings, YAML keys, task sections, conrefs, implicit sections
   references/           # Find references to headings via symbol graph
-  completion/           # Completion: inline links, YAML keys, keyrefs, task sections, attribute classes, attribute open ({)
+  completion/           # Completion: inline links, YAML keys, keyrefs, data-keyref, conrefs, task sections
   rename/               # Heading rename
-  codeaction/           # Create file, front matter, add to map, DITA OT, related links, task sections
+  codeaction/           # Create file, front matter, add to map, DITA OT, task sections
   codelens/             # Reference count lenses on headings
   docsymbols/           # Hierarchical document symbol outline, workspace symbol search
   folding/              # Folding ranges for headings, YAML front matter
-  selection/            # Progressive selection expansion (line → element → section)
+  selection/            # Progressive selection expansion (line, element, section)
   linkededit/           # Linked editing of heading text
-  formatting/           # Table alignment, trailing whitespace, heading spacing, trailing newline
-  inlayhint/            # Inline hints for link targets, keyref targets, and domain element mappings
+  formatting/           # Table alignment (including auto-format on save), trailing whitespace, heading spacing
+  inlayhint/            # Inline hints for link targets, keyref targets, conref targets
   filerename/           # Cross-reference updates on file rename (md links, map refs)
   highlight/            # Document highlight for headings and their intra-doc references
   semantic/             # Semantic token encoding (full + range) with attribute decorator tokens
   ditaot/               # DITA OT binary resolution and build invocation (xhtml, dita formats)
-  lsp/                  # LSP server, JSON-RPC handler, diagnostic debouncing, execute command
+  lsp/                  # LSP server, JSON-RPC handler, diagnostic debouncing, willSaveWaitUntil
 testdata/               # Test fixtures
 .github/workflows/      # CI and Release workflows
 ```
@@ -70,9 +70,10 @@ testdata/               # Test fixtures
 ## LSP capabilities
 
 - TextDocumentSync: Incremental (mode 2) with 200ms diagnostic debouncing
-- Completion (inline links, YAML keys, keyrefs, task sections, attribute classes, attribute open) with resolve
-- Definition (markdown links, keyrefs)
-- Hover (markdown links, keyrefs, headings, YAML keys, domain elements, task sections, conditional attrs)
+- WillSaveWaitUntil: Auto-format tables on save
+- Completion (inline links, YAML keys, keyrefs, data-keyref, conrefs, task sections) with resolve
+- Definition (markdown links, keyrefs, conrefs)
+- Hover (markdown links, keyrefs, headings, YAML keys, task sections, conrefs, implicit sections)
 - Document Highlight, References, Rename (with prepare), Code Actions, Code Lens
 - Document Links, Folding Ranges, Document Symbols, Workspace Symbols
 - Selection Ranges, Linked Editing Ranges
@@ -81,7 +82,7 @@ testdata/               # Test fixtures
 - Pull Diagnostics (textDocument/diagnostic, LSP 3.17)
 - File Operations (didCreate, didDelete, willCreate, willRename)
 - Execute Command (createFile, addToMap, ditaOtBuild)
-- MDITA Extended Profile (17 domain elements, task sections, conditional processing, related links)
+- Profile support (core vs extended, matching org.lwdita)
 - Diagnostic quick-fixes (NBSP, footnotes, heading hierarchy)
 - Ditamap extensions (relationship tables, mapref detection)
 - Server Info (name + version in initialize response)

@@ -1,6 +1,6 @@
 # mdita-lsp
 
-An LSP server for [MDITA](https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=dita) (Markdown DITA) documents, designed as the companion editor tooling for the [redhat.mdita.extended](https://github.com/aireilly/redhat.mdita.extended) DITA-OT plug-in.
+An LSP server for [MDITA](https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=dita) (Markdown DITA) documents, designed as the companion editor tooling for the [org.lwdita](https://github.com/jelovirt/org.lwdita) DITA-OT plug-in.
 
 Every LSP feature maps directly to a markdown construct that the DITA-OT plug-in converts to DITA XML. The server validates, completes, and navigates MDITA content so that problems are caught at authoring time rather than at build time.
 
@@ -86,6 +86,8 @@ core:
   mdita:
     enable: true
     map_extensions: [mditamap]
+    profile: extended          # "core" or "extended" (default: extended)
+    formatTablesOnSave: true   # auto-format tables on save (default: true)
 
 completion:
   max_candidates: 50
@@ -108,9 +110,18 @@ diagnostics:
   nbsp_detection: true
 ```
 
+### Profile selection
+
+The `profile` setting controls which MDITA features are available:
+
+- **extended** (default): Attributes, footnotes, definition lists, specialization classes.
+- **core**: No attributes, no footnotes, no definition lists. Diagnostics warn when extended features appear.
+
+This matches the org.lwdita plug-in's core vs. extended profile distinction.
+
 ## Supported markdown features
 
-The LSP supports the same markdown features as the redhat.mdita.extended DITA-OT plug-in. Each feature below corresponds to a DITA conversion the plug-in performs.
+The LSP supports the same markdown features as the org.lwdita DITA-OT plug-in. Each feature below corresponds to a DITA conversion the plug-in performs.
 
 ### YAML front matter
 
@@ -118,7 +129,7 @@ The plug-in uses YAML front matter for topic type detection and prolog metadata.
 
 - **Completion** of all supported YAML keys: `$schema`, `id`, `author`, `source`, `publisher`, `permissions`, `audience`, `category`, `keyword`, `resourceid`
 - **Hover** documentation for each key explaining its DITA mapping
-- **Diagnostics** for missing front matter (code 4) and unrecognized `$schema` values (code 7)
+- **Diagnostics** for missing front matter and unrecognized `$schema` values
 - **Code action** to scaffold MDITA YAML front matter with default schema
 
 ```markdown
@@ -141,53 +152,44 @@ Supported `$schema` values:
 | `urn:oasis:names:tc:dita:xsd:reference.xsd` | Reference |
 | `urn:oasis:names:tc:dita:xsd:task.xsd` | Task |
 | `urn:oasis:names:tc:dita:xsd:topic.xsd` | Generic topic |
-| `urn:oasis:names:tc:mdita:rng:topic.rng` | MDITA topic |
 
 ### Headings and document structure
 
-Headings map to DITA topic titles (H1) and sections (H2). The LSP provides:
+Headings map to DITA topic titles (H1) and sections (H2+). The LSP provides:
 
 - **Document symbols** showing a hierarchical heading outline
 - **Workspace symbols** to search headings across all documents
 - **Folding ranges** for heading sections and YAML front matter
-- **Selection ranges** for progressive expansion (line → element → section)
+- **Selection ranges** for progressive expansion (line, element, section)
 - **Linked editing** of heading text
 - **Rename** with cross-file reference updates via the symbol graph
 - **Document highlight** for headings and their intra-document references
 - **Code lens** showing reference counts on headings
-- **Diagnostics** for invalid heading hierarchy (code 6) and heading-level skips
+- **Diagnostics** for invalid heading hierarchy and heading-level skips
 
 ### Task topics
 
-When `$schema` declares a task, the plug-in maps markdown constructs to DITA task elements. The LSP provides:
+When `$schema` declares a task (or H1 has `{.task}` outputclass), the plug-in maps markdown constructs to DITA task elements. The LSP provides:
 
-- **Diagnostics** for task missing procedure (code 8), concept has procedure (code 9), task section order (code 24), and duplicate sections (code 25)
-- **Completion** of task section headings: Prerequisites, About this task, Verification, Next steps, Troubleshooting
+- **Completion** of task section headings: Prerequisites, Context, Result, What to do next, Troubleshooting
 - **Code actions** to insert missing task sections
 - **Hover** on task section headings showing their DITA element mapping
 
-| Heading text | DITA element |
-|-------------|--------------|
-| Prerequisites | `<prereq>` |
-| About this task | `<context>` |
-| Verification | `<result>` |
-| Next steps | `<postreq>` |
-| Troubleshooting | `<tasktroubleshooting>` |
+| Heading outputclass | DITA element |
+|---------------------|--------------|
+| `{.prereq}` | `<prereq>` |
+| `{.context}` | `<context>` |
+| `{.result}` | `<result>` |
+| `{.postreq}` | `<postreq>` |
+| `{.tasktroubleshooting}` | `<tasktroubleshooting>` |
 
-The plug-in also maps:
+The plug-in also performs implicit section detection:
 
-- Ordered lists → `<steps>` (nested OL → `<substeps>`)
-- Unordered lists → `<steps-unordered>` (nested UL → `<choices>`)
-- Content before the first list → `<context>`
-- Content after the list → `<result>`
-
-### Related links
-
-H2 headings titled "Related information" or "Related links" are converted by the plug-in to `<related-links>`. The LSP provides:
-
-- **Code action** to add a related links section
-- **Diagnostics** for non-link content inside related links sections (code 26)
-- **Hover** showing the DITA `<related-links>` mapping
+- Ordered lists at body level become `<steps>` (nested OL becomes `<substeps>`)
+- Unordered lists at body level become `<steps-unordered>` (nested UL becomes `<choices>`)
+- Content before the first list wraps in `<context>`
+- Content after the last list wraps in `<result>`
+- Tables within a step become `<choicetable>`
 
 ### Links
 
@@ -195,49 +197,71 @@ The plug-in auto-classifies links based on URL pattern. The LSP provides:
 
 - **Completion** of file paths inside `](` and heading anchors after `#`
 - **Go to definition** for markdown links to other documents and headings
-- **Diagnostics** for broken links (code 2) and ambiguous links (code 1)
+- **Diagnostics** for broken links and ambiguous links
 - **Document links** making external URLs clickable
 - **Inlay hints** showing resolved link targets inline
 - **File rename** support that auto-updates cross-references when files are renamed
 
 ### Key references
 
-The plug-in processes DITA key references. Keys are derived from MDITA map topicrefs. The LSP provides:
+Keys are defined as reference-style link definitions in map files:
 
-- **Completion** of keyref shortcut references (`[keyname]`)
-- **Go to definition** for keyrefs
+```markdown
+[product-name]: https://example.com "Product Name"
+```
+
+Keys are consumed in topic files via standard markdown reference links:
+
+```markdown
+See [the guide][install-guide] for details.
+See [install-guide] for the collapsed form.
+```
+
+Inline keyword keyrefs use HDITA syntax:
+
+```html
+<span data-keyref="product-name">fallback</span>
+```
+
+The LSP provides:
+
+- **Completion** of keyref references (`[keyname]`, `[text][keyname]`, `data-keyref="..."`)
+- **Go to definition** navigating to the key definition line in the map file
 - **Hover** showing resolved key targets and titles
 - **Inlay hints** showing keyref resolution inline
-- **Diagnostics** for unresolved keyrefs (code 16)
+- **Diagnostics** for unresolved keyrefs
 
-### Admonitions
+### Content references (conref)
 
-Fenced admonitions (`!!! type`) are converted to DITA `<note>` elements. The LSP provides:
+Content reuse via HTML data attributes, following the org.lwdita HDITA content reference model:
 
-- **Diagnostics** for unknown admonition types (code 15)
-- **Semantic tokens** for admonition syntax highlighting
+```html
+<p data-conref="shared.md#topic/warning-para">fallback</p>
+<span data-conkeyref="warnings/disk-full">fallback</span>
+```
 
-Supported types: `note`, `tip`, `fastpath`, `restriction`, `important`, `remember`, `attention`, `caution`, `notice`, `danger`, `warning`, `trouble`. Other qualifiers produce `type="other"`.
+The LSP provides:
+
+- **Go to definition** navigating to the referenced element
+- **Hover** showing the conref target path
+- **Completion** of file paths, topic IDs, and element IDs within conref attributes
+- **Inlay hints** showing resolved conref targets
+- **Diagnostics** for broken conref targets and missing element IDs
 
 ### Definition lists
 
-Definition lists are converted to DITA `<dl>/<dlentry>`. The LSP detects definition lists for profile validation:
-
-- **Diagnostics** when definition lists appear in MDITA core profile topics (code 12), since they require the extended profile
+Definition lists are converted to DITA `<dl>/<dlentry>`. In core profile, definition lists produce a diagnostic since they require the extended profile.
 
 ### Fenced code blocks
 
-Fenced code blocks become `<codeblock>` with the language mapped to `@outputclass`. Extended metadata syntax (`{.class #id key=value}`) is supported. The LSP provides:
-
-- **Semantic tokens** for attribute metadata highlighting
-- **Hover** on attribute classes and key-value pairs
+Fenced code blocks become `<codeblock>` with the language mapped to `@outputclass`.
 
 ### Pipe tables
 
 Tables are converted to DITA `<simpletable>`. The LSP provides:
 
-- **Formatting** to align table columns
-- **Diagnostics** for reference topics missing a table (code 10)
+- **Formatting** to align table columns (full document and range)
+- **Auto-format on save** when `formatTablesOnSave` is enabled (default: true)
 
 ### Images
 
@@ -249,7 +273,7 @@ Blockquotes are converted to DITA `<lq>` (long quote).
 
 ### Inline formatting
 
-The plug-in converts bold to `<b>`, italic to `<i>`, and code to `<codeph>` (or `<tt>` in extended profile). Superscript and subscript are supported in extended profile.
+Bold converts to `<b>`, italic to `<i>`, and code to `<codeph>`. Superscript and subscript are supported in extended profile.
 
 ### Hard line breaks
 
@@ -259,58 +283,12 @@ Trailing backslash or two trailing spaces produce a `<?linebreak?>` processing i
 
 Footnotes are supported in the extended MDITA profile. The LSP provides:
 
-- **Diagnostics** for footnote references without definitions (code 13) and orphaned definitions (code 14)
+- **Diagnostics** for footnote references without definitions and orphaned definitions
 - **Code actions** to create missing footnote definitions
 
 ### Inline HTML
 
-Inline HTML tags are transformed to DITA equivalents by the plug-in via XSLT.
-
-## Domain element specializations
-
-The LSP supports inline attribute syntax for DITA domain specializations. These map standard markdown formatting to specific DITA elements:
-
-```markdown
-Click **File > Open**{.menucascade} to open the dialog.
-Edit `config.yaml`{.filepath} to set options.
-See *RFC 7231*{.cite} for details.
-```
-
-- **Completion** of domain element classes after `{.` and `{`
-- **Hover** showing the DITA element name, domain, and description
-- **Inlay hints** showing DITA element mappings inline
-- **Diagnostics** for unknown outputclass (code 20) and wrong parent element (code 21)
-
-| Domain | Elements | Markdown parent |
-|--------|----------|-----------------|
-| UI (ui-d) | `uicontrol`, `wintitle`, `menucascade`, `shortcut` | **bold** |
-| Software (sw-d) | `filepath`, `cmdname`, `userinput`, `systemoutput`, `varname`, `msgph` | `` `code` `` |
-| Programming (pr-d) | `codeph`, `option`, `parmname`, `apiname`, `kwd` | `` `code` `` |
-| Topic | `cite` | *italic* |
-| Topic | `draft-comment` | paragraph |
-
-### Step elements
-
-Inside task topics, step-level elements can be applied:
-
-| Element | Description |
-|---------|-------------|
-| `stepresult` | Expected result of a step |
-| `stepxmp` | Example for a step |
-
-### Conditional processing attributes
-
-Block-level attributes for DITA profiling:
-
-```markdown
-{platform="linux" audience="admin"}
-```
-
-- **Completion** of attribute names after `{`
-- **Hover** documentation for each conditional attribute
-- **Diagnostics** for unknown conditional attributes (code 23)
-
-Supported: `audience`, `platform`, `product`, `otherprops`, `deliveryTarget`, `props`, `rev`.
+Inline HTML elements with `data-conref`, `data-conkeyref`, and `data-keyref` attributes are parsed for content reference and keyword keyref resolution.
 
 ## MDITA map format
 
@@ -331,7 +309,7 @@ $schema: urn:oasis:names:tc:dita:xsd:map.xsd
 
 The LSP provides:
 
-- **Diagnostics** for broken map references (code 17), circular maps (code 18), inconsistent heading hierarchy (code 19), body content in maps (code 11), and reltable column inconsistency (code 29)
+- **Diagnostics** for broken map references, circular maps, and inconsistent heading hierarchy
 - **Code actions** to add topics to an existing map
 - **Execute command** to build XHTML or DITA output via DITA OT
 
@@ -349,7 +327,13 @@ List items without links become `<topichead>` with `<navtitle>`.
 
 ### Key definitions
 
-Keys are derived from topic filenames (e.g., `install.md` → key `install`). Use `[install]` in topic files to create keyref shortcut references.
+Reference-style link definitions in map files define DITA keys:
+
+```markdown
+[install-guide]: install.md "Installation Guide"
+```
+
+Use `[install-guide]` or `[link text][install-guide]` in topic files to create keyref references.
 
 ### Relationship tables
 
@@ -367,63 +351,32 @@ Tables in `.mditamap` files are parsed as DITA `<reltable>`:
 |-----------|--------|
 | Text sync | Incremental (mode 2) with 200ms diagnostic debouncing |
 | Completion | Trigger characters: `[`, `#`, `(`, `{` with resolve support |
-| Definition | Markdown links, keyrefs |
-| Hover | Links, keyrefs, headings, YAML keys, domain elements, task sections, conditional attributes |
+| Definition | Markdown links, keyrefs, conrefs |
+| Hover | Links, keyrefs, headings, YAML keys, task sections, conrefs |
 | References | Cross-workspace heading references via symbol graph |
 | Rename | Heading rename with prepare support |
-| Code actions | Create missing files, add front matter, add to map, add task sections, add related links, fix NBSP/footnotes/heading hierarchy, build DITA OT |
+| Code actions | Create missing files, add front matter, add to map, add task sections, fix NBSP/footnotes/heading hierarchy, build DITA OT |
 | Code lens | Reference counts on headings |
 | Document links | External URL detection |
 | Document symbols | Hierarchical heading outline |
 | Workspace symbols | Cross-document heading search |
 | Folding ranges | Headings, YAML front matter |
-| Selection ranges | Progressive expansion (line → element → section) |
+| Selection ranges | Progressive expansion (line, element, section) |
 | Linked editing | Heading text |
 | Formatting | Table alignment, trailing whitespace, heading spacing, trailing newline (full + range) |
-| Inlay hints | Link targets, keyref targets, domain element mappings |
+| Inlay hints | Link targets, keyref targets, conref targets |
 | Document highlight | Heading and intra-document reference highlighting |
 | Semantic tokens | Full + range encoding with attribute decorator tokens |
 | Pull diagnostics | `textDocument/diagnostic` (LSP 3.17) |
 | File operations | didCreate, didDelete, willCreate, willRename |
 | Execute commands | `createFile`, `addToMap`, `ditaOtBuild` |
-
-## Diagnostic codes
-
-| Code | Name | Severity | DITA plug-in feature |
-|------|------|----------|---------------------|
-| 2 | Broken link | Error | Link processing |
-| 3 | Non-breaking whitespace | Warning | Heading/title processing |
-| 4 | Missing YAML front matter | Warning | `$schema` topic type detection |
-| 5 | Missing short description | Warning | `<shortdesc>` generation |
-| 6 | Invalid heading hierarchy | Warning | Topic/section nesting |
-| 7 | Unrecognized schema | Warning | `$schema` validation |
-| 8 | Task missing procedure | Warning | Task step generation |
-| 9 | Concept has procedure | Info | Topic type validation |
-| 10 | Reference missing table | Info | `<simpletable>` generation |
-| 11 | Map has body content | Info | Map structure validation |
-| 12 | Extended feature in core profile | Warning | Core vs. extended profile |
-| 13 | Footnote ref without def | Warning | Footnote processing |
-| 14 | Footnote def without ref | Info | Footnote processing |
-| 15 | Unknown admonition type | Warning | `<note>` type mapping |
-| 16 | Unresolved keyref | Warning | Key reference resolution |
-| 17 | Broken map reference | Error | `<topicref>` processing |
-| 18 | Circular map reference | Error | `<mapref>` processing |
-| 19 | Inconsistent map heading hierarchy | Info | Map nesting validation |
-| 20 | Unknown outputclass | Warning | Domain element classes |
-| 21 | Domain class wrong parent | Warning | Domain specialization rules |
-| 23 | Unknown conditional attribute | Warning | Conditional processing |
-| 24 | Task section out of order | Warning | Task section ordering |
-| 25 | Duplicate task section | Error | Task section uniqueness |
-| 26 | Related links non-link content | Warning | `<related-links>` generation |
-| 27 | Menucascade missing separator | Warning | `<menucascade>` formatting |
-| 28 | Step element outside task | Warning | Task step validation |
-| 29 | Reltable inconsistent columns | Warning | `<reltable>` validation |
+| Will save | `textDocument/willSaveWaitUntil` for table auto-format |
 
 ## Development
 
 ```bash
 make build     # Build binary
-make test      # Run 210+ tests with race detection
+make test      # Run tests with race detection
 make lint      # Run golangci-lint
 make publish   # Cross-compile for 5 platforms (~3.5 MB each)
 make clean     # Remove build artifacts
