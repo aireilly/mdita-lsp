@@ -148,3 +148,77 @@ func filterLinkDefs(elems []Element) []*LinkDef {
 	}
 	return result
 }
+
+func filterConrefs(elems []Element) []*ConrefElement {
+	var result []*ConrefElement
+	for _, e := range elems {
+		if c, ok := e.(*ConrefElement); ok {
+			result = append(result, c)
+		}
+	}
+	return result
+}
+
+func TestParseConref(t *testing.T) {
+	text := "# Title\n\n<p data-conref=\"shared.md#topic/warning-para\">fallback</p>\n"
+	elements, _, _ := Parse(text)
+
+	conrefs := filterConrefs(elements)
+	if len(conrefs) != 1 {
+		t.Fatalf("got %d conrefs, want 1", len(conrefs))
+	}
+	ce := conrefs[0]
+	if ce.FilePath != "shared.md" {
+		t.Errorf("FilePath = %q, want %q", ce.FilePath, "shared.md")
+	}
+	if ce.TopicID != "topic" {
+		t.Errorf("TopicID = %q, want %q", ce.TopicID, "topic")
+	}
+	if ce.ElementID != "warning-para" {
+		t.Errorf("ElementID = %q, want %q", ce.ElementID, "warning-para")
+	}
+	if ce.Tag != "p" {
+		t.Errorf("Tag = %q, want %q", ce.Tag, "p")
+	}
+	if ce.IsKeyref {
+		t.Error("should not be a keyref")
+	}
+}
+
+func TestParseConkeyref(t *testing.T) {
+	text := "# Title\n\n<span data-conkeyref=\"warnings/disk-full\">fallback</span>\n"
+	elements, _, _ := Parse(text)
+
+	conrefs := filterConrefs(elements)
+	if len(conrefs) != 1 {
+		t.Fatalf("got %d conrefs, want 1", len(conrefs))
+	}
+	ce := conrefs[0]
+	if ce.KeyName != "warnings" {
+		t.Errorf("KeyName = %q, want %q", ce.KeyName, "warnings")
+	}
+	if ce.ElementID != "disk-full" {
+		t.Errorf("ElementID = %q, want %q", ce.ElementID, "disk-full")
+	}
+	if !ce.IsKeyref {
+		t.Error("should be a keyref")
+	}
+}
+
+func TestDocumentElementAtConref(t *testing.T) {
+	text := "# Title\n\n<p data-conref=\"shared.md#topic/note\">fallback</p>\n"
+	doc := New("file:///doc.md", 1, text)
+
+	pos := Position{Line: 2, Character: 10}
+	elem := doc.ElementAt(pos)
+	if elem == nil {
+		t.Fatal("expected element at conref position, got nil")
+	}
+	ce, ok := elem.(*ConrefElement)
+	if !ok {
+		t.Fatalf("expected ConrefElement, got %T", elem)
+	}
+	if ce.FilePath != "shared.md" {
+		t.Errorf("FilePath = %q, want %q", ce.FilePath, "shared.md")
+	}
+}

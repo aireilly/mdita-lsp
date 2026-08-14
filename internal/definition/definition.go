@@ -20,6 +20,8 @@ func GotoDef(doc *document.Document, pos document.Position, folder *workspace.Fo
 		switch el := elem.(type) {
 		case *document.MdLink:
 			return resolveMdLink(el, doc, folder)
+		case *document.ConrefElement:
+			return resolveConref(el, doc, folder)
 		}
 	}
 
@@ -56,6 +58,67 @@ func resolveMdLink(ml *document.MdLink, doc *document.Document, folder *workspac
 		}
 	}
 
+	return nil
+}
+
+func resolveConref(ce *document.ConrefElement, doc *document.Document, folder *workspace.Folder) []Location {
+	if ce.IsKeyref {
+		return resolveConkeyref(ce, folder)
+	}
+
+	srcPath, err := paths.URIToPath(doc.URI)
+	if err != nil {
+		return nil
+	}
+	srcDir := filepath.Dir(srcPath)
+	targetPath := filepath.Join(srcDir, ce.FilePath)
+	targetURI := paths.PathToURI(targetPath)
+	targetDoc := folder.DocByURI(targetURI)
+	if targetDoc == nil {
+		return nil
+	}
+
+	if ce.ElementID != "" {
+		for _, el := range targetDoc.Elements {
+			if h, ok := el.(*document.Heading); ok && h.ID == ce.ElementID {
+				return []Location{{URI: targetURI, Range: h.Range}}
+			}
+		}
+	}
+
+	title := targetDoc.Index.Title()
+	if title != nil {
+		return []Location{{URI: targetURI, Range: title.Range}}
+	}
+	return []Location{{URI: targetURI, Range: document.Rng(0, 0, 0, 0)}}
+}
+
+func resolveConkeyref(ce *document.ConrefElement, folder *workspace.Folder) []Location {
+	table := keyref.BuildMergedTable(folder.MapTexts())
+	entry, ok := keyref.Resolve(table, ce.KeyName)
+	if !ok || entry.Href == "" {
+		return nil
+	}
+	for _, mapDoc := range folder.AllDocs() {
+		if mapDoc.Kind != document.Map {
+			continue
+		}
+		mapPath, err := paths.URIToPath(mapDoc.URI)
+		if err != nil {
+			continue
+		}
+		mapDir := filepath.Dir(mapPath)
+		targetPath := filepath.Join(mapDir, entry.Href)
+		targetURI := paths.PathToURI(targetPath)
+		target := folder.DocByURI(targetURI)
+		if target != nil {
+			title := target.Index.Title()
+			if title != nil {
+				return []Location{{URI: targetURI, Range: title.Range}}
+			}
+			return []Location{{URI: targetURI, Range: document.Rng(0, 0, 0, 0)}}
+		}
+	}
 	return nil
 }
 

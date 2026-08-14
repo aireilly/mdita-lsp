@@ -1,8 +1,11 @@
 package inlayhint
 
 import (
+	"path/filepath"
+
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
+	"github.com/aireilly/mdita-lsp/internal/paths"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
@@ -42,11 +45,43 @@ func GetHints(doc *document.Document, rng document.Range, folder *workspace.Fold
 					Kind:  KindType,
 				})
 			}
+		case *document.ConrefElement:
+			if label := conrefHintLabel(el, doc, folder, table); label != "" {
+				hints = append(hints, InlayHint{
+					Position: document.Position{
+						Line:      el.Range.End.Line,
+						Character: el.Range.End.Character,
+					},
+					Label: " → " + label,
+					Kind:  KindType,
+				})
+			}
 		}
 	}
 
 	hints = append(hints, keyrefHints(doc, rng, table)...)
 	return hints
+}
+
+func conrefHintLabel(ce *document.ConrefElement, doc *document.Document, folder *workspace.Folder, table keyref.KeyTable) string {
+	if ce.IsKeyref {
+		entry, ok := keyref.Resolve(table, ce.KeyName)
+		if !ok || entry.Href == "" {
+			return ""
+		}
+		return entry.Href
+	}
+	srcPath, err := paths.URIToPath(doc.URI)
+	if err != nil {
+		return ""
+	}
+	srcDir := filepath.Dir(srcPath)
+	targetPath := filepath.Join(srcDir, ce.FilePath)
+	targetURI := paths.PathToURI(targetPath)
+	if folder.DocByURI(targetURI) == nil {
+		return ""
+	}
+	return ce.FilePath
 }
 
 func mdLinkHintLabel(ml *document.MdLink, doc *document.Document, folder *workspace.Folder) string {

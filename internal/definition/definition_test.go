@@ -43,3 +43,46 @@ func TestGotoDefNoResult(t *testing.T) {
 		t.Errorf("expected no locations, got %d", len(locs))
 	}
 }
+
+func TestGotoDefConref(t *testing.T) {
+	target := document.New("file:///project/shared.md", 1,
+		"# Shared\n\n## Warning {#warning-para}\n\nContent here.\n")
+	source := document.New("file:///project/doc.md", 1,
+		"# Doc\n\n<p data-conref=\"shared.md#topic/warning-para\">fallback</p>\n")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(target)
+	f.AddDoc(source)
+
+	// Find the ConrefElement in the source document
+	elem := source.ElementAt(document.Position{Line: 2, Character: 10})
+	if elem == nil {
+		t.Fatal("no element at conref position")
+	}
+	if _, ok := elem.(*document.ConrefElement); !ok {
+		t.Fatalf("expected ConrefElement, got %T", elem)
+	}
+
+	locs := GotoDef(source, document.Position{Line: 2, Character: 10}, f)
+	if len(locs) == 0 {
+		t.Fatal("GotoDef returned no locations for conref")
+	}
+	if locs[0].URI != "file:///project/shared.md" {
+		t.Errorf("expected shared.md URI, got %q", locs[0].URI)
+	}
+}
+
+func TestGotoDefConrefMissingFile(t *testing.T) {
+	source := document.New("file:///project/doc.md", 1,
+		"# Doc\n\n<p data-conref=\"missing.md#topic/note\">fallback</p>\n")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(source)
+
+	locs := GotoDef(source, document.Position{Line: 2, Character: 10}, f)
+	if len(locs) != 0 {
+		t.Errorf("expected no locations for missing conref target, got %d", len(locs))
+	}
+}

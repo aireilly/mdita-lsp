@@ -17,6 +17,8 @@ import (
 var admonitionRegex = regexp.MustCompile(`(?m)^!!!\s+(\w+)`)
 var footnoteRefRegex = regexp.MustCompile(`\[\^([^\]]+)\][^:]`)
 var footnoteDefRegex = regexp.MustCompile(`(?m)^\[\^([^\]]+)\]:`)
+var conrefAttrRe = regexp.MustCompile(`<(\w+)\s[^>]*data-conref="([^"]+)"[^>]*>`)
+var conkeyrefAttrRe = regexp.MustCompile(`<(\w+)\s[^>]*data-conkeyref="([^"]+)"[^>]*>`)
 
 func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 	src := []byte(source)
@@ -170,6 +172,7 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 	})
 
 	elements = append(elements, parseLinkDefs(mdContent, yamlEnd)...)
+	elements = append(elements, parseConrefs(source)...)
 	bf.Admonitions = parseAdmonitions(source)
 	bf.FootnoteRefLabels = parseFootnoteRefs(source)
 	bf.FootnoteDefLabels = parseFootnoteDefs(source)
@@ -436,4 +439,63 @@ func isExternalURL(url string) bool {
 		strings.HasPrefix(url, "https://") ||
 		strings.HasPrefix(url, "mailto:") ||
 		strings.HasPrefix(url, "ftp://")
+}
+
+// parseConrefs scans source text for HTML elements with data-conref or
+// data-conkeyref attributes and returns ConrefElement values for each match.
+func parseConrefs(source string) []Element {
+	var elements []Element
+	lines := strings.Split(source, "\n")
+
+	for lineNum, line := range lines {
+		for _, m := range conrefAttrRe.FindAllStringSubmatchIndex(line, -1) {
+			tag := line[m[2]:m[3]]
+			value := line[m[4]:m[5]]
+			ce := splitConrefValue(value)
+			ce.Tag = tag
+			ce.Range = Rng(lineNum, m[0], lineNum, m[1])
+			elements = append(elements, ce)
+		}
+		for _, m := range conkeyrefAttrRe.FindAllStringSubmatchIndex(line, -1) {
+			tag := line[m[2]:m[3]]
+			value := line[m[4]:m[5]]
+			ce := splitConkeyrefValue(value)
+			ce.Tag = tag
+			ce.IsKeyref = true
+			ce.Range = Rng(lineNum, m[0], lineNum, m[1])
+			elements = append(elements, ce)
+		}
+	}
+	return elements
+}
+
+func splitConrefValue(value string) *ConrefElement {
+	ce := &ConrefElement{}
+	hashIdx := strings.Index(value, "#")
+	if hashIdx < 0 {
+		ce.FilePath = value
+		return ce
+	}
+	ce.FilePath = value[:hashIdx]
+	rest := value[hashIdx+1:]
+	slashIdx := strings.Index(rest, "/")
+	if slashIdx < 0 {
+		ce.TopicID = rest
+		return ce
+	}
+	ce.TopicID = rest[:slashIdx]
+	ce.ElementID = rest[slashIdx+1:]
+	return ce
+}
+
+func splitConkeyrefValue(value string) *ConrefElement {
+	ce := &ConrefElement{}
+	slashIdx := strings.Index(value, "/")
+	if slashIdx < 0 {
+		ce.KeyName = value
+		return ce
+	}
+	ce.KeyName = value[:slashIdx]
+	ce.ElementID = value[slashIdx+1:]
+	return ce
 }

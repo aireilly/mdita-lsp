@@ -190,6 +190,7 @@ const (
 	DefTitle
 	DefHeading
 	DefLinkDef
+	DefElementID
 )
 
 type RefType int
@@ -208,3 +209,18 @@ type Symbol struct {
 	DocURI  string
 	Range   Range
 }
+
+// ConrefElement represents an HTML element with a data-conref or data-conkeyref
+// attribute, as used in DITA content references.
+type ConrefElement struct {
+	Tag       string
+	FilePath  string
+	TopicID   string
+	ElementID string
+	IsKeyref  bool
+	KeyName   string
+	Range     Range
+}
+
+func (c *ConrefElement) Rng() Range { return c.Range }
+func (c *ConrefElement) element()   {}

@@ -32,6 +32,8 @@ func GetHover(doc *document.Document, pos document.Position, folder *workspace.F
 				return hoverHeadingClass(el)
 			}
 			return "**" + el.Text + "** (level " + itoa(el.Level) + ")"
+		case *document.ConrefElement:
+			return hoverConref(el)
 		}
 	}
 
@@ -206,6 +208,24 @@ func hoverTaskSection(h *document.Heading) string {
 		return "DITA `<" + d.elem + ">` — " + d.text
 	}
 	return "**" + h.Text + "** (level " + itoa(h.Level) + ")"
+}
+
+func hoverConref(ce *document.ConrefElement) string {
+	if ce.IsKeyref {
+		ref := ce.KeyName
+		if ce.ElementID != "" {
+			ref += "/" + ce.ElementID
+		}
+		return fmt.Sprintf("**conkeyref** `%s`", ref)
+	}
+	target := ce.FilePath
+	if ce.TopicID != "" {
+		target += "#" + ce.TopicID
+		if ce.ElementID != "" {
+			target += "/" + ce.ElementID
+		}
+	}
+	return fmt.Sprintf("**conref** `%s`", target)
 }
 
 func hoverHeadingClass(h *document.Heading) string {

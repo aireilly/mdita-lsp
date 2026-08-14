@@ -50,6 +50,10 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 		return completeTaskSectionHeading(pe.Input, doc)
 	case PartialDataKeyref:
 		return completeDataKeyref(pe.Input, folder, pe.Range)
+	case PartialConref:
+		return completeConref(pe.Input, doc, folder, pe.Range)
+	case PartialConkeyref:
+		return completeConkeyref(pe.Input, folder, pe.Range)
 	}
 	return nil
 }
@@ -185,6 +189,105 @@ func completeYamlKey(input string) []CompletionItem {
 				Kind:       6,
 			})
 		}
+	}
+	return items
+}
+
+// completeConref offers file paths for data-conref="..." attributes.
+// After a '#', it switches to offering topic/element IDs from the matched file.
+func completeConref(input string, doc *document.Document, folder *workspace.Folder, editRange document.Range) []CompletionItem {
+	srcPath, _ := paths.URIToPath(doc.URI)
+	srcDir := filepath.Dir(srcPath)
+
+	// If input contains '#', offer heading IDs from the referenced file.
+	if hashIdx := strings.Index(input, "#"); hashIdx >= 0 {
+		filePart := input[:hashIdx]
+		idPart := input[hashIdx+1:]
+		targetPath := filepath.Join(srcDir, filePart)
+		targetURI := paths.PathToURI(targetPath)
+		targetDoc := folder.DocByURI(targetURI)
+		if targetDoc == nil {
+			return nil
+		}
+		var items []CompletionItem
+		for _, el := range targetDoc.Elements {
+			h, ok := el.(*document.Heading)
+			if !ok || h.ID == "" {
+				continue
+			}
+			conrefID := h.ID
+			if idPart != "" && !strings.Contains(strings.ToLower(conrefID), strings.ToLower(idPart)) {
+				continue
+			}
+			items = append(items, CompletionItem{
+				Label:      filePart + "#" + conrefID,
+				Detail:     h.Text,
+				InsertText: filePart + "#" + conrefID,
+				Kind:       17,
+				Data:       map[string]string{"kind": "conref-id"},
+				TextEdit: &TextEdit{
+					Range:   editRange,
+					NewText: filePart + "#" + conrefID,
+				},
+			})
+		}
+		return items
+	}
+
+	var items []CompletionItem
+	for _, d := range folder.AllDocs() {
+		if d.URI == doc.URI {
+			continue
+		}
+		targetPath, _ := paths.URIToPath(d.URI)
+		rel := paths.RelPath(srcDir, targetPath)
+		rel = filepath.ToSlash(rel)
+		if input != "" && !strings.Contains(strings.ToLower(rel), strings.ToLower(input)) {
+			continue
+		}
+		title := ""
+		if t := d.Index.Title(); t != nil {
+			title = t.Text
+		}
+		items = append(items, CompletionItem{
+			Label:      rel,
+			Detail:     title,
+			InsertText: rel,
+			Kind:       17,
+			Data:       map[string]string{"kind": "conref-file"},
+			TextEdit: &TextEdit{
+				Range:   editRange,
+				NewText: rel,
+			},
+		})
+	}
+	return items
+}
+
+// completeConkeyref offers key names from the workspace key table for
+// data-conkeyref="..." attributes.
+func completeConkeyref(input string, folder *workspace.Folder, editRange document.Range) []CompletionItem {
+	table := keyref.BuildMergedTable(folder.MapTexts())
+	var items []CompletionItem
+	for _, key := range keyref.AllKeys(table) {
+		if input != "" && !strings.Contains(strings.ToLower(key), strings.ToLower(input)) {
+			continue
+		}
+		entry := table[key]
+		detail := entry.Href
+		if entry.Title != "" {
+			detail = entry.Title + " (" + entry.Href + ")"
+		}
+		items = append(items, CompletionItem{
+			Label:  key,
+			Detail: detail,
+			Kind:   18,
+			Data:   map[string]string{"kind": "conkeyref"},
+			TextEdit: &TextEdit{
+				Range:   editRange,
+				NewText: key,
+			},
+		})
 	}
 	return items
 }

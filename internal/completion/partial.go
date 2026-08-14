@@ -16,6 +16,8 @@ const (
 	PartialKeyref
 	PartialHeadingText
 	PartialDataKeyref
+	PartialConref
+	PartialConkeyref
 )
 
 type PartialElement struct {
@@ -56,6 +58,48 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 		return &PartialElement{
 			Kind:  PartialHeadingText,
 			Input: after,
+		}
+	}
+
+	// data-conref="path" completion.
+	if idx := strings.LastIndex(prefix, `data-conref="`); idx >= 0 {
+		after := prefix[idx+len(`data-conref="`):]
+		if !strings.Contains(after, `"`) {
+			suffix := line[col:]
+			endCol := col
+			if quoteIdx := strings.Index(suffix, `"`); quoteIdx >= 0 {
+				endCol = col + quoteIdx
+			}
+			attrStart := idx + len(`data-conref="`)
+			return &PartialElement{
+				Kind:  PartialConref,
+				Input: after,
+				Range: document.Range{
+					Start: document.Position{Line: pos.Line, Character: attrStart},
+					End:   document.Position{Line: pos.Line, Character: endCol},
+				},
+			}
+		}
+	}
+
+	// data-conkeyref="key/element" completion.
+	if idx := strings.LastIndex(prefix, `data-conkeyref="`); idx >= 0 {
+		after := prefix[idx+len(`data-conkeyref="`):]
+		if !strings.Contains(after, `"`) {
+			suffix := line[col:]
+			endCol := col
+			if quoteIdx := strings.Index(suffix, `"`); quoteIdx >= 0 {
+				endCol = col + quoteIdx
+			}
+			attrStart := idx + len(`data-conkeyref="`)
+			return &PartialElement{
+				Kind:  PartialConkeyref,
+				Input: after,
+				Range: document.Range{
+					Start: document.Position{Line: pos.Line, Character: attrStart},
+					End:   document.Position{Line: pos.Line, Character: endCol},
+				},
+			}
 		}
 	}
 

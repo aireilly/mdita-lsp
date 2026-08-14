@@ -158,3 +158,41 @@ func TestHoverNotOnURL(t *testing.T) {
 		t.Errorf("expected no hover on non-URL text, got %q", result)
 	}
 }
+
+func TestHoverConref(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\n<p data-conref=\"shared.md#topic/warning-para\">fallback</p>\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+
+	result := GetHover(doc, document.Position{Line: 2, Character: 10}, f)
+	if result == "" {
+		t.Fatal("expected hover content for conref element")
+	}
+	if !strings.Contains(result, "conref") {
+		t.Errorf("hover = %q, expected to contain 'conref'", result)
+	}
+	if !strings.Contains(result, "shared.md") {
+		t.Errorf("hover = %q, expected to contain 'shared.md'", result)
+	}
+}
+
+func TestHoverConkeyref(t *testing.T) {
+	doc := document.New("file:///project/doc.md", 1,
+		"# Title\n\n<span data-conkeyref=\"warnings/disk-full\">fallback</span>\n")
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(doc)
+
+	result := GetHover(doc, document.Position{Line: 2, Character: 10}, f)
+	if result == "" {
+		t.Fatal("expected hover content for conkeyref element")
+	}
+	if !strings.Contains(result, "conkeyref") {
+		t.Errorf("hover = %q, expected to contain 'conkeyref'", result)
+	}
+	if !strings.Contains(result, "warnings") {
+		t.Errorf("hover = %q, expected to contain 'warnings'", result)
+	}
+}

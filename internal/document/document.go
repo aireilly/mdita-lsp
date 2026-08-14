@@ -161,6 +161,15 @@ func extractSymbols(doc *Document) []Symbol {
 				DocURI:  doc.URI,
 				Range:   el.Range,
 			})
+			if el.ID != "" {
+				syms = append(syms, Symbol{
+					Kind:    DefKind,
+					DefType: DefElementID,
+					Name:    el.ID,
+					DocURI:  doc.URI,
+					Range:   el.Range,
+				})
+			}
 
 		case *MdLink:
 			syms = append(syms, Symbol{

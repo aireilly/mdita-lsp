@@ -87,3 +87,42 @@ func TestNoHintsForPlainText(t *testing.T) {
 		t.Errorf("expected no hints, got %d", len(hints))
 	}
 }
+
+func TestConrefHint(t *testing.T) {
+	sharedDoc := document.New("file:///project/shared.md", 1,
+		"# Shared Warnings\n\n## Note\n")
+	source := document.New("file:///project/doc.md", 1,
+		"# Doc\n\n<p data-conref=\"shared.md#topic/note\">fallback</p>\n")
+	folder := testFolder(sharedDoc, source)
+
+	hints := GetHints(source, fullRange(), folder)
+	found := false
+	for _, h := range hints {
+		if h.Label == " → shared.md" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected conref inlay hint, got %v", hints)
+	}
+}
+
+func TestConkeyrefHint(t *testing.T) {
+	// Key is derived from the href stem: "shared.md" → key "shared".
+	mapDoc := document.New("file:///project/map.mditamap", 1,
+		"# Map\n\n- [Warnings](shared.md)\n")
+	source := document.New("file:///project/doc.md", 1,
+		"# Doc\n\n<span data-conkeyref=\"shared/note\">fallback</span>\n")
+	folder := testFolder(mapDoc, source)
+
+	hints := GetHints(source, fullRange(), folder)
+	found := false
+	for _, h := range hints {
+		if h.Label == " → shared.md" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected conkeyref inlay hint, got %v", hints)
+	}
+}

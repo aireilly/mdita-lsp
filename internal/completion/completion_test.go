@@ -147,3 +147,78 @@ func TestCompleteKeyref(t *testing.T) {
 		t.Errorf("expected 'install' keyref completion, got %v", items)
 	}
 }
+
+func TestDetectPartialConref(t *testing.T) {
+	text := `# Title` + "\n\n" + `<p data-conref="shar`
+	col := len(`<p data-conref="shar`)
+	pe := DetectPartial(text, document.Position{Line: 2, Character: col})
+	if pe == nil {
+		t.Fatal("expected partial element for data-conref")
+	}
+	if pe.Kind != PartialConref {
+		t.Errorf("Kind = %v, want PartialConref", pe.Kind)
+	}
+	if pe.Input != "shar" {
+		t.Errorf("Input = %q, want %q", pe.Input, "shar")
+	}
+}
+
+func TestDetectPartialConkeyref(t *testing.T) {
+	text := `# Title` + "\n\n" + `<span data-conkeyref="warn`
+	col := len(`<span data-conkeyref="warn`)
+	pe := DetectPartial(text, document.Position{Line: 2, Character: col})
+	if pe == nil {
+		t.Fatal("expected partial element for data-conkeyref")
+	}
+	if pe.Kind != PartialConkeyref {
+		t.Errorf("Kind = %v, want PartialConkeyref", pe.Kind)
+	}
+	if pe.Input != "warn" {
+		t.Errorf("Input = %q, want %q", pe.Input, "warn")
+	}
+}
+
+func TestCompleteConref(t *testing.T) {
+	sharedDoc := document.New("file:///project/shared.md", 1, "# Shared\n\n## Warning\n")
+	topicDoc := document.New("file:///project/doc.md", 1, `# Doc`+"\n\n"+`<p data-conref="shar`+"\n")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(sharedDoc)
+	f.AddDoc(topicDoc)
+
+	col := len(`<p data-conref="shar`)
+	items := Complete(topicDoc, document.Position{Line: 2, Character: col}, f)
+	found := false
+	for _, item := range items {
+		if item.Label == "shared.md" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected 'shared.md' conref completion, got %v", items)
+	}
+}
+
+func TestCompleteConkeyref(t *testing.T) {
+	// "warnings" is the key name derived from the map link label (lowercased).
+	mapDoc := document.New("file:///project/map.mditamap", 1, "# Map\n\n- [Warnings](warnings.md)\n")
+	topicDoc := document.New("file:///project/doc.md", 1, `# Doc`+"\n\n"+`<span data-conkeyref="warn`+"\n")
+
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+	f.AddDoc(mapDoc)
+	f.AddDoc(topicDoc)
+
+	col := len(`<span data-conkeyref="warn`)
+	items := Complete(topicDoc, document.Position{Line: 2, Character: col}, f)
+	found := false
+	for _, item := range items {
+		if item.Label == "warnings" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected 'warnings' conkeyref completion, got %v", items)
+	}
+}

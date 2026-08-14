@@ -28,6 +28,9 @@ const (
 	CodeBrokenMapReference              = "17"
 	CodeCircularMapReference            = "18"
 	CodeInconsistentMapHeadingHierarchy = "19"
+	CodeConrefTargetMissing             = "20"
+	CodeConrefElementMissing            = "21"
+	CodeConkeyrefKeyMissing             = "22"
 )
 
 type Diagnostic struct {
@@ -50,6 +53,7 @@ func Check(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 
 	if config.BoolVal(cfg.Diagnostics.LinkValidation) {
 		diags = append(diags, checkLinks(doc, folder)...)
+		diags = append(diags, CheckConrefs(doc, folder)...)
 	}
 
 	if config.BoolVal(cfg.Diagnostics.NbspDetection) {
