@@ -86,5 +86,31 @@ func keyrefHints(doc *document.Document, rng document.Range, table keyref.KeyTab
 			Kind:  KindType,
 		})
 	}
+
+	// Also show hints for HTML data-keyref attributes.
+	for _, dk := range keyref.DetectDataKeyrefs(doc.Text) {
+		if dk.Range.Start.Line < rng.Start.Line || dk.Range.Start.Line > rng.End.Line {
+			continue
+		}
+		entry, ok := table[dk.Key]
+		if !ok {
+			continue
+		}
+		label := entry.Href
+		if entry.Value != "" {
+			label = entry.Value
+		} else if entry.Title != "" {
+			label = entry.Title
+		}
+		hints = append(hints, InlayHint{
+			Position: document.Position{
+				Line:      dk.Range.End.Line,
+				Character: dk.Range.End.Character,
+			},
+			Label: " → " + label,
+			Kind:  KindType,
+		})
+	}
+
 	return hints
 }

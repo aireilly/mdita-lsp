@@ -48,6 +48,8 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 		return completeKeyref(pe.Input, doc, folder, pe.Range)
 	case PartialHeadingText:
 		return completeTaskSectionHeading(pe.Input, doc)
+	case PartialDataKeyref:
+		return completeDataKeyref(pe.Input, folder, pe.Range)
 	}
 	return nil
 }
@@ -139,6 +141,33 @@ func completeKeyref(input string, doc *document.Document, folder *workspace.Fold
 				TextEdit: &TextEdit{
 					Range:   editRange,
 					NewText: newText,
+				},
+			})
+		}
+	}
+	return items
+}
+
+func completeDataKeyref(input string, folder *workspace.Folder, editRange document.Range) []CompletionItem {
+	table := keyref.BuildMergedTable(folder.MapTexts())
+	var items []CompletionItem
+	for _, key := range keyref.AllKeys(table) {
+		if input == "" || strings.Contains(strings.ToLower(key), strings.ToLower(input)) {
+			entry := table[key]
+			detail := entry.Href
+			if entry.Value != "" {
+				detail = entry.Value
+			} else if entry.Title != "" {
+				detail = entry.Title
+			}
+			items = append(items, CompletionItem{
+				Label:  key,
+				Detail: detail,
+				Kind:   18,
+				Data:   map[string]string{"kind": "data-keyref"},
+				TextEdit: &TextEdit{
+					Range:   editRange,
+					NewText: key,
 				},
 			})
 		}

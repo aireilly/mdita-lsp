@@ -60,13 +60,27 @@ func resolveMdLink(ml *document.MdLink, doc *document.Document, folder *workspac
 }
 
 func resolveKeyref(kr *keyref.KeyrefAtPos, doc *document.Document, folder *workspace.Folder) []Location {
+	// Prefer navigating directly to the LinkDef in the map file.
+	for _, mapDoc := range folder.AllDocs() {
+		if mapDoc.Kind != document.Map {
+			continue
+		}
+		for _, el := range mapDoc.Elements {
+			if ld, ok := el.(*document.LinkDef); ok && ld.Label == kr.Label {
+				return []Location{{URI: mapDoc.URI, Range: ld.Range}}
+			}
+		}
+	}
+
+	// Fall back: href-based keydef — navigate to the referenced topic file.
 	table := keyref.BuildMergedTable(folder.MapTexts())
 	entry, ok := keyref.Resolve(table, kr.Label)
 	if !ok {
 		return nil
 	}
-
-	// Href-based keydef: navigate to target topic file
+	if entry.Href == "" {
+		return nil
+	}
 	for _, mapDoc := range folder.AllDocs() {
 		if mapDoc.Kind != document.Map {
 			continue

@@ -15,6 +15,7 @@ const (
 	PartialYamlKey
 	PartialKeyref
 	PartialHeadingText
+	PartialDataKeyref
 )
 
 type PartialElement struct {
@@ -55,6 +56,27 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 		return &PartialElement{
 			Kind:  PartialHeadingText,
 			Input: after,
+		}
+	}
+
+	// data-keyref="key" completion.
+	if idx := strings.LastIndex(prefix, `data-keyref="`); idx >= 0 {
+		after := prefix[idx+len(`data-keyref="`):]
+		if !strings.Contains(after, `"`) {
+			suffix := line[col:]
+			endCol := col
+			if quoteIdx := strings.Index(suffix, `"`); quoteIdx >= 0 {
+				endCol = col + quoteIdx
+			}
+			attrStart := idx + len(`data-keyref="`)
+			return &PartialElement{
+				Kind:  PartialDataKeyref,
+				Input: after,
+				Range: document.Range{
+					Start: document.Position{Line: pos.Line, Character: attrStart},
+					End:   document.Position{Line: pos.Line, Character: endCol},
+				},
+			}
 		}
 	}
 
