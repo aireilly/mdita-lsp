@@ -213,15 +213,6 @@ func parseYAMLMeta(yamlContent string) *YAMLMetadata {
 			meta.Schema = DitaSchemaFromString(sval)
 		case "keyword":
 			meta.Keywords = parseKeywords(val)
-		case "keys":
-			if m, ok := val.(map[string]any); ok {
-				meta.Keys = make(map[string]string, len(m))
-				for k, v := range m {
-					if s, ok := v.(string); ok {
-						meta.Keys[k] = s
-					}
-				}
-			}
 		default:
 			if sval != "" {
 				meta.OtherMeta[key] = sval

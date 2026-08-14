@@ -91,75 +91,6 @@ func TestInvalidHeadingHierarchy(t *testing.T) {
 	}
 }
 
-func TestTaskMissingProcedure(t *testing.T) {
-	doc := makeDoc("file:///project/doc.md",
-		"---", "$schema: urn:oasis:names:tc:dita:xsd:task.xsd", "---",
-		"# Task Title", "", "Some text.")
-	f := makeFolder(doc)
-	diags := Check(doc, f)
-
-	found := false
-	for _, d := range diags {
-		if d.Code == CodeTaskMissingProcedure {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected TaskMissingProcedure diagnostic")
-	}
-}
-
-func TestTaskWithUnorderedListIsValid(t *testing.T) {
-	doc := makeDoc("file:///project/doc.md",
-		"---", "$schema: urn:oasis:names:tc:dita:xsd:task.xsd", "---",
-		"# Task Title", "", "Some text.", "",
-		"- step one", "- step two")
-	f := makeFolder(doc)
-	diags := Check(doc, f)
-
-	for _, d := range diags {
-		if d.Code == CodeTaskMissingProcedure {
-			t.Error("should not report TaskMissingProcedure for unordered list (steps-unordered)")
-		}
-	}
-}
-
-func TestTaskMissingProcedureNoLists(t *testing.T) {
-	doc := makeDoc("file:///project/doc.md",
-		"---", "$schema: urn:oasis:names:tc:dita:xsd:task.xsd", "---",
-		"# Task Title", "", "Some text with no lists.")
-	f := makeFolder(doc)
-	diags := Check(doc, f)
-
-	found := false
-	for _, d := range diags {
-		if d.Code == CodeTaskMissingProcedure {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected TaskMissingProcedure when no lists present")
-	}
-}
-
-func TestConceptHasProcedure(t *testing.T) {
-	doc := makeDoc("file:///project/doc.md",
-		"---", "$schema: urn:oasis:names:tc:dita:xsd:concept.xsd", "---",
-		"# Concept Title", "", "Some text.", "", "1. step one", "2. step two")
-	f := makeFolder(doc)
-	diags := Check(doc, f)
-
-	found := false
-	for _, d := range diags {
-		if d.Code == CodeConceptHasProcedure {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected ConceptHasProcedure diagnostic")
-	}
-}
-
 func TestBrokenLink(t *testing.T) {
 	doc := makeDoc("file:///project/doc.md",
 		"# Title", "", "[missing](nonexistent.md)")
@@ -174,23 +105,6 @@ func TestBrokenLink(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected BrokenLink diagnostic")
-	}
-}
-
-func TestUnknownAdmonitionType(t *testing.T) {
-	doc := makeDoc("file:///project/doc.md",
-		"---", "author: Test", "---", "# Title", "", "Short desc.", "", "!!! invalid", "    content")
-	f := makeFolder(doc)
-	diags := Check(doc, f)
-
-	found := false
-	for _, d := range diags {
-		if d.Code == CodeUnknownAdmonitionType {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected UnknownAdmonitionType diagnostic")
 	}
 }
 
@@ -349,18 +263,5 @@ func TestBrokenMdLinkAnchor(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected broken link diagnostic for nonexistent heading in install.md")
-	}
-}
-
-func TestKeyrefLinkNotBroken(t *testing.T) {
-	doc := makeDoc("file:///project/doc.md",
-		"# Title", "", "[documentation]({{product-url}})")
-	f := makeFolder(doc)
-	diags := Check(doc, f)
-
-	for _, d := range diags {
-		if d.Code == CodeBrokenLink {
-			t.Errorf("should not report broken link for keyref URL, got: %s", d.Message)
-		}
 	}
 }

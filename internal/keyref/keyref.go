@@ -96,16 +96,6 @@ func BuildMergedTable(mapTexts []string) KeyTable {
 			}
 		}
 
-		meta := document.ParseYAMLMeta(text)
-		if meta != nil && meta.Keys != nil {
-			for k, v := range meta.Keys {
-				if isURLValue(v) {
-					merged[k] = KeyEntry{Href: v}
-				} else {
-					merged[k] = KeyEntry{Value: v, Title: v}
-				}
-			}
-		}
 	}
 	return merged
 }

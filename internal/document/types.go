@@ -119,7 +119,6 @@ type YAMLMetadata struct {
 	Schema      DitaSchema
 	SchemaRaw   string
 	OtherMeta   map[string]string
-	Keys        map[string]string
 	Range       Range
 }
 

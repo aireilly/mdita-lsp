@@ -1,16 +1,8 @@
 package diagnostic
 
 import (
-	"strings"
-
 	"github.com/aireilly/mdita-lsp/internal/document"
 )
-
-var validAdmonitionTypes = map[string]bool{
-	"note": true, "tip": true, "warning": true, "caution": true,
-	"danger": true, "attention": true, "important": true, "notice": true,
-	"fastpath": true, "remember": true, "restriction": true, "trouble": true,
-}
 
 func checkMditaCompliance(doc *document.Document) []Diagnostic {
 	var diags []Diagnostic
@@ -48,11 +40,7 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 	}
 
 	diags = append(diags, checkHeadingHierarchy(doc)...)
-	diags = append(diags, checkSchemaSpecific(doc)...)
-	diags = append(diags, checkAdmonitions(doc)...)
 	diags = append(diags, checkFootnotes(doc)...)
-	diags = append(diags, checkTaskSections(doc)...)
-	diags = append(diags, checkRelatedLinks(doc)...)
 
 	return diags
 }
@@ -73,64 +61,6 @@ func checkHeadingHierarchy(doc *document.Document) []Diagnostic {
 			})
 		}
 	}
-	return diags
-}
-
-func checkSchemaSpecific(doc *document.Document) []Diagnostic {
-	var diags []Diagnostic
-	if doc.Meta == nil {
-		return diags
-	}
-	bf := doc.Index.Features
-
-	switch doc.Meta.Schema {
-	case document.SchemaTask:
-		if !bf.HasOrderedList && !bf.HasUnorderedList {
-			diags = append(diags, Diagnostic{
-				Range:    document.Rng(0, 0, 0, 0),
-				Severity: SeverityWarning,
-				Code:     CodeTaskMissingProcedure,
-				Source:   source,
-				Message:  "Task topic is missing a procedure (ordered or unordered list)",
-			})
-		}
-
-	case document.SchemaConcept:
-		if bf.HasOrderedList {
-			diags = append(diags, Diagnostic{
-				Range:    document.Rng(0, 0, 0, 0),
-				Severity: SeverityInfo,
-				Code:     CodeConceptHasProcedure,
-				Source:   source,
-				Message:  "Concept topic contains an ordered list — consider using task schema",
-			})
-		}
-
-	case document.SchemaReference:
-		if !bf.HasTable && !bf.HasDefinitionList {
-			diags = append(diags, Diagnostic{
-				Range:    document.Rng(0, 0, 0, 0),
-				Severity: SeverityInfo,
-				Code:     CodeReferenceMissingTable,
-				Source:   source,
-				Message:  "Reference topic is missing a table or definition list",
-			})
-		}
-	}
-
-	if doc.Kind == document.Map {
-		hasNonLinkContent := bf.HasOrderedList || bf.HasDefinitionList
-		if hasNonLinkContent {
-			diags = append(diags, Diagnostic{
-				Range:    document.Rng(0, 0, 0, 0),
-				Severity: SeverityInfo,
-				Code:     CodeMapHasBodyContent,
-				Source:   source,
-				Message:  "Map contains body content beyond topic references",
-			})
-		}
-	}
-
 	return diags
 }
 
@@ -172,106 +102,5 @@ func checkFootnotes(doc *document.Document) []Diagnostic {
 		}
 	}
 
-	return diags
-}
-
-func checkAdmonitions(doc *document.Document) []Diagnostic {
-	var diags []Diagnostic
-	bf := doc.Index.Features
-	for _, adm := range bf.Admonitions {
-		if !validAdmonitionTypes[strings.ToLower(adm.Type)] {
-			diags = append(diags, Diagnostic{
-				Range:    adm.Range,
-				Severity: SeverityWarning,
-				Code:     CodeUnknownAdmonitionType,
-				Source:   source,
-				Message:  "Unknown admonition type: " + adm.Type,
-			})
-		}
-	}
-	return diags
-}
-
-func checkTaskSections(doc *document.Document) []Diagnostic {
-	var diags []Diagnostic
-	seen := make(map[document.TaskSectionKind]bool)
-	lastOrder := 0
-
-	for _, h := range doc.Index.Headings() {
-		if h.TaskSection == document.TaskSectionNone {
-			continue
-		}
-		if seen[h.TaskSection] {
-			diags = append(diags, Diagnostic{
-				Range:    h.Range,
-				Severity: SeverityError,
-				Code:     CodeDuplicateTaskSection,
-				Source:   source,
-				Message:  "Duplicate task section: \"" + h.Text + "\"",
-			})
-			continue
-		}
-		seen[h.TaskSection] = true
-
-		order := taskSectionOrder(h.TaskSection)
-		if order > 0 && order < lastOrder {
-			diags = append(diags, Diagnostic{
-				Range:    h.Range,
-				Severity: SeverityWarning,
-				Code:     CodeTaskSectionOutOfOrder,
-				Source:   source,
-				Message:  "Task section \"" + h.Text + "\" should appear earlier",
-			})
-		}
-		if order > lastOrder {
-			lastOrder = order
-		}
-	}
-	return diags
-}
-
-func taskSectionOrder(kind document.TaskSectionKind) int {
-	switch kind {
-	case document.TaskSectionPrereq:
-		return 1
-	case document.TaskSectionContext:
-		return 2
-	case document.TaskSectionResult:
-		return 4
-	case document.TaskSectionPostreq:
-		return 5
-	case document.TaskSectionTroubleshooting:
-		return 6
-	default:
-		return 0
-	}
-}
-
-func checkRelatedLinks(doc *document.Document) []Diagnostic {
-	var diags []Diagnostic
-	for _, h := range doc.Index.Headings() {
-		if !h.IsRelLinks {
-			continue
-		}
-		lines := strings.Split(doc.Text, "\n")
-		for i := h.Range.Start.Line + 1; i < len(lines); i++ {
-			line := strings.TrimSpace(lines[i])
-			if line == "" {
-				continue
-			}
-			if strings.HasPrefix(line, "#") {
-				break
-			}
-			if !strings.HasPrefix(line, "- [") && !strings.HasPrefix(line, "* [") {
-				diags = append(diags, Diagnostic{
-					Range:    document.Rng(i, 0, i, len(lines[i])),
-					Severity: SeverityWarning,
-					Code:     CodeRelLinksNonLinkContent,
-					Source:   source,
-					Message:  "Related links section should contain only links",
-				})
-			}
-		}
-	}
 	return diags
 }

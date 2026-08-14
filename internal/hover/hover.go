@@ -56,7 +56,6 @@ var yamlKeyDocs = map[string]string{
 	"category":    "Topic category for classification",
 	"keyword":     "Keywords for indexing and search (comma-separated or YAML list)",
 	"resourceid":  "Unique resource identifier for cross-references",
-	"keys":        "Key definitions for keyword keyrefs (map files only)",
 }
 
 func hoverYAMLKey(doc *document.Document, pos document.Position) string {
