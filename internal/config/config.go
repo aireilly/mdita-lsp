@@ -26,9 +26,34 @@ type MarkdownConfig struct {
 	TitleFromHeading bool     `yaml:"title_from_heading"`
 }
 
+type Profile int
+
+const (
+	ProfileExtended Profile = iota
+	ProfileCore
+)
+
+func (p *Profile) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+	switch s {
+	case "core":
+		*p = ProfileCore
+	case "extended", "":
+		*p = ProfileExtended
+	default:
+		*p = ProfileExtended
+	}
+	return nil
+}
+
 type MditaConfig struct {
-	Enable        *bool    `yaml:"enable"`
-	MapExtensions []string `yaml:"map_extensions"`
+	Enable             *bool    `yaml:"enable"`
+	MapExtensions      []string `yaml:"map_extensions"`
+	Profile            Profile  `yaml:"profile"`
+	FormatTablesOnSave *bool    `yaml:"formatTablesOnSave"`
 }
 
 type CompletionConfig struct {
@@ -79,8 +104,10 @@ func Default() *Config {
 				TitleFromHeading: true,
 			},
 			Mdita: MditaConfig{
-				Enable:        boolPtr(true),
-				MapExtensions: []string{"mditamap"},
+				Enable:             boolPtr(true),
+				MapExtensions:      []string{"mditamap"},
+				Profile:            ProfileExtended,
+				FormatTablesOnSave: boolPtr(true),
 			},
 		},
 		Completion: CompletionConfig{
@@ -151,6 +178,12 @@ func Merge(base, overlay *Config) *Config {
 	merged.Core.Mdita.Enable = mergeBool(base.Core.Mdita.Enable, overlay.Core.Mdita.Enable)
 	if overlay.Core.Mdita.MapExtensions != nil {
 		merged.Core.Mdita.MapExtensions = overlay.Core.Mdita.MapExtensions
+	}
+	if overlay.Core.Mdita.Profile != 0 {
+		merged.Core.Mdita.Profile = overlay.Core.Mdita.Profile
+	}
+	if overlay.Core.Mdita.FormatTablesOnSave != nil {
+		merged.Core.Mdita.FormatTablesOnSave = overlay.Core.Mdita.FormatTablesOnSave
 	}
 
 	if overlay.Completion.MaxCandidates != 0 {

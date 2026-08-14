@@ -42,9 +42,6 @@ const (
 	SchemaTask
 	SchemaReference
 	SchemaMap
-	SchemaMditaTopic
-	SchemaMditaCoreTopic
-	SchemaMditaExtendedTopic
 	SchemaUnknown
 )
 
@@ -65,15 +62,6 @@ func DitaSchemaFromString(s string) DitaSchema {
 	case "urn:oasis:names:tc:dita:xsd:map.xsd",
 		"urn:oasis:names:tc:dita:rng:map.rng":
 		return SchemaMap
-	case "urn:oasis:names:tc:mdita:xsd:topic.xsd",
-		"urn:oasis:names:tc:mdita:rng:topic.rng":
-		return SchemaMditaTopic
-	case "urn:oasis:names:tc:mdita:core:xsd:topic.xsd",
-		"urn:oasis:names:tc:mdita:core:rng:topic.rng":
-		return SchemaMditaCoreTopic
-	case "urn:oasis:names:tc:mdita:extended:xsd:topic.xsd",
-		"urn:oasis:names:tc:mdita:extended:rng:topic.rng":
-		return SchemaMditaExtendedTopic
 	default:
 		return SchemaUnknown
 	}

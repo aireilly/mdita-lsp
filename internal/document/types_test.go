@@ -22,30 +22,27 @@ func TestDocKind(t *testing.T) {
 	}
 }
 
-func TestDitaSchemaFromString(t *testing.T) {
+func TestDitaSchemaFromStringOrgLwdita(t *testing.T) {
 	tests := []struct {
 		input string
 		want  DitaSchema
 	}{
-		{"urn:oasis:names:tc:dita:xsd:task.xsd", SchemaTask},
-		{"urn:oasis:names:tc:dita:rng:task.rng", SchemaTask},
-		{"urn:oasis:names:tc:dita:xsd:concept.xsd", SchemaConcept},
-		{"urn:oasis:names:tc:dita:rng:concept.rng", SchemaConcept},
-		{"urn:oasis:names:tc:dita:xsd:reference.xsd", SchemaReference},
 		{"urn:oasis:names:tc:dita:xsd:topic.xsd", SchemaTopic},
+		{"urn:oasis:names:tc:dita:rng:topic.rng", SchemaTopic},
+		{"urn:oasis:names:tc:dita:xsd:task.xsd", SchemaTask},
+		{"urn:oasis:names:tc:dita:xsd:concept.xsd", SchemaConcept},
+		{"urn:oasis:names:tc:dita:xsd:reference.xsd", SchemaReference},
 		{"urn:oasis:names:tc:dita:xsd:map.xsd", SchemaMap},
-		{"urn:oasis:names:tc:mdita:xsd:topic.xsd", SchemaMditaTopic},
-		{"urn:oasis:names:tc:mdita:core:xsd:topic.xsd", SchemaMditaCoreTopic},
-		{"urn:oasis:names:tc:mdita:extended:xsd:topic.xsd", SchemaMditaExtendedTopic},
-		{"something-unknown", SchemaUnknown},
+		// Removed MDITA-specific URNs should return SchemaUnknown
+		{"urn:oasis:names:tc:mdita:xsd:topic.xsd", SchemaUnknown},
+		{"urn:oasis:names:tc:mdita:core:xsd:topic.xsd", SchemaUnknown},
+		{"urn:oasis:names:tc:mdita:extended:xsd:topic.xsd", SchemaUnknown},
 	}
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := DitaSchemaFromString(tt.input)
-			if got != tt.want {
-				t.Errorf("DitaSchemaFromString(%q) = %v, want %v", tt.input, got, tt.want)
-			}
-		})
+		got := DitaSchemaFromString(tt.input)
+		if got != tt.want {
+			t.Errorf("DitaSchemaFromString(%q) = %v, want %v", tt.input, got, tt.want)
+		}
 	}
 }
 

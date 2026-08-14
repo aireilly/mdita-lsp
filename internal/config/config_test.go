@@ -179,3 +179,27 @@ func TestParseEmpty(t *testing.T) {
 		t.Errorf("empty parse should have zero values, got TextSync = %q", cfg.Core.Markdown.TextSync)
 	}
 }
+
+func TestParseProfileConfig(t *testing.T) {
+	data := []byte("core:\n  mdita:\n    profile: core\n    formatTablesOnSave: false\n")
+	cfg, err := Parse(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Core.Mdita.Profile != ProfileCore {
+		t.Errorf("got profile %v, want ProfileCore", cfg.Core.Mdita.Profile)
+	}
+	if BoolVal(cfg.Core.Mdita.FormatTablesOnSave) {
+		t.Error("formatTablesOnSave should be false")
+	}
+}
+
+func TestDefaultProfileIsExtended(t *testing.T) {
+	cfg := Default()
+	if cfg.Core.Mdita.Profile != ProfileExtended {
+		t.Errorf("default profile should be Extended, got %v", cfg.Core.Mdita.Profile)
+	}
+	if !BoolVal(cfg.Core.Mdita.FormatTablesOnSave) {
+		t.Error("formatTablesOnSave default should be true")
+	}
+}
