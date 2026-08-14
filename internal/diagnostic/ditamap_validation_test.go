@@ -16,7 +16,7 @@ func TestBrokenMapReference(t *testing.T) {
 
 	found := false
 	for _, d := range diags {
-		if d.Code == CodeBrokenMapReference {
+		if d.Code == CodeBrokenMapTopicref {
 			found = true
 		}
 	}
@@ -33,7 +33,7 @@ func TestValidMapReference(t *testing.T) {
 	diags := CheckDitamap(mapDoc, f)
 
 	for _, d := range diags {
-		if d.Code == CodeBrokenMapReference {
+		if d.Code == CodeBrokenMapTopicref {
 			t.Error("should not report BrokenMapReference for valid ref")
 		}
 	}
@@ -80,7 +80,7 @@ func TestInconsistentMapHeadingHierarchy(t *testing.T) {
 	diags := CheckDitamap(mapDoc, f)
 	found := false
 	for _, d := range diags {
-		if d.Code == CodeInconsistentMapHeadingHierarchy {
+		if d.Code == CodeMapHeadingHierarchy {
 			found = true
 		}
 	}

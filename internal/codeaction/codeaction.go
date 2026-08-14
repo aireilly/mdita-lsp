@@ -175,7 +175,7 @@ func fixFootnoteRefActions(doc *document.Document, rng document.Range) []CodeAct
 			Diagnostics: []DiagnosticInfo{{
 				Range:    ref.Range,
 				Severity: 2,
-				Code:     "13",
+				Code:     "8",
 				Source:   "mdita-lsp",
 				Message:  "Footnote reference without definition: " + ref.Label,
 			}},

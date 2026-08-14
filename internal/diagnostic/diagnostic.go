@@ -15,22 +15,27 @@ const (
 )
 
 const (
-	CodeAmbiguousLink                   = "1"
-	CodeBrokenLink                      = "2"
-	CodeNonBreakingWhitespace           = "3"
-	CodeMissingYamlFrontMatter          = "4"
-	CodeMissingShortDescription         = "5"
-	CodeInvalidHeadingHierarchy         = "6"
-	CodeUnrecognizedSchema              = "7"
-	CodeFootnoteRefWithoutDef           = "13"
-	CodeFootnoteDefWithoutRef           = "14"
-	CodeUnresolvedKeyref                = "16"
-	CodeBrokenMapReference              = "17"
-	CodeCircularMapReference            = "18"
-	CodeInconsistentMapHeadingHierarchy = "19"
-	CodeConrefTargetMissing             = "20"
-	CodeConrefElementMissing            = "21"
-	CodeConkeyrefKeyMissing             = "22"
+	CodeAmbiguousLink           = "1"
+	CodeBrokenLink              = "2"
+	CodeNBSP                    = "3"
+	CodeMissingFrontMatter      = "4"
+	CodeMissingShortDesc        = "5"
+	CodeHeadingHierarchy        = "6"
+	CodeUnrecognizedSchema      = "7"
+	CodeFootnoteRefOrphan       = "8"
+	CodeFootnoteDefOrphan       = "9"
+	CodeUnresolvedKeyref        = "10"
+	CodeBrokenMapTopicref       = "11"
+	CodeMapHeadingHierarchy     = "12"
+	CodeCoreProfileFeature      = "13"
+	CodeConrefTargetMissing     = "14"
+	CodeConrefElementMissing    = "15"
+	CodeConkeyrefKeyMissing     = "16"
+	CodeConkeyrefElementMissing = "17"
+	CodeTaskTypeInNonTask       = "18"
+	// CodeCircularMapReference is outside the 1-18 spec range;
+	// kept for circular dependency detection in ditamaps.
+	CodeCircularMapReference = "19"
 )
 
 type Diagnostic struct {
@@ -47,26 +52,29 @@ func Check(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 	var diags []Diagnostic
 
 	cfg := folder.Config
-	if config.BoolVal(cfg.Diagnostics.MditaCompliance) && config.BoolVal(cfg.Core.Mdita.Enable) {
+	if config.BoolVal(cfg.Diagnostics.MditaCompliance) {
 		diags = append(diags, checkMditaCompliance(doc)...)
+		diags = append(diags, CheckProfile(doc, cfg)...)
+		diags = append(diags, checkTaskTypeInNonTask(doc)...)
 	}
 
 	if config.BoolVal(cfg.Diagnostics.LinkValidation) {
 		diags = append(diags, checkLinks(doc, folder)...)
-		diags = append(diags, CheckConrefs(doc, folder)...)
 	}
 
 	if config.BoolVal(cfg.Diagnostics.NbspDetection) {
 		diags = append(diags, checkNonBreakingWhitespace(doc)...)
 	}
 
-	if config.BoolVal(cfg.Diagnostics.DitamapValidation) {
+	if doc.Kind == document.Map && config.BoolVal(cfg.Diagnostics.DitamapValidation) {
 		diags = append(diags, CheckDitamap(doc, folder)...)
 	}
 
 	if config.BoolVal(cfg.Diagnostics.KeyrefResolution) {
 		diags = append(diags, CheckKeyrefs(doc, folder)...)
 	}
+
+	diags = append(diags, CheckConrefs(doc, folder)...)
 
 	return diags
 }

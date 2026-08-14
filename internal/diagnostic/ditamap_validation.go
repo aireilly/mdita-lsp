@@ -39,7 +39,7 @@ func checkMapRefs(m *ditamap.MapStructure, doc *document.Document, folder *works
 			diags = append(diags, Diagnostic{
 				Range:    document.Rng(0, 0, 0, 0),
 				Severity: SeverityError,
-				Code:     CodeBrokenMapReference,
+				Code:     CodeBrokenMapTopicref,
 				Source:   source,
 				Message:  "Map references non-existent file: " + href,
 			})
@@ -76,7 +76,7 @@ func walkTopicRefHierarchy(refs []ditamap.TopicRef, depth int, docDir string, fo
 			*diags = append(*diags, Diagnostic{
 				Range:    document.Rng(0, 0, 0, 0),
 				Severity: SeverityInfo,
-				Code:     CodeInconsistentMapHeadingHierarchy,
+				Code:     CodeMapHeadingHierarchy,
 				Source:   source,
 				Message:  "Topic " + ref.Href + " has heading level " + itoa(title.Level) + " but map nesting suggests level " + itoa(expectedLevel),
 			})

@@ -129,8 +129,8 @@ func TestFixFootnoteRefAction(t *testing.T) {
 			if !strings.Contains(a.Edit.NewText, "[^1]:") {
 				t.Errorf("expected footnote def, got %q", a.Edit.NewText)
 			}
-			if len(a.Diagnostics) != 1 || a.Diagnostics[0].Code != "13" {
-				t.Error("expected diagnostic with code 13")
+			if len(a.Diagnostics) != 1 || a.Diagnostics[0].Code != "8" {
+				t.Error("expected diagnostic with code 8")
 			}
 		}
 	}

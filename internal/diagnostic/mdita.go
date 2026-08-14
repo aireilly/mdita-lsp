@@ -11,7 +11,7 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 		diags = append(diags, Diagnostic{
 			Range:    document.Rng(0, 0, 0, 0),
 			Severity: SeverityWarning,
-			Code:     CodeMissingYamlFrontMatter,
+			Code:     CodeMissingFrontMatter,
 			Source:   source,
 			Message:  "Missing YAML front matter",
 		})
@@ -33,7 +33,7 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 		diags = append(diags, Diagnostic{
 			Range:    title.Range,
 			Severity: SeverityWarning,
-			Code:     CodeMissingShortDescription,
+			Code:     CodeMissingShortDesc,
 			Source:   source,
 			Message:  "Missing short description (paragraph after title)",
 		})
@@ -55,7 +55,7 @@ func checkHeadingHierarchy(doc *document.Document) []Diagnostic {
 			diags = append(diags, Diagnostic{
 				Range:    headings[i].Range,
 				Severity: SeverityWarning,
-				Code:     CodeInvalidHeadingHierarchy,
+				Code:     CodeHeadingHierarchy,
 				Source:   source,
 				Message:  "Invalid heading hierarchy: skipped heading level",
 			})
@@ -83,7 +83,7 @@ func checkFootnotes(doc *document.Document) []Diagnostic {
 			diags = append(diags, Diagnostic{
 				Range:    ref.Range,
 				Severity: SeverityWarning,
-				Code:     CodeFootnoteRefWithoutDef,
+				Code:     CodeFootnoteRefOrphan,
 				Source:   source,
 				Message:  "Footnote reference without definition: " + ref.Label,
 			})
@@ -95,12 +95,42 @@ func checkFootnotes(doc *document.Document) []Diagnostic {
 			diags = append(diags, Diagnostic{
 				Range:    def.Range,
 				Severity: SeverityInfo,
-				Code:     CodeFootnoteDefWithoutRef,
+				Code:     CodeFootnoteDefOrphan,
 				Source:   source,
 				Message:  "Footnote definition without reference: " + def.Label,
 			})
 		}
 	}
 
+	return diags
+}
+
+func checkTaskTypeInNonTask(doc *document.Document) []Diagnostic {
+	isTask := doc.Meta != nil && doc.Meta.Schema == document.SchemaTask
+	if isTask {
+		return nil
+	}
+	for _, e := range doc.Elements {
+		if h, ok := e.(*document.Heading); ok && h.IsTitle() && h.Attributes != nil {
+			for _, c := range h.Attributes.Classes {
+				if c == "task" {
+					return nil
+				}
+			}
+		}
+	}
+
+	var diags []Diagnostic
+	for _, e := range doc.Elements {
+		if h, ok := e.(*document.Heading); ok && h.TaskSection != document.TaskSectionNone {
+			diags = append(diags, Diagnostic{
+				Range:    h.Range,
+				Severity: SeverityWarning,
+				Code:     CodeTaskTypeInNonTask,
+				Source:   source,
+				Message:  "Task section heading in a non-task topic (add {.task} to H1 or set $schema to task.xsd)",
+			})
+		}
+	}
 	return diags
 }

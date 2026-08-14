@@ -59,7 +59,7 @@ func checkNonBreakingWhitespace(doc *document.Document) []Diagnostic {
 			diags = append(diags, Diagnostic{
 				Range:    h.Range,
 				Severity: SeverityWarning,
-				Code:     CodeNonBreakingWhitespace,
+				Code:     CodeNBSP,
 				Source:   source,
 				Message:  "Heading contains non-breaking whitespace",
 			})

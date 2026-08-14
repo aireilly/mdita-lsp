@@ -28,6 +28,41 @@ func makeFolder(docs ...*document.Document) *workspace.Folder {
 	return f
 }
 
+func TestDiagnosticCodeValues(t *testing.T) {
+	if CodeAmbiguousLink != "1" {
+		t.Errorf("CodeAmbiguousLink = %q, want %q", CodeAmbiguousLink, "1")
+	}
+	if CodeFootnoteRefOrphan != "8" {
+		t.Errorf("CodeFootnoteRefOrphan = %q, want %q", CodeFootnoteRefOrphan, "8")
+	}
+	if CodeUnresolvedKeyref != "10" {
+		t.Errorf("CodeUnresolvedKeyref = %q, want %q", CodeUnresolvedKeyref, "10")
+	}
+	if CodeCoreProfileFeature != "13" {
+		t.Errorf("CodeCoreProfileFeature = %q, want %q", CodeCoreProfileFeature, "13")
+	}
+	if CodeTaskTypeInNonTask != "18" {
+		t.Errorf("CodeTaskTypeInNonTask = %q, want %q", CodeTaskTypeInNonTask, "18")
+	}
+}
+
+func TestCoreProfileFootnoteWarning(t *testing.T) {
+	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:topic.xsd\n---\n# Title\n\nText with footnote[^1].\n\n[^1]: Footnote text\n"
+	doc := document.New("file:///test.md", 1, text)
+	cfg := config.Default()
+	cfg.Core.Mdita.Profile = config.ProfileCore
+	diags := CheckProfile(doc, cfg)
+	found := false
+	for _, d := range diags {
+		if d.Code == CodeCoreProfileFeature {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected core profile feature warning for footnote")
+	}
+}
+
 func TestMissingYamlFrontMatter(t *testing.T) {
 	doc := makeDoc("file:///project/doc.md", "# Title", "", "Some text.")
 	f := makeFolder(doc)
@@ -35,7 +70,7 @@ func TestMissingYamlFrontMatter(t *testing.T) {
 
 	found := false
 	for _, d := range diags {
-		if d.Code == CodeMissingYamlFrontMatter {
+		if d.Code == CodeMissingFrontMatter {
 			found = true
 		}
 	}
@@ -51,7 +86,7 @@ func TestNoMissingYamlWhenPresent(t *testing.T) {
 	diags := Check(doc, f)
 
 	for _, d := range diags {
-		if d.Code == CodeMissingYamlFrontMatter {
+		if d.Code == CodeMissingFrontMatter {
 			t.Error("should not report MissingYamlFrontMatter when YAML is present")
 		}
 	}
@@ -65,7 +100,7 @@ func TestMissingShortDescription(t *testing.T) {
 
 	found := false
 	for _, d := range diags {
-		if d.Code == CodeMissingShortDescription {
+		if d.Code == CodeMissingShortDesc {
 			found = true
 		}
 	}
@@ -82,7 +117,7 @@ func TestInvalidHeadingHierarchy(t *testing.T) {
 
 	found := false
 	for _, d := range diags {
-		if d.Code == CodeInvalidHeadingHierarchy {
+		if d.Code == CodeHeadingHierarchy {
 			found = true
 		}
 	}
@@ -118,7 +153,7 @@ func TestFootnoteRefWithoutDef(t *testing.T) {
 
 	found := false
 	for _, d := range diags {
-		if d.Code == CodeFootnoteRefWithoutDef {
+		if d.Code == CodeFootnoteRefOrphan {
 			found = true
 		}
 	}
@@ -138,7 +173,7 @@ func TestFootnoteDefWithoutRef(t *testing.T) {
 
 	found := false
 	for _, d := range diags {
-		if d.Code == CodeFootnoteDefWithoutRef {
+		if d.Code == CodeFootnoteDefOrphan {
 			found = true
 		}
 	}
@@ -157,7 +192,7 @@ func TestMatchedFootnotesNoDiagnostic(t *testing.T) {
 	diags := Check(doc, f)
 
 	for _, d := range diags {
-		if d.Code == CodeFootnoteRefWithoutDef || d.Code == CodeFootnoteDefWithoutRef {
+		if d.Code == CodeFootnoteRefOrphan || d.Code == CodeFootnoteDefOrphan {
 			t.Errorf("should not report footnote diagnostics for matched pairs, got: %s", d.Message)
 		}
 	}
@@ -193,7 +228,7 @@ func TestNbspDetectionDisabled(t *testing.T) {
 	diags := Check(doc, f)
 
 	for _, d := range diags {
-		if d.Code == CodeNonBreakingWhitespace {
+		if d.Code == CodeNBSP {
 			t.Error("should not report NBSP diagnostics when disabled")
 		}
 	}
@@ -211,7 +246,7 @@ func TestMditaDisabled(t *testing.T) {
 	diags := Check(doc, f)
 
 	for _, d := range diags {
-		if d.Code == CodeMissingYamlFrontMatter {
+		if d.Code == CodeMissingFrontMatter {
 			t.Error("should not report MDITA diagnostics when disabled")
 		}
 	}
