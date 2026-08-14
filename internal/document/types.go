@@ -169,6 +169,21 @@ const (
 	TaskSectionTroubleshooting
 )
 
+type ImplicitSectionKind int
+
+const (
+	ImplicitContext ImplicitSectionKind = iota
+	ImplicitResult
+	ImplicitChoices
+	ImplicitSubsteps
+	ImplicitChoicetable
+)
+
+type ImplicitSection struct {
+	Kind  ImplicitSectionKind
+	Range Range
+}
+
 type SymKind int
 
 const (

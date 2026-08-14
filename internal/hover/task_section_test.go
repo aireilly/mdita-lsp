@@ -126,6 +126,34 @@ If installation fails, check the logs.
 	}
 }
 
+func TestHoverImplicitContext(t *testing.T) {
+	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\nSome context paragraph.\n\n1. Step one\n2. Step two\n"
+	doc := document.New("test.md", 1, text)
+	folder := workspace.NewFolder("/test", config.Default())
+	// Line 5 is "Some context paragraph." — inside the implicit context range.
+	result := GetHover(doc, document.Position{Line: 5, Character: 5}, folder)
+	if !strings.Contains(result, "context") {
+		t.Errorf("expected implicit context hover, got: %s", result)
+	}
+	if !strings.Contains(result, "Implicit") {
+		t.Errorf("expected 'Implicit' in hover, got: %s", result)
+	}
+}
+
+func TestHoverImplicitResult(t *testing.T) {
+	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\n1. Step one\n2. Step two\n\nThe software is now installed.\n"
+	doc := document.New("test.md", 1, text)
+	folder := workspace.NewFolder("/test", config.Default())
+	// Line 8 is "The software is now installed." — inside the implicit result range.
+	result := GetHover(doc, document.Position{Line: 8, Character: 5}, folder)
+	if !strings.Contains(result, "result") {
+		t.Errorf("expected implicit result hover, got: %s", result)
+	}
+	if !strings.Contains(result, "Implicit") {
+		t.Errorf("expected 'Implicit' in hover, got: %s", result)
+	}
+}
+
 func TestHoverRelatedLinks(t *testing.T) {
 	text := `---
 ---

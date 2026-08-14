@@ -78,3 +78,86 @@ func TestDocIDFromDocument(t *testing.T) {
 		t.Errorf("Slug = %q", id.Slug)
 	}
 }
+
+func TestImplicitContextSection(t *testing.T) {
+	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\nSome context paragraph.\n\n1. Step one\n2. Step two\n"
+	doc := New("file:///test.md", 1, text)
+	found := false
+	for _, s := range doc.ImplicitSections {
+		if s.Kind == ImplicitContext {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected implicit context section before steps")
+	}
+}
+
+func TestImplicitResultSection(t *testing.T) {
+	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\n1. Step one\n2. Step two\n\nThe software is now installed.\n"
+	doc := New("file:///test.md", 1, text)
+	found := false
+	for _, s := range doc.ImplicitSections {
+		if s.Kind == ImplicitResult {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected implicit result section after steps")
+	}
+}
+
+func TestImplicitChoicesSection(t *testing.T) {
+	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\n1. Choose an option:\n   - Option A\n   - Option B\n2. Continue.\n"
+	doc := New("file:///test.md", 1, text)
+	found := false
+	for _, s := range doc.ImplicitSections {
+		if s.Kind == ImplicitChoices {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected implicit choices section inside step")
+	}
+}
+
+func TestImplicitSubstepsSection(t *testing.T) {
+	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\n1. Do the following:\n   1. Sub-step A\n   2. Sub-step B\n2. Continue.\n"
+	doc := New("file:///test.md", 1, text)
+	found := false
+	for _, s := range doc.ImplicitSections {
+		if s.Kind == ImplicitSubsteps {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected implicit substeps section inside step")
+	}
+}
+
+func TestImplicitChoicetableSection(t *testing.T) {
+	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\n1. Choose a plan:\n\n   | Plan | Price |\n   |------|-------|\n   | Basic | Free |\n\n2. Continue.\n"
+	doc := New("file:///test.md", 1, text)
+	found := false
+	for _, s := range doc.ImplicitSections {
+		if s.Kind == ImplicitChoicetable {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected implicit choicetable section inside step")
+	}
+}
+
+func TestImplicitSectionsNonTask(t *testing.T) {
+	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:concept.xsd\n---\n# A concept\n\nSome paragraph.\n\n1. Item one\n"
+	doc := New("file:///test.md", 1, text)
+	if len(doc.ImplicitSections) > 0 {
+		t.Errorf("expected no implicit sections for non-task topic, got %d", len(doc.ImplicitSections))
+	}
+}

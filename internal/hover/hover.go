@@ -37,6 +37,23 @@ func GetHover(doc *document.Document, pos document.Position, folder *workspace.F
 		}
 	}
 
+	for _, s := range doc.ImplicitSections {
+		if posInImplicitRange(pos, s.Range) {
+			switch s.Kind {
+			case document.ImplicitContext:
+				return "**Implicit `<context>`** — content before steps wraps in `<context>` element"
+			case document.ImplicitResult:
+				return "**Implicit `<result>`** — content after steps wraps in `<result>` element"
+			case document.ImplicitChoices:
+				return "**Implicit `<choices>`** — nested unordered list inside a step becomes `<choices>`"
+			case document.ImplicitSubsteps:
+				return "**Implicit `<substeps>`** — nested ordered list inside a step becomes `<substeps>`"
+			case document.ImplicitChoicetable:
+				return "**Implicit `<choicetable>`** — table inside a step becomes `<choicetable>`"
+			}
+		}
+	}
+
 	if kr := keyref.DetectAtPosition(doc.Text, pos); kr != nil {
 		return hoverKeyref(kr, folder)
 	}
@@ -95,6 +112,19 @@ func hoverYAMLKey(doc *document.Document, pos document.Position) string {
 
 func posInYAMLRange(pos document.Position, r document.Range) bool {
 	if pos.Line < r.Start.Line || pos.Line > r.End.Line {
+		return false
+	}
+	return true
+}
+
+func posInImplicitRange(pos document.Position, r document.Range) bool {
+	if pos.Line < r.Start.Line || pos.Line > r.End.Line {
+		return false
+	}
+	if pos.Line == r.Start.Line && pos.Character < r.Start.Character {
+		return false
+	}
+	if pos.Line == r.End.Line && pos.Character > r.End.Character {
 		return false
 	}
 	return true
