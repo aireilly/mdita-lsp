@@ -59,7 +59,6 @@ func GetActions(doc *document.Document, rng document.Range, folder *workspace.Fo
 	actions = append(actions, fixFootnoteRefActions(doc, rng)...)
 	actions = append(actions, fixHeadingHierarchyActions(doc, rng)...)
 	actions = append(actions, buildDitaOTActions(doc, folder)...)
-	actions = append(actions, addRelatedLinksAction(doc)...)
 	actions = append(actions, addTaskSectionActions(doc)...)
 
 	return actions
@@ -72,7 +71,7 @@ func addFrontMatterAction(doc *document.Document) []CodeAction {
 	if doc.Kind != document.Topic {
 		return nil
 	}
-	fm := "---\n$schema: \"urn:oasis:names:tc:mdita:rng:topic.rng\"\n---\n\n"
+	fm := "---\n$schema: \"urn:oasis:names:tc:dita:xsd:topic.xsd\"\n---\n\n"
 	return []CodeAction{{
 		Title:  "Add MDITA YAML front matter",
 		Kind:   "source",
@@ -248,27 +247,6 @@ func buildDitaOTActions(doc *document.Document, folder *workspace.Folder) []Code
 			},
 		},
 	}
-}
-
-func addRelatedLinksAction(doc *document.Document) []CodeAction {
-	if doc.Kind != document.Topic {
-		return nil
-	}
-	for _, h := range doc.Index.Headings() {
-		if h.IsRelLinks {
-			return nil
-		}
-	}
-	lastLine := len(strings.Split(doc.Text, "\n")) - 1
-	return []CodeAction{{
-		Title:  "Add related links section",
-		Kind:   "source",
-		DocURI: doc.URI,
-		Edit: &TextEdit{
-			Range:   document.Rng(lastLine, 0, lastLine, 0),
-			NewText: "\n## Related information\n\n- []()\n",
-		},
-	}}
 }
 
 func addTaskSectionActions(doc *document.Document) []CodeAction {

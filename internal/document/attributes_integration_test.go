@@ -41,11 +41,6 @@ func TestFullExtendedDocument(t *testing.T) {
 		t.Error("expected related links heading")
 	}
 
-	// Inline attributes
-	if len(doc.InlineAttrs) < 3 {
-		t.Errorf("inline attrs = %d, want >= 3", len(doc.InlineAttrs))
-	}
-
 	// Block attributes
 	if len(doc.BlockAttrs) < 1 {
 		t.Errorf("block attrs = %d, want >= 1", len(doc.BlockAttrs))

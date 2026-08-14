@@ -154,14 +154,6 @@ type ParsedAttribute struct {
 	Range     Range
 }
 
-type InlineAttribute struct {
-	Attr       ParsedAttribute
-	TargetKind string // "bold", "italic", "code", "paragraph"
-	TargetText string
-	Line       int
-	Col        int
-}
-
 type BlockAttribute struct {
 	Attr ParsedAttribute
 	Line int
@@ -177,11 +169,6 @@ const (
 	TaskSectionPostreq
 	TaskSectionTroubleshooting
 )
-
-type RelatedLinksInfo struct {
-	HeadingLine int
-	Links       []*MdLink
-}
 
 type SymKind int
 

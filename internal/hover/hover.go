@@ -8,20 +8,11 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
 	"github.com/aireilly/mdita-lsp/internal/paths"
-	"github.com/aireilly/mdita-lsp/internal/vocabulary"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
 func GetHover(doc *document.Document, pos document.Position, folder *workspace.Folder) string {
 	if h := hoverYAMLKey(doc, pos); h != "" {
-		return h
-	}
-
-	if h := hoverInlineAttribute(doc, pos); h != "" {
-		return h
-	}
-
-	if h := hoverBlockAttribute(doc, pos); h != "" {
 		return h
 	}
 
@@ -46,10 +37,6 @@ func GetHover(doc *document.Document, pos document.Position, folder *workspace.F
 
 	if kr := keyref.DetectAtPosition(doc.Text, pos); kr != nil {
 		return hoverKeyref(kr, folder)
-	}
-
-	if h := hoverTaskList(doc, pos); h != "" {
-		return h
 	}
 
 	if url := detectURL(doc.Text, pos); url != "" {
@@ -233,96 +220,4 @@ func hoverHeadingClass(h *document.Heading) string {
 		return "DITA `<" + class + ">` — " + desc
 	}
 	return "**" + h.Text + "** (level " + itoa(h.Level) + ", class: " + class + ")"
-}
-
-func hoverInlineAttribute(doc *document.Document, pos document.Position) string {
-	for _, ia := range doc.InlineAttrs {
-		if ia.Line != pos.Line {
-			continue
-		}
-		if pos.Character < ia.Col || pos.Character > ia.Attr.Range.End.Character {
-			continue
-		}
-		for _, class := range ia.Attr.Classes {
-			if elem, ok := vocabulary.LookupDomainElement(class); ok {
-				return "DITA `<" + elem.DITAElement + ">` (" + elem.Domain + ") — " + elem.Description
-			}
-			if se, ok := vocabulary.LookupStepElement(class); ok {
-				return "DITA `<" + se.DITAElement + ">` — " + se.Description
-			}
-		}
-		for key := range ia.Attr.KeyValues {
-			if vocabulary.IsConditionalAttribute(key) {
-				return "DITA conditional processing attribute `" + key + "`"
-			}
-		}
-	}
-	return ""
-}
-
-var orderedListRegex = regexp.MustCompile(`^(\s*)\d+\.\s`)
-var unorderedListRegex = regexp.MustCompile(`^(\s*)[-*+]\s`)
-
-func hoverTaskList(doc *document.Document, pos document.Position) string {
-	if !isTaskTopic(doc) {
-		return ""
-	}
-	lines := strings.Split(doc.Text, "\n")
-	if pos.Line >= len(lines) {
-		return ""
-	}
-	line := lines[pos.Line]
-
-	if m := orderedListRegex.FindStringSubmatch(line); m != nil {
-		indent := len(m[1])
-		if indent == 0 {
-			elem, _ := vocabulary.LookupTaskListElement("steps")
-			return "DITA `<steps>` — " + elem.Description
-		}
-		elem, _ := vocabulary.LookupTaskListElement("substeps")
-		return "DITA `<substeps>` — " + elem.Description
-	}
-	if m := unorderedListRegex.FindStringSubmatch(line); m != nil {
-		indent := len(m[1])
-		if indent == 0 {
-			elem, _ := vocabulary.LookupTaskListElement("steps-unordered")
-			return "DITA `<steps-unordered>` — " + elem.Description
-		}
-		elem, _ := vocabulary.LookupTaskListElement("choices")
-		return "DITA `<choices>` — " + elem.Description
-	}
-	return ""
-}
-
-func isTaskTopic(doc *document.Document) bool {
-	if doc.Meta != nil && doc.Meta.Schema == document.SchemaTask {
-		return true
-	}
-	title := doc.Index.Title()
-	if title != nil && title.Attributes != nil {
-		for _, c := range title.Attributes.Classes {
-			if c == "task" {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func hoverBlockAttribute(doc *document.Document, pos document.Position) string {
-	for _, ba := range doc.BlockAttrs {
-		if ba.Line != pos.Line {
-			continue
-		}
-		for key, val := range ba.Attr.KeyValues {
-			if vocabulary.IsConditionalAttribute(key) {
-				for _, ca := range vocabulary.AllConditionalAttributes() {
-					if ca.Name == key {
-						return "DITA conditional processing attribute `" + key + "` — " + ca.Description + "\n\nCurrent value: `" + val + "`"
-					}
-				}
-			}
-		}
-	}
-	return ""
 }

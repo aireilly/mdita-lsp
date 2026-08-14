@@ -7,7 +7,6 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/document"
 	"github.com/aireilly/mdita-lsp/internal/keyref"
 	"github.com/aireilly/mdita-lsp/internal/paths"
-	"github.com/aireilly/mdita-lsp/internal/vocabulary"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
 
@@ -29,7 +28,7 @@ type CompletionItem struct {
 
 var yamlKeys = []string{
 	"$schema", "id", "author", "source", "publisher", "permissions",
-	"audience", "category", "keyword", "resourceid", "keys",
+	"audience", "category", "keyword", "resourceid",
 }
 
 func Complete(doc *document.Document, pos document.Position, folder *workspace.Folder) []CompletionItem {
@@ -49,14 +48,6 @@ func Complete(doc *document.Document, pos document.Position, folder *workspace.F
 		return completeKeyref(pe.Input, doc, folder, pe.Range)
 	case PartialHeadingText:
 		return completeTaskSectionHeading(pe.Input, doc)
-	case PartialAttrClass:
-		return completeAttrClass(pe.Input, doc, pos, pe.Range)
-	case PartialBlockAttr:
-		return completeBlockAttr(pe.Input, pe.Range)
-	case PartialAttrOpen:
-		return completeAttrOpen(pe.Input, doc, pos, pe.Range)
-	case PartialDoubleCurlyKeyref:
-		return completeDoubleCurlyKeyref(pe.Input, doc, folder, pe.Range)
 	}
 	return nil
 }
@@ -217,213 +208,6 @@ func completeTaskSectionHeading(input string, doc *document.Document) []Completi
 			InsertText: t.title,
 			Kind:       17,
 		})
-	}
-	return items
-}
-
-func completeAttrClass(input string, doc *document.Document, pos document.Position, editRange document.Range) []CompletionItem {
-	var items []CompletionItem
-
-	isHeading := false
-	lines := strings.Split(doc.Text, "\n")
-	line := ""
-	if pos.Line < len(lines) {
-		line = lines[pos.Line]
-	}
-	if strings.HasPrefix(strings.TrimSpace(line), "#") {
-		isHeading = true
-	}
-
-	if isHeading {
-		headingClasses := []struct{ class, detail string }{
-			{"task", "Task topic type"},
-			{"concept", "Concept topic type"},
-			{"reference", "Reference topic type"},
-			{"prereq", "Task prerequisite section"},
-			{"context", "Task context section"},
-			{"result", "Task result section"},
-			{"postreq", "Task post-requisite section"},
-			{"tasktroubleshooting", "Task troubleshooting section"},
-			{"related-links", "Related links section"},
-		}
-		for _, c := range headingClasses {
-			if input == "" || strings.HasPrefix(c.class, input) {
-				items = append(items, CompletionItem{
-					Label:  c.class,
-					Detail: c.detail,
-					Kind:   6,
-					TextEdit: &TextEdit{
-						Range:   editRange,
-						NewText: c.class + "}",
-					},
-				})
-			}
-		}
-		return items
-	}
-
-	parentKind := ""
-	if pos.Character > 0 && pos.Character <= len(line) {
-		before := line[:pos.Character]
-		if strings.Contains(before, "**") || strings.Contains(before, "__") {
-			parentKind = "bold"
-		} else if strings.Contains(before, "`") {
-			parentKind = "code"
-		} else if strings.Contains(before, "*") {
-			parentKind = "italic"
-		}
-	}
-
-	for _, elem := range vocabulary.AllDomainElements() {
-		if parentKind != "" && elem.ParentKind != parentKind {
-			continue
-		}
-		if input == "" || strings.HasPrefix(elem.DITAElement, input) {
-			items = append(items, CompletionItem{
-				Label:  elem.DITAElement,
-				Detail: "<" + elem.DITAElement + "> (" + elem.Domain + ")",
-				Kind:   6,
-				TextEdit: &TextEdit{
-					Range:   editRange,
-					NewText: elem.DITAElement + "}",
-				},
-			})
-		}
-	}
-	return items
-}
-
-func completeBlockAttr(input string, editRange document.Range) []CompletionItem {
-	var items []CompletionItem
-	for _, ca := range vocabulary.AllConditionalAttributes() {
-		if input == "" || strings.HasPrefix(ca.Name, input) {
-			items = append(items, CompletionItem{
-				Label:  ca.Name,
-				Detail: ca.Description,
-				Kind:   6,
-				TextEdit: &TextEdit{
-					Range:   editRange,
-					NewText: ca.Name + "=\"\"}",
-				},
-			})
-		}
-	}
-	return items
-}
-
-func completeAttrOpen(input string, doc *document.Document, pos document.Position, editRange document.Range) []CompletionItem {
-	var items []CompletionItem
-
-	lines := strings.Split(doc.Text, "\n")
-	line := ""
-	if pos.Line < len(lines) {
-		line = lines[pos.Line]
-	}
-
-	isHeading := strings.HasPrefix(strings.TrimSpace(line), "#")
-
-	if isHeading {
-		headingClasses := []struct{ class, detail string }{
-			{"task", "Task topic type"},
-			{"concept", "Concept topic type"},
-			{"reference", "Reference topic type"},
-			{"prereq", "Task prerequisite section"},
-			{"context", "Task context section"},
-			{"result", "Task result section"},
-			{"postreq", "Task post-requisite section"},
-			{"tasktroubleshooting", "Task troubleshooting section"},
-			{"related-links", "Related links section"},
-		}
-		for _, c := range headingClasses {
-			label := "." + c.class
-			if input == "" || strings.HasPrefix(label, input) {
-				items = append(items, CompletionItem{
-					Label:      label,
-					Detail:     c.detail,
-					FilterText: "{" + label,
-					Kind:       6,
-					TextEdit: &TextEdit{
-						Range:   editRange,
-						NewText: label + "}",
-					},
-				})
-			}
-		}
-		for _, ca := range vocabulary.AllConditionalAttributes() {
-			if input == "" || strings.HasPrefix(ca.Name, input) {
-				items = append(items, CompletionItem{
-					Label:      ca.Name,
-					Detail:     ca.Description,
-					FilterText: "{" + ca.Name,
-					Kind:       6,
-					TextEdit: &TextEdit{
-						Range:   editRange,
-						NewText: ca.Name + "=\"\"}",
-					},
-				})
-			}
-		}
-		return items
-	}
-
-	parentKind := ""
-	if pos.Character > 0 && pos.Character <= len(line) {
-		before := line[:pos.Character]
-		if strings.Contains(before, "**") || strings.Contains(before, "__") {
-			parentKind = "bold"
-		} else if strings.Contains(before, "`") {
-			parentKind = "code"
-		} else if strings.Contains(before, "*") {
-			parentKind = "italic"
-		}
-	}
-
-	for _, elem := range vocabulary.AllDomainElements() {
-		if parentKind != "" && elem.ParentKind != parentKind {
-			continue
-		}
-		label := "." + elem.DITAElement
-		if input == "" || strings.HasPrefix(label, input) {
-			items = append(items, CompletionItem{
-				Label:      label,
-				Detail:     "<" + elem.DITAElement + "> (" + elem.Domain + ")",
-				FilterText: "{" + label,
-				Kind:       6,
-				TextEdit: &TextEdit{
-					Range:   editRange,
-					NewText: label + "}",
-				},
-			})
-		}
-	}
-	return items
-}
-
-func completeDoubleCurlyKeyref(input string, doc *document.Document, folder *workspace.Folder, editRange document.Range) []CompletionItem {
-	table := keyref.BuildMergedTable(folder.MapTexts())
-
-	var items []CompletionItem
-	for _, key := range keyref.AllKeys(table) {
-		if input == "" || strings.Contains(strings.ToLower(key), strings.ToLower(input)) {
-			entry := table[key]
-			detail := entry.Href
-			if entry.Value != "" {
-				detail = entry.Value
-			} else if entry.Title != "" {
-				detail = entry.Title + " (" + entry.Href + ")"
-			}
-			items = append(items, CompletionItem{
-				Label:      key,
-				Detail:     detail,
-				FilterText: "{{" + key,
-				Kind:       6,
-				Data:       map[string]string{"kind": "keyref"},
-				TextEdit: &TextEdit{
-					Range:   editRange,
-					NewText: "{{" + key + "}}",
-				},
-			})
-		}
 	}
 	return items
 }

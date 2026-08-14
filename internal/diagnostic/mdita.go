@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/aireilly/mdita-lsp/internal/document"
-	"github.com/aireilly/mdita-lsp/internal/vocabulary"
 )
 
 var validAdmonitionTypes = map[string]bool{
@@ -50,16 +49,10 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 
 	diags = append(diags, checkHeadingHierarchy(doc)...)
 	diags = append(diags, checkSchemaSpecific(doc)...)
-	diags = append(diags, checkExtendedFeatures(doc)...)
 	diags = append(diags, checkAdmonitions(doc)...)
 	diags = append(diags, checkFootnotes(doc)...)
 	diags = append(diags, checkTaskSections(doc)...)
 	diags = append(diags, checkRelatedLinks(doc)...)
-	if doc.Index.Features.HasAttributes {
-		diags = append(diags, checkInlineAttributes(doc)...)
-		diags = append(diags, checkBlockAttributes(doc)...)
-		diags = append(diags, checkStepElements(doc)...)
-	}
 
 	return diags
 }
@@ -136,52 +129,6 @@ func checkSchemaSpecific(doc *document.Document) []Diagnostic {
 				Message:  "Map contains body content beyond topic references",
 			})
 		}
-	}
-
-	return diags
-}
-
-func checkExtendedFeatures(doc *document.Document) []Diagnostic {
-	var diags []Diagnostic
-	if doc.Meta == nil || doc.Meta.Schema != document.SchemaMditaCoreTopic {
-		return diags
-	}
-	bf := doc.Index.Features
-
-	if bf.HasDefinitionList {
-		diags = append(diags, Diagnostic{
-			Range: document.Rng(0, 0, 0, 0), Severity: SeverityWarning,
-			Code: CodeExtendedFeatureInCoreProfile, Source: source,
-			Message: "Definition lists are an extended profile feature",
-		})
-	}
-	if bf.HasFootnoteRefs || bf.HasFootnoteDefs {
-		diags = append(diags, Diagnostic{
-			Range: document.Rng(0, 0, 0, 0), Severity: SeverityWarning,
-			Code: CodeExtendedFeatureInCoreProfile, Source: source,
-			Message: "Footnotes are an extended profile feature",
-		})
-	}
-	if bf.HasStrikethrough {
-		diags = append(diags, Diagnostic{
-			Range: document.Rng(0, 0, 0, 0), Severity: SeverityWarning,
-			Code: CodeExtendedFeatureInCoreProfile, Source: source,
-			Message: "Strikethrough is an extended profile feature",
-		})
-	}
-	if bf.HasAttributes {
-		diags = append(diags, Diagnostic{
-			Range: document.Rng(0, 0, 0, 0), Severity: SeverityWarning,
-			Code: CodeExtendedFeatureInCoreProfile, Source: source,
-			Message: "Generic attributes are an extended profile feature",
-		})
-	}
-	if len(bf.Admonitions) > 0 {
-		diags = append(diags, Diagnostic{
-			Range: document.Rng(0, 0, 0, 0), Severity: SeverityWarning,
-			Code: CodeExtendedFeatureInCoreProfile, Source: source,
-			Message: "Admonitions are an extended profile feature",
-		})
 	}
 
 	return diags
@@ -298,98 +245,6 @@ func taskSectionOrder(kind document.TaskSectionKind) int {
 	default:
 		return 0
 	}
-}
-
-func checkInlineAttributes(doc *document.Document) []Diagnostic {
-	var diags []Diagnostic
-	for _, ia := range doc.InlineAttrs {
-		for _, class := range ia.Attr.Classes {
-			elem, ok := vocabulary.LookupDomainElement(class)
-			if !ok {
-				_, isStep := vocabulary.LookupStepElement(class)
-				if !isStep {
-					diags = append(diags, Diagnostic{
-						Range:    ia.Attr.Range,
-						Severity: SeverityWarning,
-						Code:     CodeUnknownOutputclass,
-						Source:   source,
-						Message:  "Unknown outputclass \"{." + class + "}\"",
-					})
-				}
-				continue
-			}
-			if elem.ParentKind != ia.TargetKind {
-				diags = append(diags, Diagnostic{
-					Range:    ia.Attr.Range,
-					Severity: SeverityWarning,
-					Code:     CodeDomainClassWrongParent,
-					Source:   source,
-					Message:  "Domain class \"" + class + "\" expects " + elem.ParentKind + ", not " + ia.TargetKind,
-				})
-			}
-			if class == "menucascade" && !strings.Contains(ia.TargetText, " > ") {
-				diags = append(diags, Diagnostic{
-					Range:    ia.Attr.Range,
-					Severity: SeverityWarning,
-					Code:     CodeMenucascadeMissingSeparator,
-					Source:   source,
-					Message:  "menucascade requires \" > \" separator between menu items",
-				})
-			}
-		}
-	}
-	return diags
-}
-
-func checkBlockAttributes(doc *document.Document) []Diagnostic {
-	var diags []Diagnostic
-	for _, ba := range doc.BlockAttrs {
-		for key := range ba.Attr.KeyValues {
-			if !vocabulary.IsConditionalAttribute(key) {
-				diags = append(diags, Diagnostic{
-					Range:    ba.Attr.Range,
-					Severity: SeverityWarning,
-					Code:     CodeUnknownConditionalAttribute,
-					Source:   source,
-					Message:  "Unknown conditional attribute \"" + key + "\"",
-				})
-			}
-		}
-	}
-	return diags
-}
-
-func checkStepElements(doc *document.Document) []Diagnostic {
-	var diags []Diagnostic
-	isTask := doc.Meta != nil && doc.Meta.Schema == document.SchemaTask
-	if !isTask {
-		title := doc.Index.Title()
-		if title != nil && title.Attributes != nil {
-			for _, c := range title.Attributes.Classes {
-				if c == "task" {
-					isTask = true
-					break
-				}
-			}
-		}
-	}
-	if isTask {
-		return diags
-	}
-	for _, ia := range doc.InlineAttrs {
-		for _, class := range ia.Attr.Classes {
-			if _, ok := vocabulary.LookupStepElement(class); ok {
-				diags = append(diags, Diagnostic{
-					Range:    ia.Attr.Range,
-					Severity: SeverityWarning,
-					Code:     CodeStepElementOutsideStep,
-					Source:   source,
-					Message:  class + " is only valid inside a task topic",
-				})
-			}
-		}
-	}
-	return diags
 }
 
 func checkRelatedLinks(doc *document.Document) []Diagnostic {

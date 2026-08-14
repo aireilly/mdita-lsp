@@ -7,18 +7,16 @@ import (
 )
 
 type Document struct {
-	URI         string
-	Version     int
-	Text        string
-	Lines       []int
-	Elements    []Element
-	Symbols     []Symbol
-	Index       *Index
-	Meta        *YAMLMetadata
-	Kind        DocKind
-	InlineAttrs []InlineAttribute
-	BlockAttrs  []BlockAttribute
-	RelLinks    *RelatedLinksInfo
+	URI        string
+	Version    int
+	Text       string
+	Lines      []int
+	Elements   []Element
+	Symbols    []Symbol
+	Index      *Index
+	Meta       *YAMLMetadata
+	Kind       DocKind
+	BlockAttrs []BlockAttribute
 }
 
 func New(uri string, version int, text string) *Document {
@@ -36,27 +34,24 @@ func New(uri string, version int, text string) *Document {
 		idx.ShortDesc = findShortDesc(text, title)
 	}
 
-	inlineAttrs := ScanInlineAttributes(text)
 	blockAttrs := ScanBlockAttributes(text)
-	if len(inlineAttrs) > 0 || len(blockAttrs) > 0 {
+	if len(blockAttrs) > 0 {
 		bf.HasAttributes = true
 	}
 
 	doc := &Document{
-		URI:         uri,
-		Version:     version,
-		Text:        text,
-		Lines:       buildLineMap(text),
-		Elements:    elements,
-		Index:       idx,
-		Meta:        meta,
-		Kind:        kind,
-		InlineAttrs: inlineAttrs,
-		BlockAttrs:  blockAttrs,
+		URI:        uri,
+		Version:    version,
+		Text:       text,
+		Lines:      buildLineMap(text),
+		Elements:   elements,
+		Index:      idx,
+		Meta:       meta,
+		Kind:       kind,
+		BlockAttrs: blockAttrs,
 	}
 	doc.Symbols = extractSymbols(doc)
 	resolveTaskSections(doc)
-	resolveRelatedLinks(doc)
 	return doc
 }
 
@@ -268,39 +263,5 @@ func taskSectionKindFromClass(class string) TaskSectionKind {
 		return TaskSectionTroubleshooting
 	default:
 		return TaskSectionNone
-	}
-}
-
-func resolveRelatedLinks(doc *Document) {
-	for i, e := range doc.Elements {
-		h, ok := e.(*Heading)
-		if !ok || !h.IsRelLinks {
-			continue
-		}
-		rl := &RelatedLinksInfo{HeadingLine: h.Range.Start.Line}
-
-		// Find the next heading to determine section boundary
-		nextHeadingLine := -1
-		for j := i + 1; j < len(doc.Elements); j++ {
-			if nextH, ok := doc.Elements[j].(*Heading); ok {
-				nextHeadingLine = nextH.Range.Start.Line
-				break
-			}
-		}
-
-		// Collect links in the related links section
-		for _, el := range doc.Elements {
-			ml, ok := el.(*MdLink)
-			if !ok {
-				continue
-			}
-			if ml.Range.Start.Line > h.Range.Start.Line {
-				if nextHeadingLine == -1 || ml.Range.Start.Line < nextHeadingLine {
-					rl.Links = append(rl.Links, ml)
-				}
-			}
-		}
-		doc.RelLinks = rl
-		return
 	}
 }

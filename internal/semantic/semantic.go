@@ -38,14 +38,6 @@ func EncodeRange(doc *document.Document, rng document.Range) []uint32 {
 func collectTokens(doc *document.Document) []token {
 	var tokens []token
 
-	for _, ia := range doc.InlineAttrs {
-		tokens = append(tokens, token{
-			line:   ia.Line,
-			char:   ia.Col,
-			length: ia.Attr.Range.End.Character - ia.Col,
-			typ:    TokenTypeDecorator,
-		})
-	}
 	for _, ba := range doc.BlockAttrs {
 		tokens = append(tokens, token{
 			line:   ba.Line,

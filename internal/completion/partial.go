@@ -15,10 +15,6 @@ const (
 	PartialYamlKey
 	PartialKeyref
 	PartialHeadingText
-	PartialAttrClass
-	PartialBlockAttr
-	PartialAttrOpen
-	PartialDoubleCurlyKeyref
 )
 
 type PartialElement struct {
@@ -51,101 +47,8 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 		return nil
 	}
 
-	// Detect {{key}} double-curly keyref
-	if idx := strings.LastIndex(prefix, "{{"); idx >= 0 {
-		if !strings.Contains(prefix[idx:], "}}") {
-			input := prefix[idx+2:]
-			startChar := idx
-			endChar := col
-			if col < len(line) {
-				suffix := line[col:]
-				if ci := strings.Index(suffix, "}}"); ci >= 0 {
-					endChar = col + ci + 2
-				} else if bi := strings.Index(suffix, "}"); bi >= 0 && strings.TrimSpace(suffix[:bi]) == "" {
-					endChar = col + bi + 1
-				}
-			}
-			return &PartialElement{
-				Kind:  PartialDoubleCurlyKeyref,
-				Input: input,
-				Range: document.Range{
-					Start: document.Position{Line: pos.Line, Character: startChar},
-					End:   document.Position{Line: pos.Line, Character: endChar},
-				},
-			}
-		}
-	}
-
-	// Detect block attribute completion ({key=" pattern on standalone line)
-	trimmed := strings.TrimSpace(prefix)
-	if strings.HasPrefix(trimmed, "{") && !strings.Contains(trimmed, "}") && !strings.Contains(line, "#") {
-		input := strings.TrimPrefix(trimmed, "{")
-		startChar := strings.Index(line, "{") + 1
-		endChar := col
-		if col < len(line) {
-			suffix := line[col:]
-			if bi := strings.Index(suffix, "}"); bi >= 0 && strings.TrimSpace(suffix[:bi]) == "" {
-				endChar = col + bi + 1
-			}
-		}
-		return &PartialElement{
-			Kind:  PartialBlockAttr,
-			Input: input,
-			Range: document.Range{
-				Start: document.Position{Line: pos.Line, Character: startChar},
-				End:   document.Position{Line: pos.Line, Character: endChar},
-			},
-		}
-	}
-
-	// Detect attribute class completion ({. pattern) - check before heading text
-	if idx := strings.LastIndex(prefix, "{."); idx >= 0 {
-		if !strings.Contains(prefix[idx:], "}") {
-			input := prefix[idx+2:]
-			startChar := idx + 2
-			endChar := col
-			if col < len(line) {
-				suffix := line[col:]
-				if bi := strings.Index(suffix, "}"); bi >= 0 && strings.TrimSpace(suffix[:bi]) == "" {
-					endChar = col + bi + 1
-				}
-			}
-			return &PartialElement{
-				Kind:  PartialAttrClass,
-				Input: input,
-				Range: document.Range{
-					Start: document.Position{Line: pos.Line, Character: startChar},
-					End:   document.Position{Line: pos.Line, Character: endChar},
-				},
-			}
-		}
-	}
-
-	// Detect bare { in inline/heading attribute context
-	if idx := strings.LastIndex(prefix, "{"); idx >= 0 && !strings.Contains(prefix[idx:], "}") {
-		before := prefix[:idx]
-		if isAttrContext(before) {
-			input := prefix[idx+1:]
-			endChar := col
-			if col < len(line) {
-				suffix := line[col:]
-				if bi := strings.Index(suffix, "}"); bi >= 0 && strings.TrimSpace(suffix[:bi]) == "" {
-					endChar = col + bi + 1
-				}
-			}
-			return &PartialElement{
-				Kind:  PartialAttrOpen,
-				Input: input,
-				Range: document.Range{
-					Start: document.Position{Line: pos.Line, Character: idx + 1},
-					End:   document.Position{Line: pos.Line, Character: endChar},
-				},
-			}
-		}
-	}
-
 	// Detect heading text completion (## prefix)
-	trimmed = strings.TrimSpace(prefix)
+	trimmed := strings.TrimSpace(prefix)
 	if strings.HasPrefix(trimmed, "##") && !strings.Contains(prefix, "[") {
 		after := strings.TrimPrefix(trimmed, "##")
 		after = strings.TrimPrefix(after, " ")
@@ -194,19 +97,6 @@ func DetectPartial(text string, pos document.Position) *PartialElement {
 	}
 
 	return nil
-}
-
-func isAttrContext(before string) bool {
-	if before == "" {
-		return false
-	}
-	if strings.HasPrefix(strings.TrimSpace(before), "#") {
-		return true
-	}
-	return strings.HasSuffix(before, "**") ||
-		strings.HasSuffix(before, "__") ||
-		strings.HasSuffix(before, "`") ||
-		strings.HasSuffix(before, "*")
 }
 
 func inYamlBlock(lines []string, lineNum int) bool {
