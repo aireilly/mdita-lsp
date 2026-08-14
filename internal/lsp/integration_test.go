@@ -89,6 +89,9 @@ func TestFullLSPLifecycle(t *testing.T) {
 	if !strings.Contains(out, "executeCommandProvider") {
 		t.Error("missing executeCommandProvider capability")
 	}
+	if !strings.Contains(out, "willSaveWaitUntil") {
+		t.Error("missing willSaveWaitUntil capability")
+	}
 }
 
 func TestLSPCompletion(t *testing.T) {

@@ -88,29 +88,35 @@ type ServerInfo struct {
 	Version string `json:"version,omitempty"`
 }
 
+type TextDocumentSyncOptions struct {
+	OpenClose         bool `json:"openClose"`
+	Change            int  `json:"change"`
+	WillSaveWaitUntil bool `json:"willSaveWaitUntil"`
+}
+
 type ServerCapabilities struct {
-	TextDocumentSync                int                    `json:"textDocumentSync"`
-	CompletionProvider              *CompletionOptions     `json:"completionProvider,omitempty"`
-	DefinitionProvider              bool                   `json:"definitionProvider"`
-	HoverProvider                   bool                   `json:"hoverProvider"`
-	ReferencesProvider              bool                   `json:"referencesProvider"`
-	RenameProvider                  *RenameOptions         `json:"renameProvider,omitempty"`
-	CodeActionProvider              bool                   `json:"codeActionProvider"`
-	CodeLensProvider                *CodeLensOptions       `json:"codeLensProvider,omitempty"`
-	DocumentHighlightProvider       bool                   `json:"documentHighlightProvider"`
-	DocumentLinkProvider            bool                   `json:"documentLinkProvider"`
-	FoldingRangeProvider            bool                   `json:"foldingRangeProvider"`
-	DocumentSymbolProvider          bool                   `json:"documentSymbolProvider"`
-	WorkspaceSymbolProvider         bool                   `json:"workspaceSymbolProvider"`
-	SelectionRangeProvider          bool                   `json:"selectionRangeProvider"`
-	LinkedEditingRangeProvider      bool                   `json:"linkedEditingRangeProvider"`
-	DocumentFormattingProvider      bool                   `json:"documentFormattingProvider"`
-	InlayHintProvider               bool                   `json:"inlayHintProvider"`
-	DocumentRangeFormattingProvider bool                   `json:"documentRangeFormattingProvider"`
-	DiagnosticProvider              *DiagnosticOptions     `json:"diagnosticProvider,omitempty"`
-	ExecuteCommandProvider          *ExecuteCommandOptions `json:"executeCommandProvider,omitempty"`
-	SemanticTokensProvider          *SemanticTokensOptions `json:"semanticTokensProvider,omitempty"`
-	Workspace                       *WorkspaceCapabilities `json:"workspace,omitempty"`
+	TextDocumentSync                TextDocumentSyncOptions `json:"textDocumentSync"`
+	CompletionProvider              *CompletionOptions      `json:"completionProvider,omitempty"`
+	DefinitionProvider              bool                    `json:"definitionProvider"`
+	HoverProvider                   bool                    `json:"hoverProvider"`
+	ReferencesProvider              bool                    `json:"referencesProvider"`
+	RenameProvider                  *RenameOptions          `json:"renameProvider,omitempty"`
+	CodeActionProvider              bool                    `json:"codeActionProvider"`
+	CodeLensProvider                *CodeLensOptions        `json:"codeLensProvider,omitempty"`
+	DocumentHighlightProvider       bool                    `json:"documentHighlightProvider"`
+	DocumentLinkProvider            bool                    `json:"documentLinkProvider"`
+	FoldingRangeProvider            bool                    `json:"foldingRangeProvider"`
+	DocumentSymbolProvider          bool                    `json:"documentSymbolProvider"`
+	WorkspaceSymbolProvider         bool                    `json:"workspaceSymbolProvider"`
+	SelectionRangeProvider          bool                    `json:"selectionRangeProvider"`
+	LinkedEditingRangeProvider      bool                    `json:"linkedEditingRangeProvider"`
+	DocumentFormattingProvider      bool                    `json:"documentFormattingProvider"`
+	InlayHintProvider               bool                    `json:"inlayHintProvider"`
+	DocumentRangeFormattingProvider bool                    `json:"documentRangeFormattingProvider"`
+	DiagnosticProvider              *DiagnosticOptions      `json:"diagnosticProvider,omitempty"`
+	ExecuteCommandProvider          *ExecuteCommandOptions  `json:"executeCommandProvider,omitempty"`
+	SemanticTokensProvider          *SemanticTokensOptions  `json:"semanticTokensProvider,omitempty"`
+	Workspace                       *WorkspaceCapabilities  `json:"workspace,omitempty"`
 }
 
 type WorkspaceCapabilities struct {
@@ -354,7 +360,11 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 			Version: s.version,
 		},
 		Capabilities: ServerCapabilities{
-			TextDocumentSync: 2,
+			TextDocumentSync: TextDocumentSyncOptions{
+				OpenClose:         true,
+				Change:            2,
+				WillSaveWaitUntil: true,
+			},
 			CompletionProvider: &CompletionOptions{
 				TriggerCharacters: []string{"[", "#", "(", "{"},
 				ResolveProvider:   true,

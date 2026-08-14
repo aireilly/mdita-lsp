@@ -133,6 +133,8 @@ func (s *Server) dispatch(ctx context.Context, method string, params json.RawMes
 		return s.handleFormatting(ctx, params)
 	case "textDocument/rangeFormatting":
 		return s.handleRangeFormatting(ctx, params)
+	case "textDocument/willSaveWaitUntil":
+		return s.handleWillSaveWaitUntil(ctx, params)
 	case "textDocument/inlayHint":
 		return s.handleInlayHint(ctx, params)
 	case "textDocument/diagnostic":

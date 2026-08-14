@@ -24,7 +24,7 @@ func Format(doc *document.Document, opts Options) []TextEdit {
 	edits = append(edits, trimTrailingWhitespace(lines)...)
 	edits = append(edits, normalizeHeadingSpacing(lines)...)
 	edits = append(edits, ensureTrailingNewline(lines)...)
-	edits = append(edits, alignTables(lines)...)
+	edits = append(edits, alignTableLines(lines)...)
 
 	return edits
 }
@@ -109,7 +109,13 @@ func ensureTrailingNewline(lines []string) []TextEdit {
 	}}
 }
 
-func alignTables(lines []string) []TextEdit {
+// AlignTables takes text and returns text edits to align markdown tables.
+func AlignTables(text string) []TextEdit {
+	lines := strings.Split(text, "\n")
+	return alignTableLines(lines)
+}
+
+func alignTableLines(lines []string) []TextEdit {
 	var edits []TextEdit
 	i := 0
 	for i < len(lines) {

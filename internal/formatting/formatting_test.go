@@ -114,3 +114,11 @@ func TestNoChanges(t *testing.T) {
 		t.Errorf("expected no edits for well-formatted doc, got %d", len(edits))
 	}
 }
+
+func TestAlignTablesExported(t *testing.T) {
+	text := "| a | bb |\n|---|---|\n| ccc | d |\n"
+	edits := AlignTables(text)
+	if len(edits) == 0 {
+		t.Error("expected table alignment edits")
+	}
+}
