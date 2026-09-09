@@ -98,7 +98,8 @@ testdata/               # Test fixtures
 
 ## Workflow
 
-- Run `make lint` before every commit to ensure zero lint issues (the pinned golangci-lint cannot read Go export data version 4; use `go vet ./...` when it fails on toolchain mismatch)
+- Run `make lint` before every commit to ensure zero lint issues
+- golangci-lint must be built with the same Go toolchain that compiles the project, or it fails with "could not load export data ... export data version 4 is greater than maximum supported version 2" on every stdlib import. Reinstall it with `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2` after a Go upgrade; `.github/workflows/ci.yml` pins the same version
 - Run `make test` to verify no regressions
 
 ## org.lwdita alignment facts
