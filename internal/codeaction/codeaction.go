@@ -250,19 +250,7 @@ func buildDitaOTActions(doc *document.Document, folder *workspace.Folder) []Code
 }
 
 func addTaskSectionActions(doc *document.Document) []CodeAction {
-	isTask := doc.Meta != nil && doc.Meta.Schema == document.SchemaTask
-	if !isTask {
-		title := doc.Index.Title()
-		if title != nil && title.Attributes != nil {
-			for _, c := range title.Attributes.Classes {
-				if c == "task" {
-					isTask = true
-					break
-				}
-			}
-		}
-	}
-	if !isTask {
+	if !document.IsTaskTopic(doc) {
 		return nil
 	}
 
@@ -280,6 +268,7 @@ func addTaskSectionActions(doc *document.Document) []CodeAction {
 	templates := []sectionTemplate{
 		{document.TaskSectionPrereq, "Prerequisites"},
 		{document.TaskSectionContext, "About this task"},
+		{document.TaskSectionSteps, "Procedure"},
 		{document.TaskSectionResult, "Verification"},
 		{document.TaskSectionPostreq, "Next steps"},
 	}

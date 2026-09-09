@@ -28,8 +28,10 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 		})
 	}
 
+	// The plug-in pulls the first paragraph into <shortdesc> when a schema is
+	// declared or when the title carries a concept/task/reference outputclass.
 	title := doc.Index.Title()
-	if title != nil && doc.Index.ShortDesc == "" {
+	if title != nil && doc.Index.ShortDesc == "" && expectsShortDesc(doc, title) {
 		diags = append(diags, Diagnostic{
 			Range:    title.Range,
 			Severity: SeverityWarning,
@@ -43,6 +45,25 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 	diags = append(diags, checkFootnotes(doc)...)
 
 	return diags
+}
+
+// shortDescTitleTypes are the title outputclasses that pull the following
+// paragraph into <shortdesc>.
+var shortDescTitleTypes = map[string]bool{"concept": true, "task": true, "reference": true}
+
+func expectsShortDesc(doc *document.Document, title *document.Heading) bool {
+	if doc.Meta != nil && doc.Meta.Schema != document.SchemaUnknown && doc.Meta.SchemaRaw != "" {
+		return true
+	}
+	if title.Attributes == nil {
+		return false
+	}
+	for _, c := range title.Attributes.Classes {
+		if shortDescTitleTypes[c] {
+			return true
+		}
+	}
+	return false
 }
 
 func checkHeadingHierarchy(doc *document.Document) []Diagnostic {
@@ -106,18 +127,8 @@ func checkFootnotes(doc *document.Document) []Diagnostic {
 }
 
 func checkTaskTypeInNonTask(doc *document.Document) []Diagnostic {
-	isTask := doc.Meta != nil && doc.Meta.Schema == document.SchemaTask
-	if isTask {
+	if document.IsTaskTopic(doc) {
 		return nil
-	}
-	for _, e := range doc.Elements {
-		if h, ok := e.(*document.Heading); ok && h.IsTitle() && h.Attributes != nil {
-			for _, c := range h.Attributes.Classes {
-				if c == "task" {
-					return nil
-				}
-			}
-		}
 	}
 
 	var diags []Diagnostic

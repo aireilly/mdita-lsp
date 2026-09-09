@@ -71,7 +71,7 @@ func checkConkeyref(ce *document.ConrefElement, folder *workspace.Folder) []Diag
 	if len(table) == 0 {
 		return nil
 	}
-	_, ok := keyref.Resolve(table, ce.KeyName)
+	entry, ok := keyref.Resolve(table, ce.KeyName)
 	if !ok {
 		return []Diagnostic{{
 			Range:    ce.Range,
@@ -80,6 +80,44 @@ func checkConkeyref(ce *document.ConrefElement, folder *workspace.Folder) []Diag
 			Source:   source,
 			Message:  "Conkeyref key not found: " + ce.KeyName,
 		}}
+	}
+
+	if ce.ElementID == "" || entry.Href == "" {
+		return nil
+	}
+	target := resolveFromMaps(entry.Href, folder)
+	if target == nil {
+		return nil
+	}
+	for _, el := range target.Elements {
+		if h, ok := el.(*document.Heading); ok && h.ID == ce.ElementID {
+			return nil
+		}
+	}
+	return []Diagnostic{{
+		Range:    ce.Range,
+		Severity: SeverityWarning,
+		Code:     CodeConkeyrefElementMissing,
+		Source:   source,
+		Message:  "Conkeyref element not found: " + ce.ElementID + " in " + entry.Href,
+	}}
+}
+
+// resolveFromMaps resolves a keydef href, which is relative to the map that
+// defines the key.
+func resolveFromMaps(href string, folder *workspace.Folder) *document.Document {
+	for _, mapDoc := range folder.AllDocs() {
+		if mapDoc.Kind != document.Map {
+			continue
+		}
+		mapPath, err := paths.URIToPath(mapDoc.URI)
+		if err != nil {
+			continue
+		}
+		targetURI := paths.PathToURI(filepath.Join(filepath.Dir(mapPath), href))
+		if d := folder.DocByURI(targetURI); d != nil {
+			return d
+		}
 	}
 	return nil
 }

@@ -120,6 +120,30 @@ func (f *Folder) MapTexts() []string {
 	return texts
 }
 
+// ResolveLinkCandidates returns every document a relative link could refer to.
+// An exact path match is unambiguous and returns a single candidate; otherwise
+// the stem fallback may match more than one document.
+func (f *Folder) ResolveLinkCandidates(url string, sourceURI string) []*document.Document {
+	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+		return nil
+	}
+	srcPath, _ := paths.URIToPath(sourceURI)
+	srcDir := filepath.Dir(srcPath)
+	targetPath := filepath.Clean(filepath.Join(srcDir, url))
+	targetURI := paths.PathToURI(targetPath)
+	if d := f.DocByURI(targetURI); d != nil {
+		return []*document.Document{d}
+	}
+	var matches []*document.Document
+	for _, d := range f.AllDocs() {
+		id := d.DocID(f.RootURI)
+		if paths.MatchesURL(id, url) {
+			matches = append(matches, d)
+		}
+	}
+	return matches
+}
+
 func (f *Folder) ResolveLink(url string, sourceURI string) *document.Document {
 	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
 		return nil

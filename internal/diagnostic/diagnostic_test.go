@@ -94,7 +94,7 @@ func TestNoMissingYamlWhenPresent(t *testing.T) {
 
 func TestMissingShortDescription(t *testing.T) {
 	doc := makeDoc("file:///project/doc.md",
-		"---", "author: Test", "---", "# Title", "", "## Next Section")
+		"---", "$schema: urn:oasis:names:tc:dita:xsd:topic.xsd", "---", "# Title", "", "## Next Section")
 	f := makeFolder(doc)
 	diags := Check(doc, f)
 

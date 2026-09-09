@@ -115,8 +115,6 @@ func completeInlineAnchor(docPart, input string, doc *document.Document, folder 
 
 func completeKeyref(input string, doc *document.Document, folder *workspace.Folder, editRange document.Range) []CompletionItem {
 	table := keyref.BuildMergedTable(folder.MapTexts())
-	srcPath, _ := paths.URIToPath(doc.URI)
-	srcDir := filepath.Dir(srcPath)
 
 	var items []CompletionItem
 	for _, key := range keyref.AllKeys(table) {
@@ -126,17 +124,10 @@ func completeKeyref(input string, doc *document.Document, folder *workspace.Fold
 			if entry.Title != "" {
 				detail = entry.Title + " (" + entry.Href + ")"
 			}
-			linkText := key
-			if entry.Title != "" {
-				linkText = entry.Title
-			}
-			href := entry.Href
-			target := folder.DocBySlug(paths.SlugOf(key))
-			if target != nil {
-				targetPath, _ := paths.URIToPath(target.URI)
-				href = filepath.ToSlash(paths.RelPath(srcDir, targetPath))
-			}
-			newText := "[" + linkText + "](" + href + ")"
+			// A keyref is written as a reference-style link. The plug-in turns
+			// it into <xref keyref="..."/> as long as the topic itself does not
+			// define the label.
+			newText := "[" + key + "]"
 			items = append(items, CompletionItem{
 				Label:  key,
 				Detail: detail,
@@ -159,9 +150,7 @@ func completeDataKeyref(input string, folder *workspace.Folder, editRange docume
 		if input == "" || strings.Contains(strings.ToLower(key), strings.ToLower(input)) {
 			entry := table[key]
 			detail := entry.Href
-			if entry.Value != "" {
-				detail = entry.Value
-			} else if entry.Title != "" {
+			if entry.Title != "" {
 				detail = entry.Title
 			}
 			items = append(items, CompletionItem{
@@ -293,23 +282,7 @@ func completeConkeyref(input string, folder *workspace.Folder, editRange documen
 }
 
 func completeTaskSectionHeading(input string, doc *document.Document) []CompletionItem {
-	isTask := doc.Meta != nil && doc.Meta.Schema == document.SchemaTask
-	if !isTask {
-		for _, e := range doc.Elements {
-			if h, ok := e.(*document.Heading); ok && h.IsTitle() && h.Attributes != nil {
-				for _, c := range h.Attributes.Classes {
-					if c == "task" {
-						isTask = true
-						break
-					}
-				}
-			}
-			if isTask {
-				break
-			}
-		}
-	}
-	if !isTask {
+	if !document.IsTaskTopic(doc) {
 		return nil
 	}
 
@@ -321,9 +294,9 @@ func completeTaskSectionHeading(input string, doc *document.Document) []Completi
 	titles := []struct{ title, detail string }{
 		{"Prerequisites", "prereq — before the task"},
 		{"About this task", "context — background info"},
+		{"Procedure", "steps marker — the list below becomes <steps>"},
 		{"Verification", "result — expected outcome"},
 		{"Next steps", "postreq — follow-up actions"},
-		{"Related information", "related-links — links after body"},
 	}
 
 	var items []CompletionItem

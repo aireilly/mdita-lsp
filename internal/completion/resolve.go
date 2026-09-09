@@ -27,16 +27,11 @@ func resolveKeyrefDocs(key string, folder *workspace.Folder) string {
 	}
 
 	var parts []string
-	if entry.Value != "" {
-		parts = append(parts, "**"+entry.Value+"**")
-		parts = append(parts, "type: keyword keydef")
-	} else {
-		if entry.Title != "" {
-			parts = append(parts, "**"+entry.Title+"**")
-		}
-		if entry.Href != "" {
-			parts = append(parts, "href: `"+entry.Href+"`")
-		}
+	if entry.Title != "" {
+		parts = append(parts, "**"+entry.Title+"**")
+	}
+	if entry.Href != "" {
+		parts = append(parts, "href: `"+entry.Href+"`")
 	}
 	return strings.Join(parts, "\n\n")
 }

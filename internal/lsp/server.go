@@ -438,6 +438,7 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 func (s *Server) addWorkspaceFolder(uri string) {
 	rootPath, _ := paths.URIToPath(uri)
 	cfg := config.LoadMerged(rootPath)
+	document.SetImplicitTaskSectionTitles(cfg.Core.Mdita.ImplicitTaskSections)
 	folder := workspace.NewFolder(uri, cfg)
 	_ = folder.ScanFiles()
 	s.workspace.AddFolder(folder)
@@ -597,6 +598,7 @@ func (s *Server) handleDidChangeConfiguration(_ context.Context, _ json.RawMessa
 	for _, folder := range s.workspace.Folders() {
 		rootPath := folder.RootPath()
 		folder.Config = config.LoadMerged(rootPath)
+		document.SetImplicitTaskSectionTitles(folder.Config.Core.Mdita.ImplicitTaskSections)
 		s.refreshRelatedDiagnostics(folder)
 	}
 	s.logMessage(LogInfo, "Configuration reloaded")

@@ -50,10 +50,15 @@ func (p *Profile) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 type MditaConfig struct {
-	Enable             *bool    `yaml:"enable"`
-	MapExtensions      []string `yaml:"map_extensions"`
-	Profile            Profile  `yaml:"profile"`
-	FormatTablesOnSave *bool    `yaml:"formatTablesOnSave"`
+	Enable        *bool    `yaml:"enable"`
+	MapExtensions []string `yaml:"map_extensions"`
+	Profile       Profile  `yaml:"profile"`
+	// ImplicitTaskSections overrides the heading titles that map to task
+	// section elements, matching the plug-in's
+	// http://lwdita.org/sax/properties/implicit-task-sections/* properties.
+	// Keys are prereq, context, steps, result, and postreq.
+	ImplicitTaskSections map[string][]string `yaml:"implicit_task_sections"`
+	FormatTablesOnSave   *bool               `yaml:"formatTablesOnSave"`
 }
 
 type CompletionConfig struct {
@@ -184,6 +189,9 @@ func Merge(base, overlay *Config) *Config {
 	}
 	if overlay.Core.Mdita.FormatTablesOnSave != nil {
 		merged.Core.Mdita.FormatTablesOnSave = overlay.Core.Mdita.FormatTablesOnSave
+	}
+	if len(overlay.Core.Mdita.ImplicitTaskSections) > 0 {
+		merged.Core.Mdita.ImplicitTaskSections = overlay.Core.Mdita.ImplicitTaskSections
 	}
 
 	if overlay.Completion.MaxCandidates != 0 {

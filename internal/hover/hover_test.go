@@ -11,7 +11,7 @@ import (
 
 func TestHoverKeyref(t *testing.T) {
 	mapDoc := document.New("file:///project/map.mditamap", 1,
-		"# Map\n\n- [Install Guide](install.md)\n")
+		"# Map\n\n- [Install Guide](install.md)\n\n[install]: install.md \"Install Guide\"\n")
 	topicDoc := document.New("file:///project/topic.md", 1,
 		"# Topic\n\nSee [install] for details.\n")
 
@@ -53,7 +53,7 @@ func TestHoverYAMLSchema(t *testing.T) {
 	if !strings.Contains(result, "$schema") {
 		t.Errorf("expected hover for '$schema', got %q", result)
 	}
-	if !strings.Contains(result, "DITA topic type") {
+	if !strings.Contains(result, "schema URN") {
 		t.Errorf("expected schema description, got %q", result)
 	}
 }

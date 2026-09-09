@@ -26,20 +26,23 @@ func TestParseMapWithReltable(t *testing.T) {
 	}
 }
 
-func TestParseMapMapref(t *testing.T) {
+// The plug-in renders every map list item as <topicref>, including references
+// to other maps, which differ only by the @format value derived from the file
+// extension.
+func TestParseMapSubmapIsTopicref(t *testing.T) {
 	input := "# Map\n\n- [Sub-map](submap.ditamap)\n- [MDITA sub](sub.mditamap)\n- [Topic](topic.md)\n"
 	m, err := ParseMap(input)
 	if err != nil {
 		t.Fatalf("ParseMap error: %v", err)
 	}
-	if !m.TopicRefs[0].IsMapRef {
-		t.Error("expected submap.ditamap to be mapref")
+	want := []string{"submap.ditamap", "sub.mditamap", "topic.md"}
+	if len(m.TopicRefs) != len(want) {
+		t.Fatalf("TopicRefs = %d, want %d", len(m.TopicRefs), len(want))
 	}
-	if !m.TopicRefs[1].IsMapRef {
-		t.Error("expected sub.mditamap to be mapref")
-	}
-	if m.TopicRefs[2].IsMapRef {
-		t.Error("expected topic.md to not be mapref")
+	for i, href := range want {
+		if m.TopicRefs[i].Href != href {
+			t.Errorf("TopicRefs[%d].Href = %q, want %q", i, m.TopicRefs[i].Href, href)
+		}
 	}
 }
 

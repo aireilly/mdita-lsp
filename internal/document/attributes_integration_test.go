@@ -5,7 +5,7 @@ import (
 )
 
 func TestFullExtendedDocument(t *testing.T) {
-	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n\n# Install the software {.task}\n\nShort description of the installation.\n\n## Prerequisites\n\nYou need administrator access.\n\n{platform=\"linux\"}\n\n- Ensure you have sudo privileges.\n\n## About this task\n\nThis procedure installs the base package.\n\n1. Click **File > Open**{.menucascade} to open the dialog.\n\n2. Edit `config.yaml`{.filepath} to set options.\n\n3. Run the `installer`{.cmdname} command.\n\n## Verification\n\nThe software is now installed.\n\n## Next steps\n\nConfigure the license key.\n\n## Related information\n\n- [Concept](concept.md)\n- [Reference](reference.md)\n"
+	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n\n# Install the software {.task}\n\nShort description of the installation.\n\n## Prerequisites\n\nYou need administrator access.\n\n{platform=\"linux\"}\n\n- Ensure you have sudo privileges.\n\n## About this task\n\nThis procedure installs the base package.\n\n1. Click **File > Open**{.menucascade} to open the dialog.\n\n2. Edit `config.yaml`{.filepath} to set options.\n\n3. Run the `installer`{.cmdname} command.\n\n## Verification\n\nThe software is now installed.\n\n## Next steps\n\nConfigure the license key.\n"
 	doc := New("file:///test.md", 1, text)
 
 	// Heading attributes
@@ -27,18 +27,6 @@ func TestFullExtendedDocument(t *testing.T) {
 	}
 	if sectionCount != 4 {
 		t.Errorf("task sections = %d, want 4", sectionCount)
-	}
-
-	// Related links
-	relLinksFound := false
-	for _, h := range headings {
-		if h.IsRelLinks {
-			relLinksFound = true
-			break
-		}
-	}
-	if !relLinksFound {
-		t.Error("expected related links heading")
 	}
 
 	// Block attributes

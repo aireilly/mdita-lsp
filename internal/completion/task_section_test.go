@@ -43,7 +43,7 @@ Brief description.
 ##
 `,
 			cursorPos: document.Position{Line: 8, Character: 3},
-			wantItems: []string{"Prerequisites", "About this task", "Verification", "Next steps", "Related information"},
+			wantItems: []string{"Prerequisites", "About this task", "Procedure", "Verification", "Next steps"},
 		},
 		{
 			name: "exclude existing sections",

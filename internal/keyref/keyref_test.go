@@ -2,35 +2,7 @@ package keyref
 
 import (
 	"testing"
-
-	"github.com/aireilly/mdita-lsp/internal/ditamap"
 )
-
-func TestExtractKeys(t *testing.T) {
-	m := &ditamap.MapStructure{
-		Title: "Product Docs",
-		TopicRefs: []ditamap.TopicRef{
-			{Href: "install.md", Title: "Installation"},
-			{Href: "config.md", Title: "Configuration",
-				Children: []ditamap.TopicRef{
-					{Href: "config-advanced.md", Title: "Advanced Config"},
-				}},
-		},
-	}
-
-	table := ExtractKeys(m)
-	if len(table) != 3 {
-		t.Fatalf("ExtractKeys = %d keys, want 3", len(table))
-	}
-
-	entry, ok := table["install"]
-	if !ok {
-		t.Fatal("missing key 'install'")
-	}
-	if entry.Href != "install.md" || entry.Title != "Installation" {
-		t.Errorf("install entry = %+v", entry)
-	}
-}
 
 func TestResolveKeyref(t *testing.T) {
 	table := KeyTable{
@@ -51,30 +23,20 @@ func TestResolveKeyref(t *testing.T) {
 	}
 }
 
-func TestExtractKeysFromSlug(t *testing.T) {
-	m := &ditamap.MapStructure{
-		TopicRefs: []ditamap.TopicRef{
-			{Href: "getting-started.md", Title: "Getting Started"},
-		},
-	}
-	table := ExtractKeys(m)
-
-	_, ok := table["getting-started"]
-	if !ok {
-		t.Error("expected key 'getting-started' derived from href stem")
+// A plain topicref in a map defines no key: the plug-in only emits <keydef>
+// for reference-style link definitions.
+func TestBuildMergedTableIgnoresTopicrefs(t *testing.T) {
+	mapText := "# Map\n\n- [Install](install.md)\n- [Config](config.md)\n"
+	table := BuildMergedTable([]string{mapText})
+	if len(table) != 0 {
+		t.Errorf("BuildMergedTable = %v, want no keys", table)
 	}
 }
 
 func TestBuildMergedTableRefStyleKeydefs(t *testing.T) {
-	mapText := "# Map\n\n- [Install](install.md)\n\n[prod-url]: https://example.com\n[prod-name]: Acme Platform\n"
+	mapText := "# Map\n\n- [Install](install.md)\n\n[prod-url]: https://example.com\n[install]: install.md \"Installation Guide\"\n"
 	table := BuildMergedTable([]string{mapText})
 
-	// href-based keydef from TopicRef
-	if _, ok := table["install"]; !ok {
-		t.Error("expected 'install' key from TopicRef")
-	}
-
-	// reference-style URL keydef
 	entry, ok := table["prod-url"]
 	if !ok {
 		t.Fatal("expected 'prod-url' key from reference-style link")
@@ -83,12 +45,23 @@ func TestBuildMergedTableRefStyleKeydefs(t *testing.T) {
 		t.Errorf("Href = %q, want %q", entry.Href, "https://example.com")
 	}
 
-	// reference-style text keydef
-	entry2, ok := table["prod-name"]
+	entry, ok = table["install"]
 	if !ok {
-		t.Fatal("expected 'prod-name' key from reference-style link")
+		t.Fatal("expected 'install' key from reference-style link")
 	}
-	if entry2.Value != "Acme Platform" {
-		t.Errorf("Value = %q, want %q", entry2.Value, "Acme Platform")
+	if entry.Href != "install.md" {
+		t.Errorf("Href = %q, want %q", entry.Href, "install.md")
+	}
+	if entry.Title != "Installation Guide" {
+		t.Errorf("Title = %q, want %q", entry.Title, "Installation Guide")
+	}
+}
+
+func TestBuildMergedTableFirstMapWins(t *testing.T) {
+	a := "[k]: a.md\n"
+	b := "[k]: b.md\n"
+	table := BuildMergedTable([]string{a, b})
+	if table["k"].Href != "a.md" {
+		t.Errorf("Href = %q, want a.md", table["k"].Href)
 	}
 }

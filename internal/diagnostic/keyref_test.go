@@ -10,7 +10,7 @@ import (
 
 func TestUnresolvedKeyref(t *testing.T) {
 	mapDoc := document.New("file:///project/map.mditamap", 1,
-		"# Map\n\n- [Install](install.md)\n")
+		"# Map\n\n- [Install](install.md)\n\n[install]: install.md\n")
 	topicDoc := document.New("file:///project/install.md", 1,
 		"# Install\n\nSee [nonexistent-key].\n")
 

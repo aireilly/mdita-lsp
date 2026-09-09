@@ -22,9 +22,6 @@ func GetHover(doc *document.Document, pos document.Position, folder *workspace.F
 		case *document.MdLink:
 			return hoverMdLink(el, doc, folder)
 		case *document.Heading:
-			if el.IsRelLinks {
-				return "DITA `<related-links>` — Links placed after the topic body in DITA output"
-			}
 			if el.TaskSection != document.TaskSectionNone {
 				return hoverTaskSection(el)
 			}
@@ -41,15 +38,21 @@ func GetHover(doc *document.Document, pos document.Position, folder *workspace.F
 		if posInImplicitRange(pos, s.Range) {
 			switch s.Kind {
 			case document.ImplicitContext:
-				return "**Implicit `<context>`** — content before steps wraps in `<context>` element"
+				return "**Implicit `<context>`** — body content before the steps list wraps in `<context>`"
+			case document.ImplicitSteps:
+				return "**Implicit `<steps>`** — body-level ordered list becomes `<steps>` with `<step>`/`<cmd>`"
+			case document.ImplicitStepsUnordered:
+				return "**Implicit `<steps-unordered>`** — body-level unordered list becomes `<steps-unordered>`"
+			case document.ImplicitBodyList:
+				return "**Body list in `<context>`** — a body-level list followed by another body-level list stays in `<context>` (outputclass `body-ol`/`body-ul`)"
 			case document.ImplicitResult:
-				return "**Implicit `<result>`** — content after steps wraps in `<result>` element"
+				return "**Implicit `<result>`** — body content after the steps list wraps in `<result>`"
 			case document.ImplicitChoices:
-				return "**Implicit `<choices>`** — nested unordered list inside a step becomes `<choices>`"
+				return "**Implicit `<choices>`** — unordered list nested in a step becomes `<choices>`"
 			case document.ImplicitSubsteps:
-				return "**Implicit `<substeps>`** — nested ordered list inside a step becomes `<substeps>`"
+				return "**Implicit `<substeps>`** — ordered list nested in a step becomes `<substeps>`"
 			case document.ImplicitChoicetable:
-				return "**Implicit `<choicetable>`** — table inside a step becomes `<choicetable>`"
+				return "**Implicit `<choicetable>`** — table nested in a step becomes `<choicetable>`"
 			}
 		}
 	}
@@ -66,7 +69,8 @@ func GetHover(doc *document.Document, pos document.Position, folder *workspace.F
 }
 
 var yamlKeyDocs = map[string]string{
-	"$schema":     "DITA topic type schema. Values: `urn:oasis:names:tc:mdita:xsd:topic.xsd` (core), `urn:oasis:names:tc:mdita:extended:rng:topic.rng` (extended)",
+	"$schema":     "Source schema URN. Selects the parser profile and, for concept/task/reference, the DITA specialization.",
+	"id":          "Topic ID. Used as the `@id` of the generated `<topic>` (or `<map>`) element.",
 	"author":      "Topic author name",
 	"source":      "Original source of the content",
 	"publisher":   "Publisher of the content",
@@ -137,9 +141,7 @@ func hoverKeyref(kr *keyref.KeyrefAtPos, folder *workspace.Folder) string {
 		return ""
 	}
 	result := "**" + kr.Label + "** (keyref)"
-	if entry.Value != "" {
-		result += "\n\nValue: " + entry.Value
-	} else if entry.Title != "" {
+	if entry.Title != "" {
 		result += "\n\nTarget: " + entry.Title + " (" + entry.Href + ")"
 	} else if entry.Href != "" {
 		result += "\n\nTarget: " + entry.Href
@@ -227,6 +229,10 @@ func itoa(n int) string {
 }
 
 func hoverTaskSection(h *document.Heading) string {
+	if h.TaskSection == document.TaskSectionSteps {
+		return "**Steps marker heading** — the heading maps to no DITA element; " +
+			"the ordered list that follows it becomes `<steps>`"
+	}
 	desc := map[document.TaskSectionKind]struct{ elem, text string }{
 		document.TaskSectionPrereq:          {"prereq", "Content required before performing the task"},
 		document.TaskSectionContext:         {"context", "Background information for the task"},
@@ -258,15 +264,20 @@ func hoverConref(ce *document.ConrefElement) string {
 	return fmt.Sprintf("**conref** `%s`", target)
 }
 
+var headingClassDocs = map[string]string{
+	"task":      "DITA `<task>` — procedure-oriented topic; the first paragraph becomes `<shortdesc>`",
+	"concept":   "DITA `<concept>` — explanatory topic; the first paragraph becomes `<shortdesc>`",
+	"reference": "DITA `<reference>` — lookup-oriented topic; the first paragraph becomes `<shortdesc>`",
+	"section":   "DITA `<section>` — the heading becomes a section instead of a nested topic",
+	"example":   "DITA `<example>` — the heading becomes an example instead of a nested topic",
+}
+
 func hoverHeadingClass(h *document.Heading) string {
-	class := h.Attributes.Classes[0]
-	topicTypes := map[string]string{
-		"task":      "Task topic — procedure-oriented content with steps",
-		"concept":   "Concept topic — explanatory or overview content",
-		"reference": "Reference topic — lookup-oriented content (tables, lists)",
+	for _, class := range h.Attributes.Classes {
+		if desc, ok := headingClassDocs[class]; ok {
+			return desc
+		}
 	}
-	if desc, ok := topicTypes[class]; ok {
-		return "DITA `<" + class + ">` — " + desc
-	}
-	return "**" + h.Text + "** (level " + itoa(h.Level) + ", class: " + class + ")"
+	return "**" + h.Text + "** (level " + itoa(h.Level) + ", class: " +
+		strings.Join(h.Attributes.Classes, " ") + ")"
 }

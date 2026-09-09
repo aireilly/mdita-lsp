@@ -1,8 +1,6 @@
 package ditamap
 
 import (
-	"strings"
-
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
@@ -28,7 +26,6 @@ type TopicRef struct {
 	Href     string
 	Title    string
 	Children []TopicRef
-	IsMapRef bool
 }
 
 type MapStructure struct {
@@ -79,7 +76,6 @@ func parseListItems(list *ast.List, src []byte) []TopicRef {
 				if link != nil {
 					ref.Href = string(link.Destination)
 					ref.Title = extractText(link, src)
-					ref.IsMapRef = isMapRefHref(ref.Href)
 				} else if ref.Title == "" {
 					ref.Title = extractText(n, src)
 				}
@@ -171,14 +167,9 @@ func parseCellRefs(cell *gmast.TableCell, src []byte) RelCell {
 				Href:  string(link.Destination),
 				Title: extractText(link, src),
 			}
-			ref.IsMapRef = isMapRefHref(ref.Href)
 			rc.TopicRefs = append(rc.TopicRefs, ref)
 		}
 		return ast.WalkContinue, nil
 	})
 	return rc
-}
-
-func isMapRefHref(href string) bool {
-	return strings.HasSuffix(href, ".ditamap") || strings.HasSuffix(href, ".mditamap")
 }

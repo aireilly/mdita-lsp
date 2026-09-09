@@ -22,7 +22,7 @@ func fullRange() document.Range {
 
 func TestKeyrefHint(t *testing.T) {
 	mapDoc := document.New("file:///project/map.mditamap", 1,
-		"# Map\n\n- [Install Guide](install.md)\n")
+		"# Map\n\n- [Install Guide](install.md)\n\n[install]: install.md \"Install Guide\"\n")
 	source := document.New("file:///project/doc.md", 1,
 		"# Doc\n\nSee [install] for setup steps.\n")
 	folder := testFolder(mapDoc, source)
@@ -108,9 +108,9 @@ func TestConrefHint(t *testing.T) {
 }
 
 func TestConkeyrefHint(t *testing.T) {
-	// Key is derived from the href stem: "shared.md" → key "shared".
+	// The key comes from the reference-style link definition in the map.
 	mapDoc := document.New("file:///project/map.mditamap", 1,
-		"# Map\n\n- [Warnings](shared.md)\n")
+		"# Map\n\n- [Warnings](shared.md)\n\n[shared]: shared.md\n")
 	source := document.New("file:///project/doc.md", 1,
 		"# Doc\n\n<span data-conkeyref=\"shared/note\">fallback</span>\n")
 	folder := testFolder(mapDoc, source)

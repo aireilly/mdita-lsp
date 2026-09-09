@@ -65,7 +65,7 @@ func TestDetectDataKeyref(t *testing.T) {
 
 func TestBuildMergedTable(t *testing.T) {
 	mapTexts := []string{
-		"# Map\n\n- [Install](install.md)\n- [Guide](guide.md)\n",
+		"# Map\n\n- [Install](install.md)\n- [Guide](guide.md)\n\n[install]: install.md\n[guide]: guide.md\n",
 	}
 	table := BuildMergedTable(mapTexts)
 	if len(table) != 2 {

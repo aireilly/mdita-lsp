@@ -25,6 +25,15 @@ func checkLinks(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 			}
 		}
 		if ml.URL != "" && !strings.HasPrefix(ml.URL, "http://") && !strings.HasPrefix(ml.URL, "https://") {
+			if candidates := folder.ResolveLinkCandidates(ml.URL, doc.URI); len(candidates) > 1 {
+				diags = append(diags, Diagnostic{
+					Range:    ml.Range,
+					Severity: SeverityWarning,
+					Code:     CodeAmbiguousLink,
+					Source:   source,
+					Message:  "Link '" + ml.URL + "' matches " + itoa(len(candidates)) + " files; use a path relative to this file",
+				})
+			}
 			target := folder.ResolveLink(ml.URL, doc.URI)
 			if target == nil {
 				diags = append(diags, Diagnostic{

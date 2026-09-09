@@ -2,7 +2,9 @@
 
 ## Project overview
 
-mdita-lsp is an LSP server for MDITA (Markdown DITA) documents, written in Go. It aligns with the [org.lwdita](https://github.com/jelovirt/org.lwdita) DITA-OT plug-in feature set.
+mdita-lsp is an LSP server for the Markdown source formats of the [org.lwdita](https://github.com/jelovirt/org.lwdita) DITA-OT plug-in: Markdown DITA (`md`, `markdown`), MDITA (`mdita`), and MDITA maps (`mditamap`). It is written in Go.
+
+Scope rule: the server handles exactly what the plug-in parses. Do not add editor features for markdown the plug-in does not read, and do not model DITA constructs the plug-in never emits (for example `<mapref>`, `<related-links>`, or keyword keydefs).
 
 - **Language:** Go
 - **Repository:** `git@github.com:aireilly/mdita-lsp.git`
@@ -34,19 +36,19 @@ internal/
   paths/                # URI/path utilities, slug generation
   config/               # YAML config loading with 3-level merging, profile selection
   document/             # Document parsing, indexing, symbol extraction, conref elements
-    types.go            # Element types, symbols, DITA schemas, implicit sections, conref
+    types.go            # Element types, symbols, DITA/MDITA schemas, implicit sections, conref
     parser.go           # goldmark parser, footnote regex, conref HTML scanning
     index.go            # Heading/link index with slug-based lookups
-    document.go         # Document type with incremental change support, implicit task sections
+    document.go         # Document type, task detection, implicit task structure, configurable section titles
     attributes.go       # Block attribute parsing ({#id .class key="value"})
   conref/               # Content reference resolution (data-conref, data-conkeyref)
   ditamap/              # .mditamap parsing (nested markdown lists, TopicRef tree, reltable, mapref)
   workspace/            # Folder/workspace management, file scanning
   symbols/              # Symbol graph with bidirectional ref/def resolution
-  diagnostic/           # 19 diagnostic codes, MDITA compliance, profile, conref, link/map/keyref validation
-  keyref/               # Reference-style keydefs, [text][key] refs, data-keyref detection
+  diagnostic/           # 20 diagnostic codes, MDITA compliance, profile, conref, link/map/keyref validation
+  keyref/               # Keys from reference-style link definitions only, [text][key] refs, data-keyref
   definition/           # Go-to-definition for markdown links, keyrefs, conrefs
-  hover/                # Hover for links, keyrefs, headings, YAML keys, task sections, conrefs, implicit sections
+  hover/                # Hover for links, keyrefs, headings, YAML keys, task sections, conrefs, implicit task structure
   references/           # Find references to headings via symbol graph
   completion/           # Completion: inline links, YAML keys, keyrefs, data-keyref, conrefs, task sections
   rename/               # Heading rename
@@ -73,7 +75,7 @@ testdata/               # Test fixtures
 - WillSaveWaitUntil: Auto-format tables on save
 - Completion (inline links, YAML keys, keyrefs, data-keyref, conrefs, task sections) with resolve
 - Definition (markdown links, keyrefs, conrefs)
-- Hover (markdown links, keyrefs, headings, YAML keys, task sections, conrefs, implicit sections)
+- Hover (markdown links, keyrefs, headings, YAML keys, task sections, conrefs, implicit task structure)
 - Document Highlight, References, Rename (with prepare), Code Actions, Code Lens
 - Document Links, Folding Ranges, Document Symbols, Workspace Symbols
 - Selection Ranges, Linked Editing Ranges
@@ -82,9 +84,9 @@ testdata/               # Test fixtures
 - Pull Diagnostics (textDocument/diagnostic, LSP 3.17)
 - File Operations (didCreate, didDelete, willCreate, willRename)
 - Execute Command (createFile, addToMap, ditaOtBuild)
-- Profile support (core vs extended, matching org.lwdita)
+- Profile support (core vs extended, resolved from $schema then from config)
 - Diagnostic quick-fixes (NBSP, footnotes, heading hierarchy)
-- Ditamap extensions (relationship tables, mapref detection)
+- Ditamap parsing (topicrefs, nesting, keydefs, relationship tables)
 - Server Info (name + version in initialize response)
 - Configuration change notification (workspace/didChangeConfiguration)
 
@@ -96,8 +98,21 @@ testdata/               # Test fixtures
 
 ## Workflow
 
-- Run `make lint` before every commit to ensure zero lint issues
+- Run `make lint` before every commit to ensure zero lint issues (the pinned golangci-lint cannot read Go export data version 4; use `go vet ./...` when it fails on toolchain mismatch)
 - Run `make test` to verify no regressions
+
+## org.lwdita alignment facts
+
+Details that are easy to get wrong; all verified against the plug-in source.
+
+- Keys come only from reference-style link definitions in a map (`[key]: file.md "Title"` → `<keydef>`). A plain topicref defines no key, and every keydef carries an href — there are no keyword keydefs.
+- `[key]` resolves to `<xref keyref>` only when the current topic does not define that label locally; a local definition makes it a plain `<xref href>`.
+- A link to a `.ditamap`/`.mditamap` is a `<topicref>` with `@format`, never a `<mapref>`.
+- `<topichead>`, `collection-type="sequence"`, and `<reltable>` exist only in Markdown DITA maps (`$schema: …map.xsd`). The `mditamap` reader enables no tables extension, and its link-less list items become plain `<topicref>`.
+- Neither MDITA profile enables the attributes extension, so `{.class}` never works in MDITA. MDITA also caps headings at level 2.
+- The paragraph after the title becomes `<shortdesc>` only when the title carries `{.concept}`/`{.task}`/`{.reference}` or a `$schema` is declared.
+- A body-level list that is followed by another body-level list stays in `<context>` as body-ol/body-ul; only the last one becomes `<steps>`/`<steps-unordered>`. An ordered list that restarts its numbering at 1 is split at the restart.
+- "Procedure"/"Steps" is a marker heading: it maps to no element and the list after it becomes `<steps>`. Section titles are configurable via `core.mdita.implicit_task_sections`.
 
 ## Conventions
 

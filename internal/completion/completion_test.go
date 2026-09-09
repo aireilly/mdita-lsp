@@ -128,7 +128,7 @@ func TestCompleteInlineLinkSameDir(t *testing.T) {
 
 func TestCompleteKeyref(t *testing.T) {
 	mapDoc := document.New("file:///project/map.mditamap", 1,
-		"# Map\n\n- [Install Guide](install.md)\n- [Config](config.md)\n")
+		"# Map\n\n- [Install Guide](install.md)\n- [Config](config.md)\n\n[install]: install.md \"Install Guide\"\n[config]: config.md\n")
 	topicDoc := document.New("file:///project/topic.md", 1,
 		"# Topic\n\nSee [inst")
 
@@ -201,8 +201,9 @@ func TestCompleteConref(t *testing.T) {
 }
 
 func TestCompleteConkeyref(t *testing.T) {
-	// "warnings" is the key name derived from the map link label (lowercased).
-	mapDoc := document.New("file:///project/map.mditamap", 1, "# Map\n\n- [Warnings](warnings.md)\n")
+	// "warnings" is defined by a reference-style link definition, which the
+	// plug-in renders as <keydef keys="warnings" href="warnings.md"/>.
+	mapDoc := document.New("file:///project/map.mditamap", 1, "# Map\n\n- [Warnings](warnings.md)\n\n[warnings]: warnings.md\n")
 	topicDoc := document.New("file:///project/doc.md", 1, `# Doc`+"\n\n"+`<span data-conkeyref="warn`+"\n")
 
 	cfg := config.Default()

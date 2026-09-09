@@ -127,11 +127,11 @@ If installation fails, check the logs.
 }
 
 func TestHoverImplicitContext(t *testing.T) {
-	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\nSome context paragraph.\n\n1. Step one\n2. Step two\n"
+	// Line 5 is the shortdesc paragraph; line 7 is the implicit <context>.
+	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\nShort description.\n\nSome context paragraph.\n\n1. Step one\n2. Step two\n"
 	doc := document.New("test.md", 1, text)
 	folder := workspace.NewFolder("/test", config.Default())
-	// Line 5 is "Some context paragraph." — inside the implicit context range.
-	result := GetHover(doc, document.Position{Line: 5, Character: 5}, folder)
+	result := GetHover(doc, document.Position{Line: 7, Character: 5}, folder)
 	if !strings.Contains(result, "context") {
 		t.Errorf("expected implicit context hover, got: %s", result)
 	}
@@ -151,36 +151,6 @@ func TestHoverImplicitResult(t *testing.T) {
 	}
 	if !strings.Contains(result, "Implicit") {
 		t.Errorf("expected 'Implicit' in hover, got: %s", result)
-	}
-}
-
-func TestHoverRelatedLinks(t *testing.T) {
-	text := `---
----
-
-# Topic title
-
-Content.
-
-## Related information
-
-- [Link 1](doc1.md)
-`
-
-	doc := document.New("test.md", 1, text)
-	folder := workspace.NewFolder("/test", config.Default())
-
-	var pos document.Position
-	for _, h := range doc.Index.Headings() {
-		if h.Text == "Related information" {
-			pos = h.Range.Start
-			break
-		}
-	}
-
-	result := GetHover(doc, pos, folder)
-	if !strings.Contains(result, "related-links") {
-		t.Errorf("expected related-links in hover, got: %s", result)
 	}
 }
 

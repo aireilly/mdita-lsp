@@ -1,45 +1,20 @@
 package keyref
 
 import (
-	"path/filepath"
 	"strings"
 
-	"github.com/aireilly/mdita-lsp/internal/ditamap"
 	"github.com/aireilly/mdita-lsp/internal/document"
 )
 
+// KeyEntry is one DITA key definition. The plug-in generates a <keydef> from a
+// reference-style link definition in a map file, so a key always carries an
+// href and optionally the link title, which becomes the navtitle.
 type KeyEntry struct {
 	Href  string
 	Title string
-	Value string
 }
 
 type KeyTable map[string]KeyEntry
-
-func ExtractKeys(m *ditamap.MapStructure) KeyTable {
-	table := make(KeyTable)
-	extractKeysFromRefs(m.TopicRefs, table)
-	return table
-}
-
-func extractKeysFromRefs(refs []ditamap.TopicRef, table KeyTable) {
-	for _, ref := range refs {
-		if ref.Href != "" {
-			key := stemFromHref(ref.Href)
-			table[key] = KeyEntry{
-				Href:  ref.Href,
-				Title: ref.Title,
-			}
-		}
-		extractKeysFromRefs(ref.Children, table)
-	}
-}
-
-func stemFromHref(href string) string {
-	base := filepath.Base(href)
-	ext := filepath.Ext(base)
-	return strings.TrimSuffix(base, ext)
-}
 
 func Resolve(table KeyTable, key string) (KeyEntry, bool) {
 	entry, ok := table[key]
@@ -54,32 +29,12 @@ func AllKeys(table KeyTable) []string {
 	return keys
 }
 
-func isURLValue(s string) bool {
-	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
-		return true
-	}
-	for _, ext := range []string{".md", ".dita", ".html", ".xml"} {
-		if strings.HasSuffix(s, ext) {
-			return true
-		}
-	}
-	return false
-}
-
+// BuildMergedTable collects the key definitions from every map in the
+// workspace. Only reference-style link definitions define keys; a plain
+// topicref in a map defines no key.
 func BuildMergedTable(mapTexts []string) KeyTable {
 	merged := make(KeyTable)
 	for _, text := range mapTexts {
-		m, err := ditamap.ParseMap(text)
-		if err != nil {
-			continue
-		}
-		table := ExtractKeys(m)
-		for k, v := range table {
-			if _, exists := merged[k]; !exists {
-				merged[k] = v
-			}
-		}
-
 		elements, _, _ := document.Parse(text)
 		for _, elem := range elements {
 			ld, ok := elem.(*document.LinkDef)
@@ -89,13 +44,23 @@ func BuildMergedTable(mapTexts []string) KeyTable {
 			if _, exists := merged[ld.Label]; exists {
 				continue
 			}
-			if isURLValue(ld.URL) {
-				merged[ld.Label] = KeyEntry{Href: ld.URL}
-			} else {
-				merged[ld.Label] = KeyEntry{Value: ld.URL, Title: ld.URL}
-			}
+			href, title := splitLinkDefURL(ld.URL)
+			merged[ld.Label] = KeyEntry{Href: href, Title: title}
 		}
-
 	}
 	return merged
+}
+
+// splitLinkDefURL separates the href from the optional quoted title of a
+// reference-style link definition, as in `[key]: install.md "Installation"`.
+func splitLinkDefURL(raw string) (href, title string) {
+	raw = strings.TrimSpace(raw)
+	for _, q := range []byte{'"', '\''} {
+		if idx := strings.IndexByte(raw, q); idx > 0 {
+			if end := strings.LastIndexByte(raw, q); end > idx {
+				return strings.TrimSpace(raw[:idx]), raw[idx+1 : end]
+			}
+		}
+	}
+	return raw, ""
 }

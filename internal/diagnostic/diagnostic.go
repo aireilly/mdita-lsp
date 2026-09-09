@@ -36,6 +36,8 @@ const (
 	// CodeCircularMapReference is outside the 1-18 spec range;
 	// kept for circular dependency detection in ditamaps.
 	CodeCircularMapReference = "19"
+	// CodeMditaProfileFeature flags markdown that neither MDITA profile parses.
+	CodeMditaProfileFeature = "20"
 )
 
 type Diagnostic struct {

@@ -1,8 +1,8 @@
 # mdita-lsp
 
-An LSP server for [MDITA](https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=dita) (Markdown DITA) documents, designed as the companion editor tooling for the [org.lwdita](https://github.com/jelovirt/org.lwdita) DITA-OT plug-in.
+An LSP server for the Markdown source formats of the [org.lwdita](https://github.com/jelovirt/org.lwdita) DITA-OT plug-in: Markdown DITA (`md`, `markdown`), MDITA (`mdita`), and MDITA maps (`mditamap`).
 
-Every LSP feature maps directly to a markdown construct that the DITA-OT plug-in converts to DITA XML. The server validates, completes, and navigates MDITA content so that problems are caught at authoring time rather than at build time.
+Every feature in this server maps to a markdown construct that the plug-in converts to DITA XML. Nothing here invents syntax the plug-in does not read. The server validates, completes, and navigates that syntax so problems surface while authoring instead of during a DITA-OT build.
 
 ## Install
 
@@ -88,6 +88,12 @@ core:
     map_extensions: [mditamap]
     profile: extended          # "core" or "extended" (default: extended)
     formatTablesOnSave: true   # auto-format tables on save (default: true)
+    implicit_task_sections:    # heading titles that map to task sections
+      prereq: [prerequisites]
+      context: ["about this task"]
+      steps: [procedure, steps]
+      result: [verification]
+      postreq: ["next steps"]
 
 completion:
   max_candidates: 50
@@ -110,52 +116,93 @@ diagnostics:
   nbsp_detection: true
 ```
 
-### Profile selection
+`implicit_task_sections` mirrors the plug-in's `http://lwdita.org/sax/properties/implicit-task-sections/*` SAX properties. Only the sections you list are overridden; the rest keep the defaults above. The setting is applied server-wide, so in a multi-root session the most recently loaded workspace config wins.
 
-The `profile` setting controls which MDITA features are available:
+## Source formats and profiles
 
-- **extended** (default): Attributes, footnotes, definition lists, specialization classes.
-- **core**: No attributes, no footnotes, no definition lists. Diagnostics warn when extended features appear.
+The plug-in registers one parser per DITA-OT `format` value, and each parser enables a different set of markdown extensions. The server follows the same split.
 
-This matches the org.lwdita plug-in's core vs. extended profile distinction.
+| Plug-in format | Reader | What the server treats it as |
+|----------------|--------|------------------------------|
+| `md`, `markdown` | `MarkdownReader` | Markdown DITA: the full extension set, `{.class}` attributes, specialization from heading classes |
+| `mdita` | `MDitaReader` | MDITA extended profile by default |
+| `mditamap` | `MDitamapReader` | MDITA map |
+| `hdita` | `HDitaReader` | Out of scope — the server reads markdown, not standalone HTML files |
+| `wikidocs` | `MarkdownReader` | Out of scope — a build-time variant of Markdown DITA |
 
-## Supported markdown features
+DITA-OT chooses the format from the `format` attribute on the `topicref` that points at the file, not from the file extension. Because the server cannot see the map that will consume a file, it infers the profile from `$schema` when one is declared, and otherwise falls back to the `profile` setting.
 
-The LSP supports the same markdown features as the org.lwdita DITA-OT plug-in. Each feature below corresponds to a DITA conversion the plug-in performs.
+### Profiles
+
+| Feature | Markdown DITA | MDITA extended | MDITA core |
+|---------|---------------|----------------|------------|
+| `{.class}`, `{#id}` attributes | yes | no | no |
+| Footnotes | yes | yes | no |
+| Definition lists | yes | yes | no |
+| Superscript, subscript | yes | yes | no |
+| Strikethrough | yes | no | no |
+| Abbreviations, admonitions, autolinks | yes | no | no |
+| Tables | CALS `<table>` | `<simpletable>` | `<simpletable>` |
+| Fenced code | `<codeblock>` | `<pre><tt>` | `<codeblock>` |
+| Blockquote | `<lq>` | inlined, no `<lq>` | inlined, no `<lq>` |
+| Inline code | `<codeph>` | `<tt>` | `<codeph>` |
+| Heading depth | any | `#` and `##` only | `#` and `##` only |
+| H2 becomes | a nested `<topic>`, unless classed | `<section>` | `<section>` |
+| Specialization from heading class | yes | no | no |
+
+Diagnostics report attributes in either MDITA profile, footnotes and definition lists in core, and headings below level 2 in either MDITA profile.
 
 ### YAML front matter
 
-The plug-in uses YAML front matter for topic type detection and prolog metadata. The LSP provides:
+Front matter drives topic ID, parser selection, and the `<prolog>`. The server offers completion of every key the plug-in reads, hover documentation for each, a code action that scaffolds front matter, and diagnostics for missing front matter and unrecognized `$schema` values.
 
-- **Completion** of all supported YAML keys: `$schema`, `id`, `author`, `source`, `publisher`, `permissions`, `audience`, `category`, `keyword`, `resourceid`
-- **Hover** documentation for each key explaining its DITA mapping
-- **Diagnostics** for missing front matter and unrecognized `$schema` values
-- **Code action** to scaffold MDITA YAML front matter with default schema
+| Key | DITA output |
+|-----|-------------|
+| `id` | `@id` on the generated `<topic>` or `<map>` |
+| `author` | `<author>` |
+| `source` | `<source>` |
+| `publisher` | `<publisher>` |
+| `permissions` | `<permissions view="…">` |
+| `audience` | `<metadata><audience type="…">` |
+| `category` | `<metadata><category>` |
+| `keyword` | `<metadata><keywords><keyword>` |
+| `resourceid` | `<resourceid appid="…">` |
+| anything else | `<data name="…" value="…">` |
 
-```markdown
----
-$schema: urn:oasis:names:tc:dita:xsd:task.xsd
-id: install-software
-author: Documentation Team
-category: Installation
-keyword:
-  - install
-  - setup
----
-```
+`$schema` selects the parser profile and, for the concept, task, and reference schemas, forces the specialization:
 
-Supported `$schema` values:
+| Schema URN | Result |
+|------------|--------|
+| `urn:oasis:names:tc:dita:xsd:topic.xsd`, `…:rng:topic.rng` | Generic topic |
+| `urn:oasis:names:tc:dita:xsd:concept.xsd`, `…:rng:concept.rng` | `<concept>` |
+| `urn:oasis:names:tc:dita:xsd:task.xsd`, `…:rng:task.rng` | `<task>` |
+| `urn:oasis:names:tc:dita:xsd:reference.xsd`, `…:rng:reference.rng` | `<reference>` |
+| `urn:oasis:names:tc:dita:xsd:map.xsd`, `…:rng:map.rng` | `<map>` |
+| `urn:oasis:names:tc:mdita:xsd:topic.xsd`, `…:rng:topic.rng` | MDITA extended profile |
+| `urn:oasis:names:tc:mdita:extended:xsd:topic.xsd`, `…:rng:topic.rng` | MDITA extended profile |
+| `urn:oasis:names:tc:mdita:core:xsd:topic.xsd`, `…:rng:topic.rng` | MDITA core profile |
 
-| Schema URN | Topic type |
-|------------|------------|
-| `urn:oasis:names:tc:dita:xsd:concept.xsd` | Concept |
-| `urn:oasis:names:tc:dita:xsd:reference.xsd` | Reference |
-| `urn:oasis:names:tc:dita:xsd:task.xsd` | Task |
-| `urn:oasis:names:tc:dita:xsd:topic.xsd` | Generic topic |
+Declaring any `$schema` also turns on the shortdesc rule below.
+
+## Supported markdown features
 
 ### Headings and document structure
 
-Headings map to DITA topic titles (H1) and sections (H2+). The LSP provides:
+H1 becomes the topic title. In Markdown DITA a lower heading becomes a nested `<topic>` unless it carries a class the plug-in recognizes; in MDITA an H2 always becomes a `<section>`. The plug-in rejects a document whose heading levels skip a level, and rejects a section heading that is not deeper than its parent topic title.
+
+| Heading class | DITA element |
+|---------------|--------------|
+| `{.concept}` | `<concept>` |
+| `{.task}` | `<task>` |
+| `{.reference}` | `<reference>` |
+| `{.section}` | `<section>` |
+| `{.example}` | `<example>` |
+
+The paragraph directly after the title becomes `<shortdesc>` when the title carries a `{.concept}`, `{.task}`, or `{.reference}` class, or when the document declares a `$schema`. Otherwise it is an ordinary body paragraph.
+
+A document with several H1 headings is wrapped in a `<dita>` root. A document with no H1 gets one generated from the YAML `title`, the YAML `id`, or the filename.
+
+The server provides:
 
 - **Document symbols** showing a hierarchical heading outline
 - **Workspace symbols** to search headings across all documents
@@ -165,134 +212,158 @@ Headings map to DITA topic titles (H1) and sections (H2+). The LSP provides:
 - **Rename** with cross-file reference updates via the symbol graph
 - **Document highlight** for headings and their intra-document references
 - **Code lens** showing reference counts on headings
-- **Diagnostics** for invalid heading hierarchy and heading-level skips
+- **Hover** naming the DITA element a classed heading produces
+- **Diagnostics** for heading-level skips, missing short descriptions, and non-breaking whitespace in headings, with quick fixes for the last two
 
 ### Task topics
 
-When `$schema` declares a task (or H1 has `{.task}` outputclass), the plug-in maps markdown constructs to DITA task elements. The LSP provides:
+A topic becomes a DITA task when the H1 carries `{.task}` or when `$schema` names the task schema. Sections come from heading classes, and — for Markdown DITA files parsed with the plug-in's `implicit-task-sections` feature, which `plugin.xml` enables for `format="md"` — from well-known heading titles.
 
-- **Completion** of task section headings: Prerequisites, Context, Result, What to do next, Troubleshooting
+| Heading class | Default heading title | DITA element |
+|---------------|-----------------------|--------------|
+| `{.prereq}` | Prerequisites | `<prereq>` |
+| `{.context}` | About this task | `<context>` |
+| — | Procedure, Steps | none: a marker; the ordered list after it becomes `<steps>` |
+| `{.result}` | Verification | `<result>` |
+| `{.postreq}` | Next steps | `<postreq>` |
+| `{.tasktroubleshooting}` | — | `<tasktroubleshooting>` |
+
+The titles are configurable, both in the plug-in and through `implicit_task_sections` in the server config.
+
+Task structure the plug-in derives from the body, with no markup at all:
+
+- A body-level ordered list becomes `<steps>`, each item a `<step>` whose first paragraph is `<cmd>` and whose remainder is `<info>`
+- A body-level unordered list becomes `<steps-unordered>`
+- A body-level list that is followed by another body-level list stays in `<context>` (the plug-in marks it `body-ol` or `body-ul`)
+- An ordered list whose numbering restarts at 1 is split: the part before the restart stays in `<context>`, the rest becomes `<steps>`
+- Body content before the steps list wraps in `<context>`; body content after it wraps in `<result>`
+- An ordered list nested inside a step becomes `<substeps>`; an unordered list becomes `<choices>`; a table becomes `<choicetable>` with `<chhead>`, `<chrow>`, `<choption>`, and `<chdesc>` cells
+- `{.substeps}`, `{.choices}`, and `{.choicetable}` force those mappings explicitly
+
+The server provides:
+
+- **Completion** of task section headings, including the Procedure marker
 - **Code actions** to insert missing task sections
-- **Hover** on task section headings showing their DITA element mapping
-
-| Heading outputclass | DITA element |
-|---------------------|--------------|
-| `{.prereq}` | `<prereq>` |
-| `{.context}` | `<context>` |
-| `{.result}` | `<result>` |
-| `{.postreq}` | `<postreq>` |
-| `{.tasktroubleshooting}` | `<tasktroubleshooting>` |
-
-The plug-in also performs implicit section detection:
-
-- Ordered lists at body level become `<steps>` (nested OL becomes `<substeps>`)
-- Unordered lists at body level become `<steps-unordered>` (nested UL becomes `<choices>`)
-- Content before the first list wraps in `<context>`
-- Content after the last list wraps in `<result>`
-- Tables within a step become `<choicetable>`
+- **Hover** on task section headings and on every implicitly derived region, naming the DITA element it becomes
+- **Diagnostics** for a task section heading in a topic that is not a task
 
 ### Links
 
-The plug-in auto-classifies links based on URL pattern. The LSP provides:
+The plug-in turns a markdown link into `<xref>` and derives `@format` from the target's file extension, plus `@scope="external"` for absolute URLs and root-relative paths. An email autolink gets `format="email"`.
+
+The server provides:
 
 - **Completion** of file paths inside `](` and heading anchors after `#`
-- **Go to definition** for markdown links to other documents and headings
-- **Diagnostics** for broken links and ambiguous links
+- **Go to definition** for links to other documents and to headings
+- **Diagnostics** for broken links and links to non-existent headings
 - **Document links** making external URLs clickable
-- **Inlay hints** showing resolved link targets inline
-- **File rename** support that auto-updates cross-references when files are renamed
+- **Inlay hints** showing the resolved target title
+- **File rename** support that updates cross-references when files are renamed
 
 ### Key references
 
-Keys are defined as reference-style link definitions in map files:
+Keys are defined only by reference-style link definitions in a map file. The plug-in renders each one as a `<keydef>`; a plain topicref in a map defines no key.
 
 ```markdown
-[product-name]: https://example.com "Product Name"
+[install-guide]: install.md "Installation Guide"
 ```
 
-Keys are consumed in topic files via standard markdown reference links:
+Keys are consumed in topic files through reference-style links:
 
 ```markdown
 See [the guide][install-guide] for details.
 See [install-guide] for the collapsed form.
 ```
 
-Inline keyword keyrefs use HDITA syntax:
+A reference resolves to `<xref keyref="…"/>` only when the topic itself does not define that label. A label the topic defines locally becomes an ordinary `<xref href="…">` instead.
+
+Inline keyword keyrefs use HDITA syntax, which the plug-in maps to `@keyref` on the element:
 
 ```html
 <span data-keyref="product-name">fallback</span>
 ```
 
-The LSP provides:
+The server provides:
 
-- **Completion** of keyref references (`[keyname]`, `[text][keyname]`, `data-keyref="..."`)
+- **Completion** of keyrefs (`[key]` and `data-keyref="…"`)
 - **Go to definition** navigating to the key definition line in the map file
-- **Hover** showing resolved key targets and titles
+- **Hover** showing the resolved href and title
 - **Inlay hints** showing keyref resolution inline
 - **Diagnostics** for unresolved keyrefs
 
 ### Content references (conref)
 
-Content reuse via HTML data attributes, following the org.lwdita HDITA content reference model:
+The plug-in maps the HDITA `data-conref` and `data-conkeyref` attributes to DITA `@conref` and `@conkeyref`:
 
 ```html
 <p data-conref="shared.md#topic/warning-para">fallback</p>
 <span data-conkeyref="warnings/disk-full">fallback</span>
 ```
 
-The LSP provides:
+The server provides:
 
 - **Go to definition** navigating to the referenced element
-- **Hover** showing the conref target path
-- **Completion** of file paths, topic IDs, and element IDs within conref attributes
+- **Hover** showing the conref target
+- **Completion** of file paths, topic IDs, and element IDs inside the attribute
 - **Inlay hints** showing resolved conref targets
-- **Diagnostics** for broken conref targets and missing element IDs
+- **Diagnostics** for broken conref targets and missing keys
 
-### Definition lists
+### Tables
 
-Definition lists are converted to DITA `<dl>/<dlentry>`. In core profile, definition lists produce a diagnostic since they require the extended profile.
+Pipe tables become CALS `<table>` in Markdown DITA and `<simpletable>` in both MDITA profiles. A table caption becomes `<title>`; column spans become `@namest`/`@nameend` or `@colspan`.
+
+The server provides **formatting** to align table columns (full document and range) and **auto-format on save** when `formatTablesOnSave` is enabled.
 
 ### Fenced code blocks
 
-Fenced code blocks become `<codeblock>` with the language mapped to `@outputclass`.
-
-### Pipe tables
-
-Tables are converted to DITA `<simpletable>`. The LSP provides:
-
-- **Formatting** to align table columns (full document and range)
-- **Auto-format on save** when `formatTablesOnSave` is enabled (default: true)
+A fenced code block becomes `<codeblock>` — `<pre><tt>` in MDITA extended — with the info string mapped to `@outputclass` as `language-<lang>`. An info string wrapped in braces is parsed as attributes instead, so ```` ```{#id .class key=value} ```` sets `@id`, `@outputclass`, and arbitrary attributes.
 
 ### Images
 
-Images are converted to `<image>` elements, with title-bearing images wrapped in `<fig>`. Standalone images receive `placement="break"`.
+An image becomes `<image>`. With a title it is wrapped in `<fig><title>`; alone in a paragraph it gets `placement="break"`; with alt text it gets an `<alt>` child. A reference-style image with no matching definition becomes `<image keyref="…"/>`. Attributes such as `{height=50px width=100px}` are carried onto the element.
 
-### Blockquotes
+### Definition lists
 
-Blockquotes are converted to DITA `<lq>` (long quote).
-
-### Inline formatting
-
-Bold converts to `<b>`, italic to `<i>`, and code to `<codeph>`. Superscript and subscript are supported in extended profile.
-
-### Hard line breaks
-
-Trailing backslash or two trailing spaces produce a `<?linebreak?>` processing instruction.
+Definition lists become `<dl>` with `<dlentry>`, `<dt>`, and `<dd>`. They need the extended profile; in core the server reports a diagnostic.
 
 ### Footnotes
 
-Footnotes are supported in the extended MDITA profile. The LSP provides:
+A footnote becomes an inline `<fn callout="…">`. A callout used more than once emits the `<fn>` once and cross-references it with `<xref type="fn">`. Footnotes need the extended profile.
 
-- **Diagnostics** for footnote references without definitions and orphaned definitions
-- **Code actions** to create missing footnote definitions
+The server provides **diagnostics** for footnote references without definitions and orphaned definitions, and a **code action** to create a missing definition.
 
-### Inline HTML
+### Blockquotes
 
-Inline HTML elements with `data-conref`, `data-conkeyref`, and `data-keyref` attributes are parsed for content reference and keyword keyref resolution.
+A blockquote becomes `<lq>` in Markdown DITA. Both MDITA profiles render the content without a wrapper.
+
+### Inline formatting
+
+Bold becomes `<b>`, italic `<i>`, and inline code `<codeph>` — `<tt>` in MDITA extended. Superscript and subscript are unavailable in core. Strikethrough becomes `<line-through>` in Markdown DITA only. HTML entities are resolved to characters.
+
+### Hard line breaks
+
+A trailing backslash or two trailing spaces produce a `<?linebreak?>` processing instruction.
+
+### Inline and block HTML
+
+HTML is parsed as HDITA. Simple inline tags map straight to DITA elements, and everything else goes through the plug-in's HDITA-to-DITA stylesheet.
+
+| HTML | Markdown DITA | MDITA extended |
+|------|---------------|----------------|
+| `<span>` | `<ph>` | `<ph>` |
+| `<code>` | `<codeph>` | `<ph>` |
+| `<s>` | `<line-through>` | `<ph>` |
+| `<tt>` | `<tt>` | `<tt>` |
+| `<b>`, `<strong>` | `<b>` | `<b>` |
+| `<i>`, `<em>` | `<i>` | `<i>` |
+| `<sub>`, `<sup>` | `<sub>`, `<sup>` | `<sub>`, `<sup>` |
+| `<u>` | `<u>` | `<u>` |
+
+The server reads `data-conref`, `data-conkeyref`, and `data-keyref` on these elements; the rest of the HTML vocabulary is passed to the build untouched.
 
 ## MDITA map format
 
-`.mditamap` files define document structure using nested markdown lists. The plug-in converts these to DITA map XML.
+A map is a `.mditamap` file, or a `.md` file that declares `$schema: urn:oasis:names:tc:dita:xsd:map.xsd`. Both define document structure with nested markdown lists.
 
 ```markdown
 ---
@@ -304,46 +375,52 @@ $schema: urn:oasis:names:tc:dita:xsd:map.xsd
 - [Getting Started](getting-started.md)
   - [Installation](install.md)
   - [Configuration](config.md)
-- [User Guide](user-guide.md)
-```
 
-The LSP provides:
-
-- **Diagnostics** for broken map references, circular maps, and inconsistent heading hierarchy
-- **Code actions** to add topics to an existing map
-- **Execute command** to build XHTML or DITA output via DITA OT
-
-### Topic references and sub-maps
-
-Links become `<topicref>` elements. Links to `.ditamap` or `.mditamap` files are emitted as `<mapref>`.
-
-### Ordered lists
-
-Ordered list items produce `<topicref collection-type="sequence">`.
-
-### Topic heads
-
-List items without links become `<topichead>` with `<navtitle>`.
-
-### Key definitions
-
-Reference-style link definitions in map files define DITA keys:
-
-```markdown
 [install-guide]: install.md "Installation Guide"
 ```
 
-Use `[install-guide]` or `[link text][install-guide]` in topic files to create keyref references.
+The H1 becomes `<title>`; front matter becomes `<topicmeta>`. Each list item with a link becomes `<topicref>` with `@href` and `@format`, and its link text becomes `<navtitle>`. A list item with a reference-style link becomes a `<topicref keyref="…">`. A reference-style link definition becomes a `<keydef>`. Nesting becomes nested `<topicref>`.
 
-### Relationship tables
+Two map behaviours differ by format, because the `mditamap` reader enables fewer extensions than a Markdown DITA map:
 
-Tables in `.mditamap` files are parsed as DITA `<reltable>`:
+| Construct | Markdown DITA map (`$schema: …map.xsd`) | `.mditamap` |
+|-----------|------------------------------------------|-------------|
+| List item without a link | `<topichead>` with `<navtitle>` | `<topicref>` with `<navtitle>` |
+| Ordered list item | `<topicref collection-type="sequence">` | plain `<topicref>` |
+| Pipe table | `<reltable>` with `<relheader>`, `<relrow>`, `<relcell>` | not parsed as a table |
 
-```markdown
-| [Overview](overview.md) | [Install](install.md) |
-|-------------------------|----------------------|
-| [Config](config.md)     | [Troubleshoot](ts.md) |
-```
+A link to another map is an ordinary `<topicref>` whose `@format` is `ditamap` or `mditamap`; the plug-in does not emit `<mapref>`.
+
+The server provides:
+
+- **Diagnostics** for broken map references, circular map references, and topic heading levels that disagree with the map nesting
+- **Code actions** to add a topic to an existing map
+- **Execute command** to build XHTML or DITA output through DITA-OT
+
+## Diagnostics
+
+| Code | Message |
+|------|---------|
+| 1 | Ambiguous link |
+| 2 | Broken link |
+| 3 | Non-breaking whitespace in heading |
+| 4 | Missing YAML front matter |
+| 5 | Missing short description |
+| 6 | Invalid heading hierarchy |
+| 7 | Unrecognized `$schema` |
+| 8 | Footnote reference without definition |
+| 9 | Footnote definition without reference |
+| 10 | Unresolved keyref |
+| 11 | Map references a non-existent file |
+| 12 | Topic heading level disagrees with map nesting |
+| 13 | Feature unavailable in MDITA core profile |
+| 14 | Conref target not found |
+| 15 | Conref element not found |
+| 16 | Conkeyref key not found |
+| 17 | Conkeyref element not found |
+| 18 | Task section heading in a non-task topic |
+| 19 | Circular map reference |
+| 20 | Feature unavailable in the MDITA profiles |
 
 ## LSP capabilities
 
@@ -352,10 +429,10 @@ Tables in `.mditamap` files are parsed as DITA `<reltable>`:
 | Text sync | Incremental (mode 2) with 200ms diagnostic debouncing |
 | Completion | Trigger characters: `[`, `#`, `(`, `{` with resolve support |
 | Definition | Markdown links, keyrefs, conrefs |
-| Hover | Links, keyrefs, headings, YAML keys, task sections, conrefs |
+| Hover | Links, keyrefs, headings, YAML keys, task sections, implicit task structure, conrefs |
 | References | Cross-workspace heading references via symbol graph |
 | Rename | Heading rename with prepare support |
-| Code actions | Create missing files, add front matter, add to map, add task sections, fix NBSP/footnotes/heading hierarchy, build DITA OT |
+| Code actions | Create missing files, add front matter, add to map, add task sections, fix NBSP/footnotes/heading hierarchy, build with DITA-OT |
 | Code lens | Reference counts on headings |
 | Document links | External URL detection |
 | Document symbols | Hierarchical heading outline |
@@ -371,6 +448,19 @@ Tables in `.mditamap` files are parsed as DITA `<reltable>`:
 | File operations | didCreate, didDelete, willCreate, willRename |
 | Execute commands | `createFile`, `addToMap`, `ditaOtBuild` |
 | Will save | `textDocument/willSaveWaitUntil` for table auto-format |
+
+## Plug-in features the server does not surface
+
+These are real plug-in behaviours with no editor affordance yet. They are listed so the coverage gap is explicit.
+
+- **Raw DITA passthrough** — DITA element markup written directly in Markdown DITA (`raw-dita`, on by default for `md` and `markdown`, off for MDITA)
+- **Jekyll tags** — `{% include file.md %}` becomes `<required-cleanup conref="…">`
+- **Admonitions** — `!!! note` becomes `<note type="note">`, in schema-less Markdown DITA only
+- **Abbreviations** — `*[HTML]: HyperText Markup Language` becomes `<ph otherprops="…">`
+- **Autolinks** — bare URLs and `<user@example.com>` become `<xref>`
+- **HDITA source files** — the `hdita` format reads standalone HTML documents
+- **`wikidocs` format** — a Markdown DITA variant that synthesizes a missing title
+- **DITA-to-Markdown transtypes** — `markdown`, `markdown_github`, `markdown_gitbook`, and `mdx` output, which run in the opposite direction
 
 ## Development
 

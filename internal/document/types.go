@@ -42,6 +42,8 @@ const (
 	SchemaTask
 	SchemaReference
 	SchemaMap
+	SchemaMditaCore
+	SchemaMditaExtended
 	SchemaUnknown
 )
 
@@ -62,6 +64,14 @@ func DitaSchemaFromString(s string) DitaSchema {
 	case "urn:oasis:names:tc:dita:xsd:map.xsd",
 		"urn:oasis:names:tc:dita:rng:map.rng":
 		return SchemaMap
+	case "urn:oasis:names:tc:mdita:core:xsd:topic.xsd",
+		"urn:oasis:names:tc:mdita:core:rng:topic.rng":
+		return SchemaMditaCore
+	case "urn:oasis:names:tc:mdita:xsd:topic.xsd",
+		"urn:oasis:names:tc:mdita:rng:topic.rng",
+		"urn:oasis:names:tc:mdita:extended:xsd:topic.xsd",
+		"urn:oasis:names:tc:mdita:extended:rng:topic.rng":
+		return SchemaMditaExtended
 	default:
 		return SchemaUnknown
 	}
@@ -80,7 +90,6 @@ type Heading struct {
 	Range       Range
 	Attributes  *ParsedAttribute
 	TaskSection TaskSectionKind
-	IsRelLinks  bool
 }
 
 func (h *Heading) Rng() Range    { return h.Range }
@@ -167,16 +176,26 @@ const (
 	TaskSectionResult
 	TaskSectionPostreq
 	TaskSectionTroubleshooting
+	// TaskSectionSteps marks a steps marker heading ("Procedure"/"Steps"). The
+	// heading itself maps to no DITA element; the ordered list that follows it
+	// becomes <steps>.
+	TaskSectionSteps
 )
 
 type ImplicitSectionKind int
 
 const (
 	ImplicitContext ImplicitSectionKind = iota
+	ImplicitSteps
+	ImplicitStepsUnordered
 	ImplicitResult
 	ImplicitChoices
 	ImplicitSubsteps
 	ImplicitChoicetable
+	// ImplicitBodyList marks a body-level list that is followed by another
+	// body-level list, so the plug-in keeps it inside <context> (outputclass
+	// body-ol/body-ul) instead of promoting it to <steps>.
+	ImplicitBodyList
 )
 
 type ImplicitSection struct {

@@ -33,10 +33,14 @@ func TestDitaSchemaFromStringOrgLwdita(t *testing.T) {
 		{"urn:oasis:names:tc:dita:xsd:concept.xsd", SchemaConcept},
 		{"urn:oasis:names:tc:dita:xsd:reference.xsd", SchemaReference},
 		{"urn:oasis:names:tc:dita:xsd:map.xsd", SchemaMap},
-		// Removed MDITA-specific URNs should return SchemaUnknown
-		{"urn:oasis:names:tc:mdita:xsd:topic.xsd", SchemaUnknown},
-		{"urn:oasis:names:tc:mdita:core:xsd:topic.xsd", SchemaUnknown},
-		{"urn:oasis:names:tc:mdita:extended:xsd:topic.xsd", SchemaUnknown},
+		{"urn:oasis:names:tc:dita:rng:map.rng", SchemaMap},
+		{"urn:oasis:names:tc:mdita:xsd:topic.xsd", SchemaMditaExtended},
+		{"urn:oasis:names:tc:mdita:rng:topic.rng", SchemaMditaExtended},
+		{"urn:oasis:names:tc:mdita:extended:xsd:topic.xsd", SchemaMditaExtended},
+		{"urn:oasis:names:tc:mdita:extended:rng:topic.rng", SchemaMditaExtended},
+		{"urn:oasis:names:tc:mdita:core:xsd:topic.xsd", SchemaMditaCore},
+		{"urn:oasis:names:tc:mdita:core:rng:topic.rng", SchemaMditaCore},
+		{"urn:oasis:names:tc:dita:xsd:nosuch.xsd", SchemaUnknown},
 	}
 	for _, tt := range tests {
 		got := DitaSchemaFromString(tt.input)

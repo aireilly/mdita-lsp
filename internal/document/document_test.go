@@ -80,7 +80,9 @@ func TestDocIDFromDocument(t *testing.T) {
 }
 
 func TestImplicitContextSection(t *testing.T) {
-	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\nSome context paragraph.\n\n1. Step one\n2. Step two\n"
+	// The first paragraph becomes <shortdesc>; the second one is the implicit
+	// <context>.
+	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\nShort description.\n\nSome context paragraph.\n\n1. Step one\n2. Step two\n"
 	doc := New("file:///test.md", 1, text)
 	found := false
 	for _, s := range doc.ImplicitSections {
