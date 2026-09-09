@@ -63,6 +63,40 @@ func (d *Document) ApplyChange(version int, newText string) *Document {
 	return New(d.URI, version, newText)
 }
 
+// TopicID returns the @id the plug-in puts on the generated <topic>: the YAML
+// id when present, otherwise the id derived from the title heading.
+func (d *Document) TopicID() string {
+	if d.Meta != nil && d.Meta.ID != "" {
+		return d.Meta.ID
+	}
+	if t := d.Index.Title(); t != nil {
+		return t.ID
+	}
+	return ""
+}
+
+// SplitFragment splits a link fragment into DITA topic and element IDs. A
+// fragment of the form "topic-id/element-id" addresses an element inside a
+// topic, which is how DITA references content; a fragment without a slash
+// addresses a heading in the target document.
+func SplitFragment(anchor string) (topicID, elementID string, isDita bool) {
+	idx := strings.Index(anchor, "/")
+	if idx < 0 {
+		return "", anchor, false
+	}
+	return anchor[:idx], anchor[idx+1:], true
+}
+
+// HasElementID reports whether the document defines a heading with this id.
+func (d *Document) HasElementID(id string) bool {
+	for _, e := range d.Elements {
+		if h, ok := e.(*Heading); ok && h.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func (d *Document) DocID(rootURI string) paths.DocID {
 	return paths.DocIDFromURI(d.URI, rootURI)
 }

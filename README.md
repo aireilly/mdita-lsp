@@ -251,11 +251,13 @@ The server provides:
 
 The plug-in turns a markdown link into `<xref>` and derives `@format` from the target's file extension, plus `@scope="external"` for absolute URLs and root-relative paths. An email autolink gets `format="email"`.
 
+A fragment is passed through to `@href` untouched, so both DITA addressing forms work: `file.md#topic-id` targets the topic, and `file.md#topic-id/element-id` targets an element inside it. The topic ID is the YAML `id` when present, otherwise the ID derived from the title.
+
 The server provides:
 
 - **Completion** of file paths inside `](` and heading anchors after `#`
-- **Go to definition** for links to other documents and to headings
-- **Diagnostics** for broken links and links to non-existent headings
+- **Go to definition** for links to other documents, to headings, and to elements addressed as `#topic-id/element-id`
+- **Diagnostics** for broken links, ambiguous links, and fragments that name a missing topic or element
 - **Document links** making external URLs clickable
 - **Inlay hints** showing the resolved target title
 - **File rename** support that updates cross-references when files are renamed

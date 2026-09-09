@@ -86,3 +86,24 @@ func TestGotoDefConrefMissingFile(t *testing.T) {
 		t.Errorf("expected no locations for missing conref target, got %d", len(locs))
 	}
 }
+
+func TestGotoDefDitaFragment(t *testing.T) {
+	target := document.New("file:///p/install.md", 1,
+		"# Install the software\n\n## Prerequisites\n\nText.\n")
+	src := document.New("file:///p/doc.md", 1,
+		"# Doc\n\nSee [it](install.md#install-the-software/prerequisites).\n")
+	f := workspace.NewFolder("file:///p", config.Default())
+	f.AddDoc(target)
+	f.AddDoc(src)
+
+	locs := GotoDef(src, document.Position{Line: 2, Character: 6}, f)
+	if len(locs) != 1 {
+		t.Fatalf("locations = %d, want 1", len(locs))
+	}
+	if locs[0].URI != target.URI {
+		t.Errorf("URI = %q, want %q", locs[0].URI, target.URI)
+	}
+	if locs[0].Range.Start.Line != 2 {
+		t.Errorf("line = %d, want the Prerequisites heading on line 2", locs[0].Range.Start.Line)
+	}
+}

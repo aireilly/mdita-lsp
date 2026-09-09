@@ -1,6 +1,7 @@
 package diagnostic
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/aireilly/mdita-lsp/internal/config"
@@ -156,5 +157,67 @@ func TestCheckAmbiguousLink(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("expected CodeAmbiguousLink, got %+v", diags)
+	}
+}
+
+// file.md#topic-id/element-id is DITA element addressing, which the plug-in
+// passes through to @href unchanged.
+func TestDitaFragmentLinkAccepted(t *testing.T) {
+	target := document.New("file:///p/install.md", 1,
+		"# Install the software\n\n## Prerequisites\n\nText.\n")
+	src := document.New("file:///p/doc.md", 1,
+		"# Doc\n\nSee [it](install.md#install-the-software/prerequisites).\n")
+	f := workspace.NewFolder("file:///p", config.Default())
+	f.AddDoc(target)
+	f.AddDoc(src)
+
+	if d := checkLinks(src, f); len(d) != 0 {
+		t.Errorf("expected no diagnostics for a valid fragment, got %+v", d)
+	}
+}
+
+func TestDitaFragmentLinkWrongTopicID(t *testing.T) {
+	target := document.New("file:///p/install.md", 1,
+		"---\nid: install-sw\n---\n\n# Install the software\n\n## Prerequisites\n\nText.\n")
+	src := document.New("file:///p/doc.md", 1,
+		"# Doc\n\nSee [it](install.md#wrong-topic/prerequisites).\n")
+	f := workspace.NewFolder("file:///p", config.Default())
+	f.AddDoc(target)
+	f.AddDoc(src)
+
+	diags := checkLinks(src, f)
+	if len(diags) != 1 || diags[0].Code != CodeBrokenLink {
+		t.Fatalf("expected one broken-link diagnostic, got %+v", diags)
+	}
+	if !strings.Contains(diags[0].Message, "install-sw") {
+		t.Errorf("message should name the real topic id, got %q", diags[0].Message)
+	}
+}
+
+func TestDitaFragmentLinkMissingElement(t *testing.T) {
+	target := document.New("file:///p/install.md", 1, "# Install the software\n\nText.\n")
+	src := document.New("file:///p/doc.md", 1,
+		"# Doc\n\nSee [it](install.md#install-the-software/no-such-element).\n")
+	f := workspace.NewFolder("file:///p", config.Default())
+	f.AddDoc(target)
+	f.AddDoc(src)
+
+	diags := checkLinks(src, f)
+	if len(diags) != 1 || !strings.Contains(diags[0].Message, "no-such-element") {
+		t.Fatalf("expected a missing-element diagnostic, got %+v", diags)
+	}
+}
+
+// A bare topic id is a valid fragment too.
+func TestFragmentTopicIDAccepted(t *testing.T) {
+	target := document.New("file:///p/install.md", 1,
+		"---\nid: install-sw\n---\n\n# Install the software\n\nText.\n")
+	src := document.New("file:///p/doc.md", 1, "# Doc\n\nSee [it](install.md#install-sw).\n")
+	f := workspace.NewFolder("file:///p", config.Default())
+	f.AddDoc(target)
+	f.AddDoc(src)
+
+	if d := checkLinks(src, f); len(d) != 0 {
+		t.Errorf("expected no diagnostics, got %+v", d)
 	}
 }

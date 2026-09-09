@@ -197,6 +197,8 @@ func parseYAMLMeta(yamlContent string) *YAMLMetadata {
 		}
 
 		switch key {
+		case "id":
+			meta.ID = sval
 		case "author":
 			meta.Author = sval
 		case "source":

@@ -34,9 +34,8 @@ func GotoDef(doc *document.Document, pos document.Position, folder *workspace.Fo
 
 func resolveMdLink(ml *document.MdLink, doc *document.Document, folder *workspace.Folder) []Location {
 	if ml.URL == "" && ml.Anchor != "" {
-		slug := paths.SlugOf(ml.Anchor)
-		for _, h := range doc.Index.HeadingsBySlug(slug) {
-			return []Location{{URI: doc.URI, Range: h.Range}}
+		if loc := resolveFragment(ml.Anchor, doc); loc != nil {
+			return []Location{*loc}
 		}
 		return nil
 	}
@@ -45,9 +44,8 @@ func resolveMdLink(ml *document.MdLink, doc *document.Document, folder *workspac
 		target := folder.ResolveLink(ml.URL, doc.URI)
 		if target != nil {
 			if ml.Anchor != "" {
-				hslug := paths.SlugOf(ml.Anchor)
-				for _, h := range target.Index.HeadingsBySlug(hslug) {
-					return []Location{{URI: target.URI, Range: h.Range}}
+				if loc := resolveFragment(ml.Anchor, target); loc != nil {
+					return []Location{*loc}
 				}
 			}
 			title := target.Index.Title()
@@ -58,6 +56,24 @@ func resolveMdLink(ml *document.MdLink, doc *document.Document, folder *workspac
 		}
 	}
 
+	return nil
+}
+
+// resolveFragment locates the heading a link fragment addresses, accepting
+// both the "topic-id/element-id" DITA form and a plain heading slug.
+func resolveFragment(anchor string, target *document.Document) *Location {
+	_, elementID, isDita := document.SplitFragment(anchor)
+	if isDita {
+		for _, e := range target.Elements {
+			if h, ok := e.(*document.Heading); ok && h.ID == elementID {
+				return &Location{URI: target.URI, Range: h.Range}
+			}
+		}
+		return nil
+	}
+	for _, h := range target.Index.HeadingsBySlug(paths.SlugOf(anchor)) {
+		return &Location{URI: target.URI, Range: h.Range}
+	}
 	return nil
 }
 

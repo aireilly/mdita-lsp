@@ -117,6 +117,7 @@ func (l *LinkDef) Rng() Range { return l.Range }
 func (l *LinkDef) element()   {}
 
 type YAMLMetadata struct {
+	ID          string
 	Author      string
 	Source      string
 	Publisher   string

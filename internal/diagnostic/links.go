@@ -13,15 +13,8 @@ func checkLinks(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 
 	for _, ml := range doc.Index.MdLinks() {
 		if ml.URL == "" && ml.Anchor != "" {
-			slug := paths.SlugOf(ml.Anchor)
-			if len(doc.Index.HeadingsBySlug(slug)) == 0 {
-				diags = append(diags, Diagnostic{
-					Range:    ml.Range,
-					Severity: SeverityError,
-					Code:     CodeBrokenLink,
-					Source:   source,
-					Message:  "Link to non-existent heading '#" + ml.Anchor + "'",
-				})
+			if d := checkFragment(ml, doc, doc, ""); d != nil {
+				diags = append(diags, *d)
 			}
 		}
 		if ml.URL != "" && !strings.HasPrefix(ml.URL, "http://") && !strings.HasPrefix(ml.URL, "https://") {
@@ -44,21 +37,62 @@ func checkLinks(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 					Message:  "Link to non-existent file '" + ml.URL + "'",
 				})
 			} else if ml.Anchor != "" {
-				hslug := paths.SlugOf(ml.Anchor)
-				if len(target.Index.HeadingsBySlug(hslug)) == 0 {
-					diags = append(diags, Diagnostic{
-						Range:    ml.Range,
-						Severity: SeverityError,
-						Code:     CodeBrokenLink,
-						Source:   source,
-						Message:  "Link to non-existent heading '#" + ml.Anchor + "' in '" + ml.URL + "'",
-					})
+				if d := checkFragment(ml, doc, target, ml.URL); d != nil {
+					diags = append(diags, *d)
 				}
 			}
 		}
 	}
 
 	return diags
+}
+
+// checkFragment validates a link fragment against its target. A fragment of
+// the form "topic-id/element-id" is DITA element addressing, which the plug-in
+// passes straight through to @href; a plain fragment addresses a heading.
+func checkFragment(ml *document.MdLink, src, target *document.Document, url string) *Diagnostic {
+	in := ""
+	if url != "" {
+		in = " in '" + url + "'"
+	}
+
+	topicID, elementID, isDita := document.SplitFragment(ml.Anchor)
+	if isDita {
+		if got := target.TopicID(); got != "" && got != topicID {
+			return &Diagnostic{
+				Range:    ml.Range,
+				Severity: SeverityError,
+				Code:     CodeBrokenLink,
+				Source:   source,
+				Message:  "Link to topic '" + topicID + "'" + in + ", which has the id '" + got + "'",
+			}
+		}
+		if !target.HasElementID(elementID) {
+			return &Diagnostic{
+				Range:    ml.Range,
+				Severity: SeverityError,
+				Code:     CodeBrokenLink,
+				Source:   source,
+				Message:  "Link to non-existent element '" + elementID + "'" + in,
+			}
+		}
+		return nil
+	}
+
+	if len(target.Index.HeadingsBySlug(paths.SlugOf(ml.Anchor))) > 0 {
+		return nil
+	}
+	// The plug-in also accepts a bare topic id as a fragment.
+	if target.TopicID() == ml.Anchor {
+		return nil
+	}
+	return &Diagnostic{
+		Range:    ml.Range,
+		Severity: SeverityError,
+		Code:     CodeBrokenLink,
+		Source:   source,
+		Message:  "Link to non-existent heading '#" + ml.Anchor + "'" + in,
+	}
 }
 
 func checkNonBreakingWhitespace(doc *document.Document) []Diagnostic {
