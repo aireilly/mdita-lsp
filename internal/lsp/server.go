@@ -1072,7 +1072,7 @@ func (s *Server) handleWorkspaceSymbol(_ context.Context, rawParams json.RawMess
 
 	syms := docsymbols.SearchWorkspace(allDocs, params.Query)
 	if syms == nil {
-		syms = []docsymbols.DocSymbol{}
+		syms = []docsymbols.SymbolInformation{}
 	}
 	return syms, nil
 }

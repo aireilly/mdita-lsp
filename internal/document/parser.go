@@ -15,6 +15,10 @@ import (
 )
 
 var admonitionRegex = regexp.MustCompile(`(?m)^!!!\s+(\w+)`)
+
+// A heading carries author-written attributes when its line ends with a
+// {...} block, allowing for ATX closing hashes after it.
+var headingAttrBlockRegex = regexp.MustCompile(`\{[^}]*\}\s*#*\s*$`)
 var footnoteRefRegex = regexp.MustCompile(`\[\^([^\]]+)\][^:]`)
 var footnoteDefRegex = regexp.MustCompile(`(?m)^\[\^([^\]]+)\]:`)
 var conrefAttrRe = regexp.MustCompile(`<(\w+)\s[^>]*data-conref="([^"]+)"[^>]*>`)
@@ -76,6 +80,7 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 
 	var elements []Element
 	bf := &BlockFeatures{}
+	srcLines := strings.Split(string(src), "\n")
 
 	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
@@ -116,7 +121,14 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 				}
 				pa.Range = nodeRange(node, src)
 				headingAttrs = &pa
-				bf.HasAttributes = true
+
+				// WithAutoHeadingID attaches an id to every heading, so a node
+				// having attributes says nothing about what the author wrote.
+				// Only a trailing {...} on the source line does, and reporting
+				// otherwise warns on every MDITA topic that has a heading.
+				if headingLineHasAttributes(srcLines, pa.Range.Start.Line) {
+					bf.HasAttributes = true
+				}
 			}
 
 			elements = append(elements, &Heading{
@@ -302,6 +314,13 @@ func extractText(n ast.Node, src []byte) string {
 		}
 	}
 	return sb.String()
+}
+
+func headingLineHasAttributes(lines []string, line int) bool {
+	if line < 0 || line >= len(lines) {
+		return false
+	}
+	return headingAttrBlockRegex.MatchString(lines[line])
 }
 
 func nodeRange(n ast.Node, src []byte) Range {
