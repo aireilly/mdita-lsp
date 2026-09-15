@@ -148,7 +148,7 @@ func TestHandleWillSaveWaitUntilAlignedTable(t *testing.T) {
 	folder := workspace.NewFolder("file:///test", cfg)
 	s.workspace.AddFolder(folder)
 
-	alignedTable := "| a   | bb  |\n| --- | --- |\n| ccc | d   |\n"
+	alignedTable := "| a | bb |\n| --- | --- |\n| ccc | d |\n"
 	doc := document.New("file:///test/doc.md", 1, alignedTable)
 	folder.AddDoc(doc)
 

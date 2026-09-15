@@ -314,7 +314,7 @@ The server provides:
 
 Pipe tables become CALS `<table>` in Markdown DITA and `<simpletable>` in both MDITA profiles. A table caption becomes `<title>`; column spans become `@namest`/`@nameend` or `@colspan`.
 
-The server provides **formatting** to align table columns (full document and range) and **auto-format on save** when `formatTablesOnSave` is enabled.
+The server provides **formatting** to normalize pipe tables (full document and range) and **auto-format on save** when `formatTablesOnSave` is enabled. Each cell is written with one space inside its pipes, and delimiter rows collapse to `---` while keeping any alignment colons. Columns are not padded to a common width, so long cells never push a row past the editor's wrap point.
 
 ### Fenced code blocks
 
@@ -442,7 +442,7 @@ The server provides:
 | Folding ranges | Headings, YAML front matter |
 | Selection ranges | Progressive expansion (line, element, section) |
 | Linked editing | Heading text |
-| Formatting | Table alignment, trailing whitespace, heading spacing, trailing newline (full + range) |
+| Formatting | Table normalization, trailing whitespace, heading spacing, trailing newline (full + range) |
 | Inlay hints | Link targets, keyref targets, conref targets |
 | Document highlight | Heading and intra-document reference highlighting |
 | Semantic tokens | Full + range encoding with attribute decorator tokens |

@@ -153,16 +153,6 @@ func alignTableBlock(lines []string, start, end int) []TextEdit {
 		return nil
 	}
 
-	colWidths := make([]int, maxCols)
-	for _, row := range rows {
-		for j, cell := range row {
-			w := utf8.RuneCountInString(cell)
-			if w > colWidths[j] {
-				colWidths[j] = w
-			}
-		}
-	}
-
 	var edits []TextEdit
 	for ri, row := range rows {
 		lineIdx := start + ri
@@ -174,16 +164,11 @@ func alignTableBlock(lines []string, start, end int) []TextEdit {
 				cell = row[j]
 			}
 			if isSeparatorCell(cell) {
-				b.WriteString(" ")
-				b.WriteString(strings.Repeat("-", colWidths[j]))
-				b.WriteString(" |")
-			} else {
-				b.WriteString(" ")
-				b.WriteString(cell)
-				padding := colWidths[j] - utf8.RuneCountInString(cell)
-				b.WriteString(strings.Repeat(" ", padding))
-				b.WriteString(" |")
+				cell = normalizeSeparatorCell(cell)
 			}
+			b.WriteString(" ")
+			b.WriteString(cell)
+			b.WriteString(" |")
 		}
 		newLine := b.String()
 		if newLine != lines[lineIdx] {
@@ -209,6 +194,23 @@ func parseTableCells(line string) []string {
 		cells[i] = strings.TrimSpace(p)
 	}
 	return cells
+}
+
+// normalizeSeparatorCell reduces a delimiter-row cell to three dashes while
+// keeping any alignment colons.
+func normalizeSeparatorCell(cell string) string {
+	left := strings.HasPrefix(cell, ":")
+	right := strings.HasSuffix(cell, ":")
+	switch {
+	case left && right:
+		return ":---:"
+	case left:
+		return ":---"
+	case right:
+		return "---:"
+	default:
+		return "---"
+	}
 }
 
 func isSeparatorCell(cell string) bool {

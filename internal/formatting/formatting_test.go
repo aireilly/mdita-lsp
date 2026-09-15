@@ -105,6 +105,30 @@ func TestTableAlignment(t *testing.T) {
 	}
 }
 
+func TestTableSingleSpacePadding(t *testing.T) {
+	doc := document.New("file:///test.md", 1,
+		"| Name | Value |\n|:---|---:|\n| a | a much longer value |\n")
+	edits := Format(doc, Options{TabSize: 4, InsertSpaces: true})
+
+	got := applyEdits(doc.Text, edits)
+	want := "| Name | Value |\n| :--- | ---: |\n| a | a much longer value |\n"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestTableCollapsesExistingPadding(t *testing.T) {
+	doc := document.New("file:///test.md", 1,
+		"| a   | bb                  |\n| --- | ------------------- |\n| ccc | d                   |\n")
+	edits := Format(doc, Options{TabSize: 4, InsertSpaces: true})
+
+	got := applyEdits(doc.Text, edits)
+	want := "| a | bb |\n| --- | --- |\n| ccc | d |\n"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func TestNoChanges(t *testing.T) {
 	doc := document.New("file:///test.md", 1,
 		"# Title\n\nContent\n")
