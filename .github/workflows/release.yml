@@ -8,6 +8,10 @@ jobs:
     permissions:
       contents: write
     strategy:
+      # Every matrix job races to create the release, so a transient API error in
+      # one leaves the others cancelled and the release missing their binaries.
+      # Keep going and let the rest upload.
+      fail-fast: false
       matrix:
         include:
           - goos: linux
