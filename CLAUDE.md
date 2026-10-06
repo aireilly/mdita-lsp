@@ -111,7 +111,7 @@ Details that are easy to get wrong; all verified against the plug-in source.
 - A link to a `.ditamap`/`.mditamap` is a `<topicref>` with `@format`, never a `<mapref>`.
 - `<topichead>`, `collection-type="sequence"`, and `<reltable>` exist only in Markdown DITA maps (`$schema: …map.xsd`). The `mditamap` reader enables no tables extension, and its link-less list items become plain `<topicref>`.
 - Neither MDITA profile enables the attributes extension, so `{.class}` never works in MDITA. MDITA also caps headings at level 2.
-- The paragraph after the title becomes `<shortdesc>` only when the title carries `{.concept}`/`{.task}`/`{.reference}` or a `$schema` is declared.
+- The paragraph after the title becomes `<shortdesc>` only when a `$schema` is declared or the title carries `{.concept}`/`{.task}`/`{.reference}`.
 - A body-level list that is followed by another body-level list stays in `<context>` as body-ol/body-ul; only the last one becomes `<steps>`/`<steps-unordered>`. An ordered list that restarts its numbering at 1 is split at the restart.
 - "Procedure"/"Steps" is a marker heading: it maps to no element and the list after it becomes `<steps>`. Section titles are configurable via `core.mdita.implicit_task_sections`.
 
