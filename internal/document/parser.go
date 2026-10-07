@@ -190,8 +190,12 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 	elements = append(elements, parseLinkDefs(mdContent, yamlEnd)...)
 	elements = append(elements, parseConrefs(source)...)
 	bf.Admonitions = parseAdmonitions(source)
-	bf.FootnoteRefLabels = parseFootnoteRefs(source)
-	bf.FootnoteDefLabels = parseFootnoteDefs(source)
+
+	// Footnote syntax inside a fenced block is literal text in the generated
+	// <codeblock>, so it is masked out before the scan.
+	scannable := MaskFencedCode(source)
+	bf.FootnoteRefLabels = parseFootnoteRefs(scannable)
+	bf.FootnoteDefLabels = parseFootnoteDefs(scannable)
 
 	_ = mdContent
 	return elements, bf, meta

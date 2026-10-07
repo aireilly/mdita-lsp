@@ -251,8 +251,22 @@ func IsTaskTopic(doc *Document) bool {
 	return false
 }
 
+// ImplicitTaskSections reports whether the plug-in maps a heading such as
+// "Prerequisites" to a task section for this file. plugin.xml turns the
+// implicit-task-sections feature on for the Markdown DITA formats only; a
+// .mdita file goes through MDitaReader, where the feature is off and every
+// level-2 heading is a plain <section>.
+func ImplicitTaskSections(uri string) bool {
+	switch paths.FormatForURI(uri) {
+	case paths.FormatMD, paths.FormatMarkdown:
+		return true
+	default:
+		return false
+	}
+}
+
 func resolveTaskSections(doc *Document) {
-	if !IsTaskTopic(doc) {
+	if !IsTaskTopic(doc) || !ImplicitTaskSections(doc.URI) {
 		return
 	}
 
@@ -432,7 +446,7 @@ func headingLevel(trimmed string) int {
 // <context> as a body-ol/body-ul, and lists or tables nested inside a step
 // become <substeps>, <choices>, or <choicetable>.
 func resolveImplicitSections(doc *Document) {
-	if !IsTaskTopic(doc) {
+	if !IsTaskTopic(doc) || !ImplicitTaskSections(doc.URI) {
 		return
 	}
 

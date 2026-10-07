@@ -1,8 +1,11 @@
 package diagnostic
 
 import (
+	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/aireilly/mdita-lsp/internal/ditamap"
 	"github.com/aireilly/mdita-lsp/internal/document"
@@ -23,66 +26,70 @@ func CheckDitamap(doc *document.Document, folder *workspace.Folder) []Diagnostic
 	var diags []Diagnostic
 	diags = append(diags, checkMapRefs(m, doc, folder)...)
 	diags = append(diags, checkCircularRefs(doc, folder)...)
-	diags = append(diags, checkMapHeadingHierarchy(m, doc, folder)...)
 	return diags
 }
 
+// checkMapRefs reports a topicref whose target is not there.
+//
+// It used to report every href it could not find in the document index, so an
+// external URL, a bare fragment, an image and a .ditamap were all flagged as
+// missing files -- and every one of them at line 0, column 0. Only a
+// workspace-relative href is checked now, the filesystem settles anything the
+// server does not index, and the diagnostic points at the topicref's own line.
 func checkMapRefs(m *ditamap.MapStructure, doc *document.Document, folder *workspace.Folder) []Diagnostic {
 	var diags []Diagnostic
-	docPath, _ := paths.URIToPath(doc.URI)
+	docPath, err := paths.URIToPath(doc.URI)
+	if err != nil {
+		return nil
+	}
 	docDir := filepath.Dir(docPath)
 
-	for _, href := range m.AllHrefs() {
-		targetPath := filepath.Join(docDir, href)
-		targetURI := paths.PathToURI(targetPath)
-		if folder.DocByURI(targetURI) == nil {
-			diags = append(diags, Diagnostic{
-				Range:    document.Rng(0, 0, 0, 0),
-				Severity: SeverityError,
-				Code:     CodeBrokenMapTopicref,
-				Source:   source,
-				Message:  "Map references non-existent file: " + href,
-			})
+	for _, ref := range m.AllRefs() {
+		href := ref.Href
+		if !isWorkspaceHref(href) {
+			continue
 		}
+		target := filepath.Join(docDir, decodeHref(stripFragment(href)))
+		if folder.DocByURI(paths.PathToURI(target)) != nil {
+			continue
+		}
+		if info, err := os.Stat(target); err == nil && !info.IsDir() {
+			continue
+		}
+		diags = append(diags, Diagnostic{
+			Range:    document.Rng(ref.Line, 0, ref.Line, 0),
+			Severity: SeverityError,
+			Code:     CodeBrokenMapTopicref,
+			Source:   source,
+			Message:  "Map references non-existent file: " + href,
+		})
 	}
 	return diags
 }
 
-func checkMapHeadingHierarchy(m *ditamap.MapStructure, doc *document.Document, folder *workspace.Folder) []Diagnostic {
-	var diags []Diagnostic
-	docPath, _ := paths.URIToPath(doc.URI)
-	docDir := filepath.Dir(docPath)
-	walkTopicRefHierarchy(m.TopicRefs, 0, docDir, folder, &diags)
-	return diags
+// isWorkspaceHref reports whether an href names a file in the workspace. A
+// bare fragment addresses this map, and an href with a scheme or a leading
+// slash leaves the source tree.
+func isWorkspaceHref(href string) bool {
+	if href == "" || strings.HasPrefix(href, "#") || strings.HasPrefix(href, "/") {
+		return false
+	}
+	return !hasURIScheme(href)
 }
 
-func walkTopicRefHierarchy(refs []ditamap.TopicRef, depth int, docDir string, folder *workspace.Folder, diags *[]Diagnostic) {
-	for _, ref := range refs {
-		if ref.Href == "" {
-			continue
-		}
-		targetPath := filepath.Join(docDir, ref.Href)
-		targetURI := paths.PathToURI(targetPath)
-		targetDoc := folder.DocByURI(targetURI)
-		if targetDoc == nil {
-			continue
-		}
-		title := targetDoc.Index.Title()
-		if title == nil {
-			continue
-		}
-		expectedLevel := depth + 1
-		if title.Level != expectedLevel && depth > 0 {
-			*diags = append(*diags, Diagnostic{
-				Range:    document.Rng(0, 0, 0, 0),
-				Severity: SeverityInfo,
-				Code:     CodeMapHeadingHierarchy,
-				Source:   source,
-				Message:  "Topic " + ref.Href + " has heading level " + itoa(title.Level) + " but map nesting suggests level " + itoa(expectedLevel),
-			})
-		}
-		walkTopicRefHierarchy(ref.Children, depth+1, docDir, folder, diags)
+func stripFragment(href string) string {
+	if i := strings.Index(href, "#"); i >= 0 {
+		return href[:i]
 	}
+	return href
+}
+
+func decodeHref(href string) string {
+	decoded, err := url.PathUnescape(href)
+	if err != nil {
+		return href
+	}
+	return decoded
 }
 
 func itoa(i int) string {
@@ -123,14 +130,21 @@ func hasCycle(uri string, folder *workspace.Folder, visited map[string]bool) boo
 
 	docPath, _ := paths.URIToPath(uri)
 	docDir := filepath.Dir(docPath)
-	mapExts := folder.Config.Core.Mdita.MapExtensions
 
 	for _, href := range m.AllHrefs() {
-		if !paths.IsMditaMapFile(href, mapExts) {
+		if !isWorkspaceHref(href) {
 			continue
 		}
-		targetPath := filepath.Join(docDir, href)
+		targetPath := filepath.Join(docDir, decodeHref(stripFragment(href)))
 		targetURI := paths.PathToURI(targetPath)
+		// Following only .mditamap files missed a cycle through a .md map,
+		// which a document declares with $schema: …map.xsd. Document.Kind
+		// already knows which files are maps, so ask it rather than the
+		// extension.
+		target := folder.DocByURI(targetURI)
+		if target == nil || target.Kind != document.Map {
+			continue
+		}
 		if hasCycle(targetURI, folder, visited) {
 			return true
 		}

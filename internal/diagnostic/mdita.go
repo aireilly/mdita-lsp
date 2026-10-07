@@ -7,15 +7,23 @@ import (
 func checkMditaCompliance(doc *document.Document) []Diagnostic {
 	var diags []Diagnostic
 
+	// Heading hierarchy and footnotes are properties of the markdown, not of
+	// the metadata. These checks used to sit behind an early return, so a file
+	// without front matter -- which Markdown DITA does not require -- was
+	// never checked for the heading skip that fails the build.
+	diags = append(diags, checkHeadingHierarchy(doc)...)
+	diags = append(diags, checkFootnotes(doc)...)
+
 	if doc.Meta == nil {
-		diags = append(diags, Diagnostic{
+		// Markdown DITA reads a topic with no front matter, so this is
+		// information, not a problem to fix.
+		return append(diags, Diagnostic{
 			Range:    document.Rng(0, 0, 0, 0),
-			Severity: SeverityWarning,
+			Severity: SeverityInfo,
 			Code:     CodeMissingFrontMatter,
 			Source:   source,
-			Message:  "Missing YAML front matter",
+			Message:  "No YAML front matter. Declare $schema to select a profile or a specialization.",
 		})
-		return diags
 	}
 
 	if doc.Meta.SchemaRaw != "" && doc.Meta.Schema == document.SchemaUnknown {
@@ -41,9 +49,6 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 		})
 	}
 
-	diags = append(diags, checkHeadingHierarchy(doc)...)
-	diags = append(diags, checkFootnotes(doc)...)
-
 	return diags
 }
 
@@ -66,21 +71,26 @@ func expectsShortDesc(doc *document.Document, title *document.Heading) bool {
 	return false
 }
 
+// checkHeadingHierarchy mirrors MarkdownParserImpl.validate: walking the
+// headings in order, a level more than one above the previous one throws a
+// ParseException and the build fails. The level starts at 0, so a document
+// whose first heading is an H2 is a skip too. This is an error, not a
+// warning: the build does not produce output.
 func checkHeadingHierarchy(doc *document.Document) []Diagnostic {
 	var diags []Diagnostic
-	headings := doc.Index.Headings()
-	for i := 1; i < len(headings); i++ {
-		prev := headings[i-1].Level
-		curr := headings[i].Level
-		if curr > prev+1 {
+	level := 0
+	for _, h := range doc.Index.Headings() {
+		if h.Level > level+1 {
 			diags = append(diags, Diagnostic{
-				Range:    headings[i].Range,
-				Severity: SeverityWarning,
+				Range:    h.Range,
+				Severity: SeverityError,
 				Code:     CodeHeadingHierarchy,
 				Source:   source,
-				Message:  "Invalid heading hierarchy: skipped heading level",
+				Message: "Heading level raised from " + itoa(level) + " to " + itoa(h.Level) +
+					" without an intermediate heading level; the build fails on this",
 			})
 		}
+		level = h.Level
 	}
 	return diags
 }

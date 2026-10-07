@@ -25,7 +25,9 @@ type KeyrefLocation struct {
 }
 
 func DetectAll(text string) []KeyrefLocation {
-	lines := strings.Split(text, "\n")
+	// A bracketed label inside a fenced block is literal text in the
+	// generated <codeblock>, not a key reference.
+	lines := strings.Split(document.MaskFencedCode(text), "\n")
 	var locs []KeyrefLocation
 
 	for i, line := range lines {
@@ -86,7 +88,7 @@ func DetectAll(text string) []KeyrefLocation {
 }
 
 func DetectAtPosition(text string, pos document.Position) *KeyrefAtPos {
-	lines := strings.Split(text, "\n")
+	lines := strings.Split(document.MaskFencedCode(text), "\n")
 	if pos.Line >= len(lines) {
 		return nil
 	}

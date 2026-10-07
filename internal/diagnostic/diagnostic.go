@@ -15,17 +15,21 @@ const (
 )
 
 const (
-	CodeAmbiguousLink           = "1"
-	CodeBrokenLink              = "2"
-	CodeNBSP                    = "3"
-	CodeMissingFrontMatter      = "4"
-	CodeMissingShortDesc        = "5"
-	CodeHeadingHierarchy        = "6"
-	CodeUnrecognizedSchema      = "7"
-	CodeFootnoteRefOrphan       = "8"
-	CodeFootnoteDefOrphan       = "9"
-	CodeUnresolvedKeyref        = "10"
-	CodeBrokenMapTopicref       = "11"
+	CodeAmbiguousLink      = "1"
+	CodeBrokenLink         = "2"
+	CodeNBSP               = "3"
+	CodeMissingFrontMatter = "4"
+	CodeMissingShortDesc   = "5"
+	CodeHeadingHierarchy   = "6"
+	CodeUnrecognizedSchema = "7"
+	CodeFootnoteRefOrphan  = "8"
+	CodeFootnoteDefOrphan  = "9"
+	CodeUnresolvedKeyref   = "10"
+	CodeBrokenMapTopicref  = "11"
+	// CodeMapHeadingHierarchy is retired. Nesting a topicref under another
+	// does not require the nested topic's heading level to match the depth,
+	// and the plug-in says nothing about it, so the server reported noise on
+	// every working map. The number is not reused.
 	CodeMapHeadingHierarchy     = "12"
 	CodeCoreProfileFeature      = "13"
 	CodeConrefTargetMissing     = "14"

@@ -3,11 +3,13 @@ package diagnostic
 import (
 	"github.com/aireilly/mdita-lsp/internal/config"
 	"github.com/aireilly/mdita-lsp/internal/document"
+	"github.com/aireilly/mdita-lsp/internal/paths"
 )
 
 // EffectiveProfile resolves the MDITA profile for a document. An MDITA $schema
-// URN selects the profile the way the plug-in's schema provider does; without
-// one, the workspace setting applies.
+// URN selects the profile the way the plug-in's schema provider does; a .mdita
+// file without one gets MDitaReader's default, the extended profile; otherwise
+// the workspace setting applies.
 func EffectiveProfile(doc *document.Document, cfg *config.Config) config.Profile {
 	if doc.Meta != nil {
 		switch doc.Meta.Schema {
@@ -17,21 +19,30 @@ func EffectiveProfile(doc *document.Document, cfg *config.Config) config.Profile
 			return config.ProfileExtended
 		}
 	}
+	if paths.FormatForURI(doc.URI) == paths.FormatMdita {
+		return config.ProfileExtended
+	}
 	return cfg.Core.Mdita.Profile
 }
 
-// isMditaSchema reports whether the document declares an MDITA $schema, which
-// means the MDITA parser profiles apply rather than the full Markdown DITA one.
-func isMditaSchema(doc *document.Document) bool {
-	return doc.Meta != nil &&
-		(doc.Meta.Schema == document.SchemaMditaCore || doc.Meta.Schema == document.SchemaMditaExtended)
+// isMdita reports whether the MDITA parser profiles apply rather than the full
+// Markdown DITA one. plugin.xml registers MDitaReader for format "mdita", so a
+// .mdita file is MDITA whether or not it declares a $schema. Requiring the
+// $schema meant a level-3 heading in a .mdita file -- fatal for the build --
+// drew no diagnostic at all.
+func isMdita(doc *document.Document) bool {
+	if doc.Meta != nil &&
+		(doc.Meta.Schema == document.SchemaMditaCore || doc.Meta.Schema == document.SchemaMditaExtended) {
+		return true
+	}
+	return paths.FormatForURI(doc.URI) == paths.FormatMdita
 }
 
 // CheckProfile warns when a document uses markdown constructs that the MDITA
 // profile in force does not parse.
 func CheckProfile(doc *document.Document, cfg *config.Config) []Diagnostic {
 	profile := EffectiveProfile(doc, cfg)
-	mdita := isMditaSchema(doc) || profile == config.ProfileCore
+	mdita := isMdita(doc) || profile == config.ProfileCore
 	if !mdita {
 		return nil
 	}
@@ -52,14 +63,17 @@ func CheckProfile(doc *document.Document, cfg *config.Config) []Diagnostic {
 	}
 
 	// MDITA topics are limited to a title and second-level sections.
+	// MarkdownParserImpl.validate throws on a deeper heading, so the build
+	// fails rather than degrading.
 	for _, h := range idx.Headings() {
 		if h.Level > 2 {
 			diags = append(diags, Diagnostic{
 				Range:    h.Range,
-				Severity: SeverityWarning,
+				Severity: SeverityError,
 				Code:     CodeMditaProfileFeature,
 				Source:   source,
-				Message:  "MDITA allows only level 1 titles and level 2 sections",
+				Message: "LwDITA does not support a level " + itoa(h.Level) +
+					" heading; the build fails on this",
 			})
 		}
 	}

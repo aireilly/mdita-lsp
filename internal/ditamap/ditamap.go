@@ -1,6 +1,8 @@
 package ditamap
 
 import (
+	"bytes"
+
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
@@ -23,8 +25,12 @@ type RelTable struct {
 }
 
 type TopicRef struct {
-	Href     string
-	Title    string
+	Href  string
+	Title string
+	// Line is the zero-based source line the topicref sits on, so a
+	// diagnostic about it can point at the entry instead of at the top of
+	// the file.
+	Line     int
 	Children []TopicRef
 }
 
@@ -68,7 +74,7 @@ func parseListItems(list *ast.List, src []byte) []TopicRef {
 		if !ok {
 			continue
 		}
-		ref := TopicRef{}
+		ref := TopicRef{Line: lineOf(item, src)}
 		for ic := item.FirstChild(); ic != nil; ic = ic.NextSibling() {
 			switch n := ic.(type) {
 			case *ast.Paragraph, *ast.TextBlock:
@@ -119,17 +125,47 @@ func extractText(n ast.Node, src []byte) string {
 
 func (m *MapStructure) AllHrefs() []string {
 	var hrefs []string
-	collectHrefs(m.TopicRefs, &hrefs)
+	for _, r := range m.AllRefs() {
+		hrefs = append(hrefs, r.Href)
+	}
 	return hrefs
 }
 
-func collectHrefs(refs []TopicRef, out *[]string) {
+// AllRefs returns every topicref that carries an href, flattened, so a caller
+// that needs the source location has it.
+func (m *MapStructure) AllRefs() []TopicRef {
+	var refs []TopicRef
+	collectRefs(m.TopicRefs, &refs)
+	return refs
+}
+
+func collectRefs(refs []TopicRef, out *[]TopicRef) {
 	for _, ref := range refs {
 		if ref.Href != "" {
-			*out = append(*out, ref.Href)
+			*out = append(*out, ref)
 		}
-		collectHrefs(ref.Children, out)
+		collectRefs(ref.Children, out)
 	}
+}
+
+// lineOf returns the zero-based line a node starts on. A block node such as
+// a list item carries no segments of its own, so the first descendant that
+// does gives the line.
+func lineOf(n ast.Node, src []byte) int {
+	if lines := n.Lines(); lines.Len() > 0 {
+		return bytes.Count(src[:lines.At(0).Start], []byte("\n"))
+	}
+	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+		if lines := c.Lines(); lines.Len() > 0 {
+			return bytes.Count(src[:lines.At(0).Start], []byte("\n"))
+		}
+		if c.HasChildren() {
+			if line := lineOf(c, src); line > 0 {
+				return line
+			}
+		}
+	}
+	return 0
 }
 
 func parseRelTable(table *gmast.Table, src []byte) RelTable {
