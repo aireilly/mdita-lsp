@@ -45,7 +45,7 @@ internal/
   ditamap/              # .mditamap parsing (nested markdown lists, TopicRef tree, reltable, mapref)
   workspace/            # Folder/workspace management, file scanning
   symbols/              # Symbol graph with bidirectional ref/def resolution
-  diagnostic/           # 20 diagnostic codes, MDITA compliance, profile, conref, link/map/keyref validation
+  diagnostic/           # 19 diagnostic codes (12 retired), MDITA compliance, profile, conref, link/map/keyref validation
   keyref/               # Keys from reference-style link definitions only, [text][key] refs, data-keyref
   definition/           # Go-to-definition for markdown links, keyrefs, conrefs
   hover/                # Hover for links, keyrefs, headings, YAML keys, task sections, conrefs, implicit task structure
@@ -59,6 +59,7 @@ internal/
   selection/            # Progressive selection expansion (line, element, section)
   linkededit/           # Linked editing of heading text
   formatting/           # Table alignment (including auto-format on save), trailing whitespace, heading spacing
+                        # table.go: GFM-correct cell splitting; one edit per line, never overlapping
   inlayhint/            # Inline hints for link targets, keyref targets, conref targets
   filerename/           # Cross-reference updates on file rename (md links, map refs)
   highlight/            # Document highlight for headings and their intra-doc references
@@ -71,7 +72,8 @@ testdata/               # Test fixtures
 
 ## LSP capabilities
 
-- TextDocumentSync: Incremental (mode 2) with 200ms diagnostic debouncing
+- Position encoding: `utf-16`, advertised in `initialize`. Every column crossing the protocol is UTF-16 code units, not bytes
+- TextDocumentSync: Incremental (mode 2) with 200ms diagnostic debouncing, or full with `core.markdown.text_sync: full`
 - WillSaveWaitUntil: Auto-format tables on save
 - Completion (inline links, YAML keys, keyrefs, data-keyref, conrefs, task sections) with resolve
 - Definition (markdown links, keyrefs, conrefs)
@@ -110,7 +112,11 @@ Details that are easy to get wrong; all verified against the plug-in source.
 - `[key]` resolves to `<xref keyref>` only when the current topic does not define that label locally; a local definition makes it a plain `<xref href>`.
 - A link to a `.ditamap`/`.mditamap` is a `<topicref>` with `@format`, never a `<mapref>`.
 - `<topichead>`, `collection-type="sequence"`, and `<reltable>` exist only in Markdown DITA maps (`$schema: …map.xsd`). The `mditamap` reader enables no tables extension, and its link-less list items become plain `<topicref>`.
-- Neither MDITA profile enables the attributes extension, so `{.class}` never works in MDITA. MDITA also caps headings at level 2.
+- Neither MDITA profile enables the attributes extension, so `{.class}` never works in MDITA. MDITA also caps headings at level 2, and a deeper heading throws rather than degrading.
+- A heading id comes from flexmark's `HeaderIdGenerator.generateId` with the plug-in's defaults: letters lowercased, digits kept, ` -_` to `-`, everything else dropped, runs not collapsed, and duplicates resolved with `-1`, `-2`. `paths.Slugify` and `paths.AnchorIDs` reproduce it.
+- `plugin.xml` enables `implicit-task-sections` for `md` and `markdown` (6.3.0 onwards; `md` alone before that), never for MDITA. `IMPLICIT_SUBSTEPS` defaults to true, `IMPLICIT_CHOICES` and `IMPLICIT_CHOICETABLE` to false.
+- A skipped heading level, and a section heading at or above its parent topic's level, are both fatal `ParseException`s in `MarkdownParserImpl.validate` and `TopicRenderer`. Diagnostics for them are errors.
+- The plug-in resolves an href against the source file's directory only. There is no same-name fallback anywhere in the tree.
 - The paragraph after the title becomes `<shortdesc>` only when a `$schema` is declared or the title carries `{.concept}`/`{.task}`/`{.reference}`.
 - A body-level list that is followed by another body-level list stays in `<context>` as body-ol/body-ul; only the last one becomes `<steps>`/`<steps-unordered>`. An ordered list that restarts its numbering at 1 is split at the restart.
 - "Procedure"/"Steps" is a marker heading: it maps to no element and the list after it becomes `<steps>`. Section titles are configurable via `core.mdita.implicit_task_sections`.
