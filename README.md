@@ -1,6 +1,6 @@
 # mdita-lsp
 
-An LSP server for the Markdown source formats of the [org.lwdita](https://github.com/aireilly/org.lwdita) DITA-OT plug-in: Markdown DITA (`md`, `markdown`), MDITA (`mdita`), and MDITA maps (`mditamap`).
+An LSP server for the Markdown source formats of the forked [org.lwdita](https://github.com/aireilly/org.lwdita) DITA-OT plug-in: Markdown DITA (`md`, `markdown`), MDITA (`mdita`), and MDITA maps (`mditamap`).
 
 It validates, completes and navigates exactly the syntax the plug-in reads, so problems surface while you write instead of during a DITA-OT build.
 
