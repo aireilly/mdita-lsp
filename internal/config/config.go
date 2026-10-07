@@ -27,43 +27,18 @@ type MarkdownConfig struct {
 	TextSync string `yaml:"text_sync"`
 }
 
-type Profile int
-
-const (
-	ProfileExtended Profile = iota
-	ProfileCore
-)
-
-func (p *Profile) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var s string
-	if err := unmarshal(&s); err != nil {
-		return err
-	}
-	switch s {
-	case "core":
-		*p = ProfileCore
-	case "extended", "":
-		*p = ProfileExtended
-	default:
-		*p = ProfileExtended
-	}
-	return nil
-}
-
 type MditaConfig struct {
 	Enable        *bool    `yaml:"enable"`
 	MapExtensions []string `yaml:"map_extensions"`
-	// Profile is the MDITA profile to apply where MDITA applies: a .mdita
-	// file, or a topic the workspace declares as MDITA through
-	// ApplyToMarkdown. A declared $schema overrides it. It is a pointer so
-	// that an explicit `profile: extended` in a project config can override
-	// `profile: core` in the user config; comparing the value against zero
-	// could not, because ProfileExtended is zero.
-	Profile *Profile `yaml:"profile"`
-	// ApplyToMarkdown extends the MDITA checks to .md and .markdown topics,
-	// for a workspace whose map gives them format="mdita". DITA-OT takes the
-	// format from the topicref, not from the extension, so the server cannot
-	// work this out on its own.
+	// ApplyToMarkdown treats .md and .markdown topics that declare no MDITA
+	// $schema as MDITA extended, for a workspace whose map gives them
+	// format="mdita". DITA-OT takes the format from the topicref rather than
+	// the extension, so the server cannot work this out on its own.
+	//
+	// There is no companion `profile` setting: the profile comes from the
+	// $schema, and MDitaReader's own default is the extended one. Declare
+	// `$schema: urn:oasis:names:tc:mdita:core:xsd:topic.xsd` in a topic that
+	// needs core.
 	ApplyToMarkdown *bool `yaml:"apply_to_markdown"`
 	// ImplicitTaskSections overrides the heading titles that map to task
 	// section elements, matching the plug-in's
@@ -104,14 +79,6 @@ type DitaOTConfig struct {
 }
 
 func boolPtr(v bool) *bool { return &v }
-
-// ProfileVal reads a profile pointer, defaulting to extended.
-func ProfileVal(p *Profile) Profile {
-	if p == nil {
-		return ProfileExtended
-	}
-	return *p
-}
 
 func BoolVal(b *bool) bool {
 	if b == nil {
@@ -199,9 +166,6 @@ func Merge(base, overlay *Config) *Config {
 	merged.Core.Mdita.Enable = mergeBool(base.Core.Mdita.Enable, overlay.Core.Mdita.Enable)
 	if overlay.Core.Mdita.MapExtensions != nil {
 		merged.Core.Mdita.MapExtensions = overlay.Core.Mdita.MapExtensions
-	}
-	if overlay.Core.Mdita.Profile != nil {
-		merged.Core.Mdita.Profile = overlay.Core.Mdita.Profile
 	}
 	merged.Core.Mdita.ApplyToMarkdown = mergeBool(base.Core.Mdita.ApplyToMarkdown, overlay.Core.Mdita.ApplyToMarkdown)
 	if overlay.Core.Mdita.FormatTablesOnSave != nil {

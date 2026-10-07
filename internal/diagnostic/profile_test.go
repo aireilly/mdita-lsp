@@ -37,51 +37,105 @@ func TestAttributeWarningWhenAuthorWritesAttributes(t *testing.T) {
 	}
 }
 
-// Only `profile: core` used to have any effect: it was what switched the
-// MDITA checks on at all, so `profile: extended` did nothing and could not
-// even pick the profile for a .mdita file. Scope and profile are separate
-// settings now.
-func TestApplyToMarkdownTurnsOnTheMditaChecks(t *testing.T) {
+// A .md topic is Markdown DITA by default, and MDITA when the workspace says
+// its maps give these files format="mdita".
+func TestMarkdownTopicIsNotMditaByDefault(t *testing.T) {
 	doc := document.New("file:///project/a.md", 1, "# Title\n\n## Section\n\n### Too deep\n")
-
-	cfg := config.Default()
-	extended := config.ProfileExtended
-	cfg.Core.Mdita.Profile = &extended
-	if diags := CheckProfile(doc, cfg); len(diags) != 0 {
-		t.Errorf("a .md topic is Markdown DITA by default, got %v", diags)
+	if diags := CheckProfile(doc, config.Default()); len(diags) != 0 {
+		t.Errorf("a .md topic is Markdown DITA, got %v", diags)
 	}
+}
 
+func TestApplyToMarkdownMakesAMarkdownTopicMdita(t *testing.T) {
+	doc := document.New("file:///project/a.md", 1, "# Title\n\n## Section\n\n### Too deep\n")
+	cfg := config.Default()
 	on := true
 	cfg.Core.Mdita.ApplyToMarkdown = &on
+
+	if got := EffectiveProfile(doc, cfg); got != document.MditaExtended {
+		t.Errorf("profile = %v, want MditaExtended", got)
+	}
 	if diags := CheckProfile(doc, cfg); len(diags) == 0 {
 		t.Error("apply_to_markdown produced no MDITA diagnostics")
 	}
 }
 
-// The profile setting picks which MDITA profile a .mdita file without a
-// $schema gets. Before, it was read only when it equalled core.
-func TestProfileSelectsTheMditaProfileForAMditaFile(t *testing.T) {
-	doc := document.New("file:///project/a.mdita", 1,
+// apply_to_markdown gives the extended profile, never core: MDitaReader's own
+// default is extended, and a topic that needs core declares the $schema.
+func TestApplyToMarkdownDoesNotSelectCore(t *testing.T) {
+	doc := document.New("file:///project/a.md", 1,
 		"# Title\n\nText with a footnote[^1].\n\n[^1]: the note\n")
-
 	cfg := config.Default()
-	if hasCode(codesOf(CheckProfile(doc, cfg)), CodeCoreProfileFeature) {
-		t.Error("the extended profile has footnotes; none should be reported")
-	}
+	on := true
+	cfg.Core.Mdita.ApplyToMarkdown = &on
 
-	core := config.ProfileCore
-	cfg.Core.Mdita.Profile = &core
-	if !hasCode(codesOf(CheckProfile(doc, cfg)), CodeCoreProfileFeature) {
-		t.Error("profile: core did not report the footnote")
+	for _, d := range CheckProfile(doc, cfg) {
+		if d.Code == CodeCoreProfileFeature {
+			t.Errorf("core-profile diagnostic under apply_to_markdown: %s", d.Message)
+		}
 	}
 }
 
-func codesOf(diags []Diagnostic) []string {
-	var codes []string
-	for _, d := range diags {
-		codes = append(codes, d.Code)
+// A declared $schema still wins over the setting.
+func TestSchemaWinsOverApplyToMarkdown(t *testing.T) {
+	doc := document.New("file:///project/a.md", 1,
+		"---\n$schema: urn:oasis:names:tc:mdita:core:xsd:topic.xsd\n---\n"+
+			"# Title\n\nText with a footnote[^1].\n\n[^1]: the note\n")
+	cfg := config.Default()
+	on := true
+	cfg.Core.Mdita.ApplyToMarkdown = &on
+
+	if got := EffectiveProfile(doc, cfg); got != document.MditaCore {
+		t.Errorf("profile = %v, want MditaCore", got)
 	}
-	return codes
+}
+
+func TestMditaExtensionIsMditaExtended(t *testing.T) {
+	doc := document.New("file:///project/a.mdita", 1, "# Title\n\n## Section\n\n### Too deep\n")
+	if diags := CheckProfile(doc, config.Default()); len(diags) == 0 {
+		t.Error("a .mdita topic produced no MDITA diagnostics")
+	}
+	if got := doc.DeclaredProfile(); got != document.MditaExtended {
+		t.Errorf("profile = %v, want MditaExtended", got)
+	}
+}
+
+// A $schema makes a .md topic MDITA, and picks the profile.
+func TestSchemaSelectsTheProfile(t *testing.T) {
+	cases := []struct {
+		schema string
+		want   document.MditaProfile
+	}{
+		{"urn:oasis:names:tc:mdita:core:xsd:topic.xsd", document.MditaCore},
+		{"urn:oasis:names:tc:mdita:xsd:topic.xsd", document.MditaExtended},
+		{"urn:oasis:names:tc:dita:xsd:topic.xsd", document.NotMdita},
+	}
+	for _, c := range cases {
+		doc := document.New("file:///project/a.md", 1,
+			"---\n$schema: "+c.schema+"\n---\n# Title\n")
+		if got := doc.DeclaredProfile(); got != c.want {
+			t.Errorf("%s gave profile %v, want %v", c.schema, got, c.want)
+		}
+	}
+}
+
+// A $schema overrides the extension, so a .mdita file can declare core.
+func TestSchemaOverridesTheExtension(t *testing.T) {
+	doc := document.New("file:///project/a.mdita", 1,
+		"---\n$schema: urn:oasis:names:tc:mdita:core:xsd:topic.xsd\n---\n"+
+			"# Title\n\nText with a footnote[^1].\n\n[^1]: the note\n")
+	if got := doc.DeclaredProfile(); got != document.MditaCore {
+		t.Fatalf("profile = %v, want MditaCore", got)
+	}
+	var found bool
+	for _, d := range CheckProfile(doc, config.Default()) {
+		if d.Code == CodeCoreProfileFeature {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("the core profile did not report the footnote")
+	}
 }
 
 func TestMditaEnableFalseTurnsTheChecksOff(t *testing.T) {

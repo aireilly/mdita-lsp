@@ -15,21 +15,13 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 	diags = append(diags, checkSectionDepth(doc)...)
 	diags = append(diags, checkFootnotes(doc)...)
 
+	// Front matter is optional everywhere the plug-in reads: a topic without
+	// it is ordinary Markdown DITA, and a map's structure comes from its
+	// list. The server used to note its absence on every markdown file in the
+	// workspace, READMEs and notes included, for something that is a choice
+	// rather than an omission. Code 4 is retired.
 	if doc.Meta == nil {
-		if doc.Kind == document.Map {
-			// A map's structure comes from its list, not from metadata, and
-			// a .mditamap needs no $schema at all.
-			return diags
-		}
-		// Markdown DITA reads a topic with no front matter, so this is
-		// information, not a problem to fix.
-		return append(diags, Diagnostic{
-			Range:    document.Rng(0, 0, 0, 0),
-			Severity: SeverityInfo,
-			Code:     CodeMissingFrontMatter,
-			Source:   source,
-			Message:  "No YAML front matter. Declare $schema to select a profile or a specialization.",
-		})
+		return diags
 	}
 
 	if doc.Meta.SchemaRaw != "" && doc.Meta.Schema == document.SchemaUnknown {

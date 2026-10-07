@@ -48,15 +48,10 @@ func TestDiagnosticCodeValues(t *testing.T) {
 }
 
 func TestCoreProfileFootnoteWarning(t *testing.T) {
-	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:topic.xsd\n---\n# Title\n\nText with footnote[^1].\n\n[^1]: Footnote text\n"
+	// The core profile comes from the $schema; nothing else can select it.
+	text := "---\n$schema: urn:oasis:names:tc:mdita:core:xsd:topic.xsd\n---\n# Title\n\nText with footnote[^1].\n\n[^1]: Footnote text\n"
 	doc := document.New("file:///test.md", 1, text)
 	cfg := config.Default()
-	core := config.ProfileCore
-	cfg.Core.Mdita.Profile = &core
-	// A .md topic is Markdown DITA unless the workspace says its maps give
-	// these files format="mdita".
-	on := true
-	cfg.Core.Mdita.ApplyToMarkdown = &on
 	diags := CheckProfile(doc, cfg)
 	found := false
 	for _, d := range diags {
@@ -69,19 +64,23 @@ func TestCoreProfileFootnoteWarning(t *testing.T) {
 	}
 }
 
-func TestMissingYamlFrontMatter(t *testing.T) {
+// Front matter is optional in every format the plug-in reads, so its absence
+// reported no problem and fired on every markdown file in the workspace.
+func TestMissingYamlFrontMatterIsNotReported(t *testing.T) {
 	doc := makeDoc("file:///project/doc.md", "# Title", "", "Some text.")
-	f := makeFolder(doc)
-	diags := Check(doc, f)
-
-	found := false
-	for _, d := range diags {
+	for _, d := range Check(doc, makeFolder(doc)) {
 		if d.Code == CodeMissingFrontMatter {
-			found = true
+			t.Errorf("front matter was reported missing: %s", d.Message)
 		}
 	}
-	if !found {
-		t.Error("expected MissingYamlFrontMatter diagnostic")
+}
+
+// A plain README in the workspace draws nothing at all.
+func TestOrdinaryMarkdownFileIsQuiet(t *testing.T) {
+	doc := document.New("file:///project/README.md", 1,
+		"# My project\n\nSome prose.\n\n## Install\n\nRun the thing.\n")
+	if diags := Check(doc, makeFolder(doc)); len(diags) != 0 {
+		t.Errorf("a plain README drew %d diagnostics: %v", len(diags), diags)
 	}
 }
 

@@ -87,7 +87,6 @@ core:
   mdita:
     enable: true
     map_extensions: [mditamap]
-    profile: extended          # MDITA profile where MDITA applies (default: extended)
     apply_to_markdown: false   # also treat .md and .markdown topics as MDITA
     formatTablesOnSave: true   # auto-format tables on save (default: true)
     implicit_task_sections:    # heading titles that map to task sections
@@ -134,7 +133,13 @@ The plug-in registers one parser per DITA-OT `format` value, and each parser ena
 
 DITA-OT chooses the format from the `format` attribute on the `topicref` that points at the file, not from the file extension. Because the server cannot see the map that will consume a file, it goes by the extension: a `.mdita` file is MDITA, a `.md` or `.markdown` file is Markdown DITA. A declared `$schema` overrides that.
 
-Two settings control the MDITA checks, because scope and profile are separate questions. `core.mdita.apply_to_markdown` extends them to `.md` and `.markdown` topics, which is what a workspace whose map gives those files `format="mdita"` needs; off by default, so only `.mdita` and `$schema`-typed files are MDITA. `core.mdita.profile` picks which profile applies where MDITA applies, and a declared `$schema` overrides it. `core.mdita.enable: false` turns the MDITA checks off everywhere.
+Two things decide the profile, and a third extends it:
+
+1. A declared `$schema`. This is the one to reach for, because DITA-OT reads it too, so the editor and the build cannot disagree.
+2. Otherwise the extension: `.mdita` is MDITA extended, `.md` and `.markdown` are Markdown DITA.
+3. `core.mdita.apply_to_markdown` makes a `.md` or `.markdown` topic MDITA extended as well. Set it when your map gives those files `format="mdita"`, which DITA-OT allows and the server cannot see. It is off by default.
+
+There is no setting for *which* profile. It comes from the `$schema`, and MDitaReader's own default is the extended one, so declare `$schema: urn:oasis:names:tc:mdita:core:xsd:topic.xsd` in a topic that needs core. `core.mdita.enable: false` turns the MDITA checks off everywhere.
 
 ### Profiles
 
@@ -412,7 +417,7 @@ The server provides:
 | 1 | Ambiguous link |
 | 2 | Broken link |
 | 3 | Non-breaking whitespace in heading |
-| 4 | No YAML front matter (information: Markdown DITA does not need it) |
+| 4 | Retired. Front matter is optional in every format the plug-in reads, so this fired on every markdown file and reported no problem |
 | 5 | Missing short description |
 | 6 | Skipped heading level (error: the build fails) |
 | 7 | Unrecognized `$schema` |

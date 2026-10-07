@@ -3,56 +3,36 @@ package diagnostic
 import (
 	"github.com/aireilly/mdita-lsp/internal/config"
 	"github.com/aireilly/mdita-lsp/internal/document"
-	"github.com/aireilly/mdita-lsp/internal/paths"
 )
 
-// EffectiveProfile resolves the MDITA profile for a document. An MDITA
-// $schema URN selects the profile the way the plug-in's schema provider does;
-// otherwise the workspace setting applies, and a .mdita file with neither
-// falls back to MDitaReader's default, the extended profile.
-func EffectiveProfile(doc *document.Document, cfg *config.Config) config.Profile {
-	if doc.Meta != nil {
-		switch doc.Meta.Schema {
-		case document.SchemaMditaCore:
-			return config.ProfileCore
-		case document.SchemaMditaExtended:
-			return config.ProfileExtended
-		}
-	}
-	return config.ProfileVal(cfg.Core.Mdita.Profile)
-}
-
-// isMdita reports whether the MDITA parser profiles apply to a document
-// rather than the full Markdown DITA one.
+// EffectiveProfile resolves the MDITA profile for a document: the one the
+// file declares through $schema or its extension, and otherwise the extended
+// profile for a .md or .markdown topic in a workspace that sets
+// core.mdita.apply_to_markdown.
 //
-// plugin.xml registers MDitaReader for format "mdita", so a .mdita file is
-// MDITA whether or not it declares a $schema. Requiring the $schema meant a
-// level-3 heading in a .mdita file -- fatal for the build -- drew no
-// diagnostic at all.
-//
-// DITA-OT takes the format from the topicref, not the extension, so a
-// workspace can author MDITA in .md files; core.mdita.apply_to_markdown says
-// so. That used to be bound to the profile value, which meant only
-// `profile: core` had any effect -- `profile: extended` switched nothing on
-// and could not even pick the profile for a .mdita file.
-func isMdita(doc *document.Document, cfg *config.Config) bool {
-	if doc.Meta != nil &&
-		(doc.Meta.Schema == document.SchemaMditaCore || doc.Meta.Schema == document.SchemaMditaExtended) {
-		return true
+// There is no setting for which profile. It had been broken since the
+// beginning -- the check read "an MDITA schema, or profile == core", and
+// ProfileExtended was the zero value, so only `core` ever did anything --
+// and it was the wrong shape besides. A config key talks to the editor
+// alone, while $schema talks to the editor and to DITA-OT at once, so a
+// setting could claim a profile the build did not use.
+func EffectiveProfile(doc *document.Document, cfg *config.Config) document.MditaProfile {
+	if declared := doc.DeclaredProfile(); declared != document.NotMdita {
+		return declared
 	}
-	if paths.FormatForURI(doc.URI) == paths.FormatMdita {
-		return true
+	if config.BoolVal(cfg.Core.Mdita.ApplyToMarkdown) {
+		return document.MditaExtended
 	}
-	return config.BoolVal(cfg.Core.Mdita.ApplyToMarkdown)
+	return document.NotMdita
 }
 
 // CheckProfile warns when a document uses markdown constructs that the MDITA
 // profile in force does not parse.
 func CheckProfile(doc *document.Document, cfg *config.Config) []Diagnostic {
-	if !config.BoolVal(cfg.Core.Mdita.Enable) || !isMdita(doc, cfg) {
+	profile := EffectiveProfile(doc, cfg)
+	if !config.BoolVal(cfg.Core.Mdita.Enable) || profile == document.NotMdita {
 		return nil
 	}
-	profile := EffectiveProfile(doc, cfg)
 
 	var diags []Diagnostic
 	idx := doc.Index
@@ -85,7 +65,7 @@ func CheckProfile(doc *document.Document, cfg *config.Config) []Diagnostic {
 		}
 	}
 
-	if profile != config.ProfileCore {
+	if profile != document.MditaCore {
 		return diags
 	}
 

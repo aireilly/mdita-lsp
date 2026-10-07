@@ -177,59 +177,46 @@ func TestParseEmpty(t *testing.T) {
 	}
 }
 
-func TestParseProfileConfig(t *testing.T) {
-	data := []byte("core:\n  mdita:\n    profile: core\n    formatTablesOnSave: false\n")
+func TestParseMditaConfig(t *testing.T) {
+	data := []byte("core:\n  mdita:\n    formatTablesOnSave: false\n")
 	cfg, err := Parse(data)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if ProfileVal(cfg.Core.Mdita.Profile) != ProfileCore {
-		t.Errorf("got profile %v, want ProfileCore", ProfileVal(cfg.Core.Mdita.Profile))
 	}
 	if BoolVal(cfg.Core.Mdita.FormatTablesOnSave) {
 		t.Error("formatTablesOnSave should be false")
 	}
 }
 
-func TestDefaultProfileIsExtended(t *testing.T) {
-	cfg := Default()
-	if ProfileVal(cfg.Core.Mdita.Profile) != ProfileExtended {
-		t.Errorf("default profile should be Extended, got %v", ProfileVal(cfg.Core.Mdita.Profile))
+// `profile` is gone. An old config naming it must still load: yaml.v3
+// ignores a key with no field, so an unmigrated workspace keeps working
+// rather than failing to start the server.
+func TestRetiredProfileKeyIsIgnored(t *testing.T) {
+	data := []byte("core:\n  mdita:\n    profile: core\n    apply_to_markdown: true\n")
+	cfg, err := Parse(data)
+	if err != nil {
+		t.Fatalf("an old config failed to parse: %v", err)
 	}
-	if !BoolVal(cfg.Core.Mdita.FormatTablesOnSave) {
-		t.Error("formatTablesOnSave default should be true")
+	if !BoolVal(cfg.Core.Mdita.ApplyToMarkdown) {
+		t.Error("the keys that remain were not read")
 	}
 }
 
-// An explicit `profile: extended` in a project config has to beat
-// `profile: core` in the user config. The merge compared the value against
-// zero, and ProfileExtended is zero, so core always won.
-func TestProjectProfileExtendedOverridesUserCore(t *testing.T) {
-	user, err := Parse([]byte("core:\n  mdita:\n    profile: core\n"))
+func TestApplyToMarkdownMerges(t *testing.T) {
+	user, err := Parse([]byte("core:\n  mdita:\n    apply_to_markdown: true\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	project, err := Parse([]byte("core:\n  mdita:\n    profile: extended\n"))
+	if merged := Merge(Default(), user); !BoolVal(merged.Core.Mdita.ApplyToMarkdown) {
+		t.Error("a user config setting apply_to_markdown did not survive the merge")
+	}
+
+	project, err := Parse([]byte("core:\n  mdita:\n    apply_to_markdown: false\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	merged := Merge(Merge(Default(), user), project)
-	if got := ProfileVal(merged.Core.Mdita.Profile); got != ProfileExtended {
-		t.Errorf("merged profile = %v, want ProfileExtended", got)
-	}
-}
-
-func TestUserProfileCoreSurvivesAProjectConfigThatSaysNothing(t *testing.T) {
-	user, err := Parse([]byte("core:\n  mdita:\n    profile: core\n"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	project, err := Parse([]byte("completion:\n  max_candidates: 10\n"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	merged := Merge(Merge(Default(), user), project)
-	if got := ProfileVal(merged.Core.Mdita.Profile); got != ProfileCore {
-		t.Errorf("merged profile = %v, want ProfileCore", got)
+	if BoolVal(merged.Core.Mdita.ApplyToMarkdown) {
+		t.Error("a project config turning it off was ignored")
 	}
 }

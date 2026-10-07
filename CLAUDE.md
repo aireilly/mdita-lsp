@@ -34,7 +34,7 @@ export PATH=$PATH:~/go/bin  # add to ~/.bashrc for persistence
 cmd/mdita-lsp/          # Entry point (stdio JSON-RPC server)
 internal/
   paths/                # URI/path utilities, slug generation
-  config/               # YAML config loading with 3-level merging, profile selection
+  config/               # YAML config loading with 3-level merging
   document/             # Document parsing, indexing, symbol extraction, conref elements
     types.go            # Element types, symbols, DITA/MDITA schemas, implicit sections, conref
     parser.go           # goldmark parser, footnote regex, conref HTML scanning
@@ -45,7 +45,7 @@ internal/
   ditamap/              # .mditamap parsing (nested markdown lists, TopicRef tree, reltable, mapref)
   workspace/            # Folder/workspace management, file scanning
   symbols/              # Symbol graph with bidirectional ref/def resolution
-  diagnostic/           # 19 diagnostic codes (12 retired), MDITA compliance, profile, conref, link/map/keyref validation
+  diagnostic/           # 18 diagnostic codes (4 and 12 retired), MDITA compliance, profile, conref, link/map/keyref validation
   keyref/               # Keys from reference-style link definitions only, [text][key] refs, data-keyref
   definition/           # Go-to-definition for markdown links, keyrefs, conrefs
   hover/                # Hover for links, keyrefs, headings, YAML keys, task sections, conrefs, implicit task structure
@@ -86,7 +86,7 @@ testdata/               # Test fixtures
 - Pull Diagnostics (textDocument/diagnostic, LSP 3.17)
 - File Operations (didCreate, didDelete, willCreate, willRename)
 - Execute Command (createFile, addToMap, ditaOtBuild)
-- Profile support (core vs extended, resolved from $schema then from config)
+- Profile support (core vs extended, from `$schema` then the file extension; `core.mdita.apply_to_markdown` extends it to `.md`/`.markdown`)
 - Diagnostic quick-fixes (NBSP, footnotes, heading hierarchy)
 - Ditamap parsing (topicrefs, nesting, keydefs, relationship tables)
 - Server Info (name + version in initialize response)
