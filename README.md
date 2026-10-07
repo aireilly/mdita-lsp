@@ -82,7 +82,8 @@ Create `.mdita-lsp.yaml` in your project root or `~/.config/mdita-lsp/config.yam
 ```yaml
 core:
   markdown:
-    file_extensions: [md, markdown, mditamap]
+    file_extensions: [md, markdown, mdita, mditamap]
+    text_sync: incremental     # "incremental" or "full" document sync
   mdita:
     enable: true
     map_extensions: [mditamap]
@@ -130,7 +131,7 @@ The plug-in registers one parser per DITA-OT `format` value, and each parser ena
 | `hdita` | `HDitaReader` | Out of scope — the server reads markdown, not standalone HTML files |
 | `wikidocs` | `MarkdownReader` | Out of scope — a build-time variant of Markdown DITA |
 
-DITA-OT chooses the format from the `format` attribute on the `topicref` that points at the file, not from the file extension. Because the server cannot see the map that will consume a file, it infers the profile from `$schema` when one is declared, and otherwise falls back to the `profile` setting.
+DITA-OT chooses the format from the `format` attribute on the `topicref` that points at the file, not from the file extension. Because the server cannot see the map that will consume a file, it goes by the extension: a `.mdita` file is MDITA extended, a `.md` or `.markdown` file is Markdown DITA. A declared `$schema` overrides that, and the `profile` setting applies where neither says anything.
 
 ### Profiles
 
@@ -150,7 +151,7 @@ DITA-OT chooses the format from the `format` attribute on the `topicref` that po
 | H2 becomes | a nested `<topic>`, unless classed | `<section>` | `<section>` |
 | Specialization from heading class | yes | no | no |
 
-Diagnostics report attributes in either MDITA profile, footnotes and definition lists in core, and headings below level 2 in either MDITA profile.
+Diagnostics report attributes in either MDITA profile, footnotes and definition lists in core, and headings below level 2 in either MDITA profile. A heading below level 2 is an error rather than a warning: `MarkdownParserImpl.validate` throws `LwDITA does not support level 3 heading` and the build produces nothing.
 
 ### YAML front matter
 
@@ -217,7 +218,7 @@ The server provides:
 
 ### Task topics
 
-A topic becomes a DITA task when `$schema` names the task schema or the H1 carries `{.task}`. Sections come from heading classes, and — for Markdown DITA files parsed with the plug-in's `implicit-task-sections` feature, which `plugin.xml` enables for `format="md"` — from well-known heading titles.
+A topic becomes a DITA task when `$schema` names the task schema or the H1 carries `{.task}`. Sections come from heading classes, and — for Markdown DITA files parsed with the plug-in's `implicit-task-sections` feature, which `plugin.xml` enables for `format="md"` and `format="markdown"` — from well-known heading titles. The feature is off in both MDITA profiles, so a `## Prerequisites` in a `.mdita` file is a plain `<section>` and the server reports it as one.
 
 For a `$schema`-typed task, the server's model matches the build only from plug-in 6.1.0 onwards. Earlier versions discarded every reader feature for a document that declared a `$schema`, so `implicit-task-sections` never applied and each section heading became a nested task. Admonitions in such a topic need 6.2.0.
 
@@ -239,8 +240,8 @@ Task structure the plug-in derives from the body, with no markup at all:
 - A body-level list that is followed by another body-level list stays in `<context>` (the plug-in marks it `body-ol` or `body-ul`)
 - An ordered list whose numbering restarts at 1 is split: the part before the restart stays in `<context>`, the rest becomes `<steps>`
 - Body content before the steps list wraps in `<context>`; body content after it wraps in `<result>`
-- An ordered list nested inside a step becomes `<substeps>`; an unordered list becomes `<choices>`; a table becomes `<choicetable>` with `<chhead>`, `<chrow>`, `<choption>`, and `<chdesc>` cells
-- `{.substeps}`, `{.choices}`, and `{.choicetable}` force those mappings explicitly
+- A list nested inside a step becomes `<substeps>`, ordered or unordered: `implicit-substeps` defaults to true
+- `{.choices}` turns a nested list into `<choices>`, and `{.choicetable}` turns a nested table into `<choicetable>` with `<chhead>`, `<chrow>`, `<choption>`, and `<chdesc>` cells. Without them `implicit-choices` and `implicit-choicetable` stay off, so a nested unordered list is `<substeps>` and a table in a step stays a plain `<table>`
 
 The server provides:
 
@@ -408,15 +409,15 @@ The server provides:
 | 1 | Ambiguous link |
 | 2 | Broken link |
 | 3 | Non-breaking whitespace in heading |
-| 4 | Missing YAML front matter |
+| 4 | No YAML front matter (information: Markdown DITA does not need it) |
 | 5 | Missing short description |
-| 6 | Invalid heading hierarchy |
+| 6 | Skipped heading level (error: the build fails) |
 | 7 | Unrecognized `$schema` |
 | 8 | Footnote reference without definition |
 | 9 | Footnote definition without reference |
 | 10 | Unresolved keyref |
 | 11 | Map references a non-existent file |
-| 12 | Topic heading level disagrees with map nesting |
+| 12 | Retired. Nesting a topicref does not constrain the nested topic's heading level, and the plug-in builds it without a message |
 | 13 | Feature unavailable in MDITA core profile |
 | 14 | Conref target not found |
 | 15 | Conref element not found |
@@ -424,18 +425,19 @@ The server provides:
 | 17 | Conkeyref element not found |
 | 18 | Task section heading in a non-task topic |
 | 19 | Circular map reference |
-| 20 | Feature unavailable in the MDITA profiles |
+| 20 | Feature unavailable in the MDITA profiles (an error for a heading below level 2) |
 
 ## LSP capabilities
 
 | Capability | Detail |
 |-----------|--------|
-| Text sync | Incremental (mode 2) with 200ms diagnostic debouncing |
+| Position encoding | `utf-16`, negotiated in `initialize` |
+| Text sync | Incremental (mode 2) with 200ms diagnostic debouncing, or full with `text_sync: full` |
 | Completion | Trigger characters: `[`, `#`, `(`, `{` with resolve support |
 | Definition | Markdown links, keyrefs, conrefs |
 | Hover | Links, keyrefs, headings, YAML keys, task sections, implicit task structure, conrefs |
-| References | Cross-workspace heading references via symbol graph |
-| Rename | Heading rename with prepare support |
+| References | Cross-workspace references to a topic and to each of its sections |
+| Rename | Heading rename with prepare support; fragment links to the heading are repointed |
 | Code actions | Create missing files, add front matter, add to map, add task sections, fix NBSP/footnotes/heading hierarchy, build with DITA-OT |
 | Code lens | Reference counts on headings |
 | Document links | External URL detection |
@@ -444,14 +446,14 @@ The server provides:
 | Folding ranges | Headings, YAML front matter |
 | Selection ranges | Progressive expansion (line, element, section) |
 | Linked editing | Heading text |
-| Formatting | Table normalization, trailing whitespace, heading spacing, trailing newline (full + range) |
+| Formatting | Table normalization, trailing whitespace, heading spacing, trailing newline (full + range). Hard line breaks are kept, escaped and code-span pipes are not cell boundaries, and a pipe block that is not a table is left alone |
 | Inlay hints | Link targets, keyref targets, conref targets |
 | Document highlight | Heading and intra-document reference highlighting |
 | Semantic tokens | Full + range encoding with attribute decorator tokens |
 | Pull diagnostics | `textDocument/diagnostic` (LSP 3.17) |
 | File operations | didCreate, didDelete, willCreate, willRename |
 | Execute commands | `createFile`, `addToMap`, `ditaOtBuild` |
-| Will save | `textDocument/willSaveWaitUntil` for table auto-format |
+| Will save | `textDocument/willSaveWaitUntil` for table auto-format; it touches table lines only |
 
 ## Plug-in features the server does not surface
 
@@ -465,6 +467,10 @@ These are real plug-in behaviours with no editor affordance yet. They are listed
 - **HDITA source files** — the `hdita` format reads standalone HTML documents
 - **`wikidocs` format** — a Markdown DITA variant that synthesizes a missing title
 - **DITA-to-Markdown transtypes** — `markdown`, `markdown_github`, `markdown_gitbook`, and `mdx` output, which run in the opposite direction
+
+## Logging
+
+The server writes a log to `mdita-lsp.log` in the user cache directory (`~/.cache/mdita-lsp` on Linux), truncated on each launch. Set `MDITA_LSP_LOG` to a path to write somewhere else, or to `-` to log to stderr.
 
 ## Development
 
