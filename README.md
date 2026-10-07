@@ -157,6 +157,7 @@ DITA-OT takes the format from the `topicref`, not the extension, and the server 
 
 1. A declared `$schema`. Reach for this one: DITA-OT reads it too, so the editor and the build cannot disagree.
 2. Otherwise the extension. `.mdita` is MDITA extended, `.md` and `.markdown` are Markdown DITA.
+3. `core.mdita.apply_to_markdown` also makes `.md` and `.markdown` MDITA extended. Set it when your map gives those files `format="mdita"`. Off by default.
 
 ### Profiles
 
