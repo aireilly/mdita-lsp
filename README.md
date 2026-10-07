@@ -146,7 +146,7 @@ diagnostics:
 The plug-in registers one parser per DITA-OT `format` value, and each parser enables a different set of markdown extensions. The server follows the same split.
 
 | Plug-in format | Reader | What the server treats it as |
-|----------------|--------|------------------------------|
+| --- | --- | --- |
 | `md`, `markdown` | `MarkdownReader` | Markdown DITA: the full extension set, `{.class}` attributes, specialization from heading classes |
 | `mdita` | `MDitaReader` | MDITA extended profile by default |
 | `mditamap` | `MDitamapReader` | MDITA map |
@@ -157,14 +157,11 @@ DITA-OT takes the format from the `topicref`, not the extension, and the server 
 
 1. A declared `$schema`. Reach for this one: DITA-OT reads it too, so the editor and the build cannot disagree.
 2. Otherwise the extension. `.mdita` is MDITA extended, `.md` and `.markdown` are Markdown DITA.
-3. `core.mdita.apply_to_markdown` also makes `.md` and `.markdown` MDITA extended. Set it when your map gives those files `format="mdita"`. Off by default.
-
-Nothing selects the profile on its own, so declare `$schema: urn:oasis:names:tc:mdita:core:xsd:topic.xsd` in a topic that needs core. `core.mdita.enable: false` turns the MDITA checks off everywhere.
 
 ### Profiles
 
 | Feature | Markdown DITA | MDITA extended | MDITA core |
-|---------|---------------|----------------|------------|
+| --- | --- | --- | --- |
 | `{.class}`, `{#id}` attributes | yes | no | no |
 | Footnotes | yes | yes | no |
 | Definition lists | yes | yes | no |
@@ -186,7 +183,7 @@ A heading below level 2 in either MDITA profile is an error, not a warning: the 
 Front matter drives topic ID, parser selection, and the `<prolog>`. Front matter is optional: a topic without it is ordinary Markdown DITA.
 
 | Key | DITA output |
-|-----|-------------|
+| --- | --- |
 | `id` | `@id` on the generated `<topic>` or `<map>` |
 | `author` | `<author>` |
 | `source` | `<source>` |
@@ -201,7 +198,7 @@ Front matter drives topic ID, parser selection, and the `<prolog>`. Front matter
 `$schema` selects the parser profile and, for the concept, task, and reference schemas, forces the specialization:
 
 | Schema URN | Result |
-|------------|--------|
+| --- | --- |
 | `urn:oasis:names:tc:dita:xsd:topic.xsd`, `…:rng:topic.rng` | Generic topic |
 | `urn:oasis:names:tc:dita:xsd:concept.xsd`, `…:rng:concept.rng` | `<concept>` |
 | `urn:oasis:names:tc:dita:xsd:task.xsd`, `…:rng:task.rng` | `<task>` |
@@ -222,7 +219,7 @@ The server models what the plug-in parses and nothing else. For the full markdow
 H1 is the topic title. In Markdown DITA a lower heading opens a nested `<topic>` unless it carries a recognized class; in MDITA an H2 is always a `<section>`.
 
 | Heading class | DITA element |
-|---------------|--------------|
+| --- | --- |
 | `{.concept}` | `<concept>` |
 | `{.task}` | `<task>` |
 | `{.reference}` | `<reference>` |
@@ -238,13 +235,13 @@ Anchors follow the plug-in's rule. Letters lowercase, digits stay, space, `-` an
 A topic is a task when `$schema` names the task schema or the H1 carries `{.task}`.
 
 | Heading class | Default title | DITA element |
-|---------------|---------------|--------------|
+| --- | --- | --- |
 | `{.prereq}` | Prerequisites | `<prereq>` |
 | `{.context}` | About this task | `<context>` |
-| | Procedure, Steps | a marker: the list after it becomes `<steps>` |
+|  | Procedure, Steps | a marker: the list after it becomes `<steps>` |
 | `{.result}` | Verification | `<result>` |
 | `{.postreq}` | Next steps | `<postreq>` |
-| `{.tasktroubleshooting}` | | `<tasktroubleshooting>` |
+| `{.tasktroubleshooting}` |  | `<tasktroubleshooting>` |
 
 Titles are configurable through `implicit_task_sections`. They apply to `.md` and `.markdown` only; in MDITA the feature is off, so `## Prerequisites` in a `.mdita` file is a plain `<section>`.
 
@@ -303,7 +300,7 @@ H1 becomes `<title>` and front matter becomes `<topicmeta>`. A list item with a 
 Three constructs differ by format, because the `mditamap` reader enables fewer extensions:
 
 | Construct | `.md` map | `.mditamap` |
-|-----------|-----------|-------------|
+| --- | --- | --- |
 | List item without a link | `<topichead>` | `<topicref>` with `<navtitle>` |
 | Ordered list item | `<topicref collection-type="sequence">` | plain `<topicref>` |
 | Pipe table | `<reltable>` | not parsed as a table |
@@ -311,7 +308,7 @@ Three constructs differ by format, because the `mditamap` reader enables fewer e
 ## Diagnostics
 
 | Code | Message |
-|------|---------|
+| --- | --- |
 | 1 | Ambiguous link |
 | 2 | Broken link |
 | 3 | Non-breaking whitespace in heading |
@@ -336,7 +333,7 @@ Three constructs differ by format, because the `mditamap` reader enables fewer e
 ## LSP capabilities
 
 | Capability | Detail |
-|-----------|--------|
+| --- | --- |
 | Position encoding | `utf-16`, negotiated in `initialize` |
 | Text sync | Incremental (mode 2) with 200ms diagnostic debouncing, or full with `text_sync: full` |
 | Completion | Trigger characters: `[`, `#`, `(`, `{` with resolve support |
