@@ -40,7 +40,7 @@ func highlightHeading(doc *document.Document, heading *document.Heading) []Highl
 	})
 
 	for _, ml := range doc.Index.MdLinks() {
-		if ml.URL == "" && paths.SlugOf(ml.Anchor) == heading.Slug {
+		if ml.URL == "" && anchorMatches(ml.Anchor, heading) {
 			highlights = append(highlights, Highlight{
 				Range: ml.Range,
 				Kind:  KindRead,
@@ -66,4 +66,13 @@ func highlightMdLink(doc *document.Document, ml *document.MdLink) []Highlight {
 		}
 	}
 	return highlights
+}
+
+// anchorMatches reports whether a fragment addresses this heading, comparing
+// against the id the plug-in generates rather than the heading text.
+func anchorMatches(anchor string, heading *document.Heading) bool {
+	if heading.ID != "" && anchor == heading.ID {
+		return true
+	}
+	return paths.SlugOf(anchor) == heading.Slug
 }

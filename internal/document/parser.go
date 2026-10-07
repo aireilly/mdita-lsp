@@ -70,7 +70,11 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 			extension.Footnote,
 		),
 		goldmark.WithParserOptions(
-			parser.WithAutoHeadingID(),
+			// No WithAutoHeadingID: the plug-in generates heading ids with
+			// flexmark's rules, which assignAnchorIDs reproduces. Letting
+			// goldmark invent its own ids would have the server validate
+			// fragments the build never produces, and would make an
+			// author-written {#id} indistinguishable from a generated one.
 			parser.WithAttribute(),
 		),
 	)
@@ -96,9 +100,7 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 					id = string(idBytes)
 				}
 			}
-			if id == "" {
-				id = paths.Slugify(headingText)
-			}
+			explicitID := id != ""
 
 			var headingAttrs *ParsedAttribute
 			if nodeAttrs := node.Attributes(); len(nodeAttrs) > 0 {
@@ -135,8 +137,10 @@ func Parse(source string) ([]Element, *BlockFeatures, *YAMLMetadata) {
 				Level:      node.Level,
 				Text:       headingText,
 				ID:         id,
+				ExplicitID: explicitID,
 				Slug:       paths.SlugOf(headingText),
 				Range:      nodeRange(node, src),
+				LineRange:  lineRange(srcLines, nodeRange(node, src)),
 				Attributes: headingAttrs,
 			})
 
@@ -419,18 +423,23 @@ func rangeFromOffset(source string, start, end int) Range {
 	return Rng(sl, sc, el, ec)
 }
 
+// offsetToLineCol converts a byte offset to an LSP position. The column is
+// measured in UTF-16 code units, which is the encoding the server negotiates;
+// counting bytes put every range after a non-ASCII character in the wrong
+// place.
 func offsetToLineCol(source string, offset int) (int, int) {
+	if offset > len(source) {
+		offset = len(source)
+	}
 	line := 0
-	col := 0
-	for i := 0; i < offset && i < len(source); i++ {
+	lineStart := 0
+	for i := 0; i < offset; i++ {
 		if source[i] == '\n' {
 			line++
-			col = 0
-		} else {
-			col++
+			lineStart = i + 1
 		}
 	}
-	return line, col
+	return line, UTF16Len(source[lineStart:offset])
 }
 
 func parseFootnoteRefs(source string) []FootnoteLabel {
@@ -519,4 +528,42 @@ func splitConkeyrefValue(value string) *ConrefElement {
 	ce.KeyName = value[:slashIdx]
 	ce.ElementID = value[slashIdx+1:]
 	return ce
+}
+
+// lineRange widens a range to cover its whole first and last source lines.
+// A heading's own range starts after the hashes, so replacing it with
+// "## Title" produced "## ## Title".
+func lineRange(srcLines []string, r Range) Range {
+	end := r.End.Line
+	if end < 0 || end >= len(srcLines) {
+		return Range{
+			Start: Position{Line: r.Start.Line, Character: 0},
+			End:   Position{Line: r.End.Line, Character: r.End.Character},
+		}
+	}
+	return Range{
+		Start: Position{Line: r.Start.Line, Character: 0},
+		End:   Position{Line: end, Character: UTF16Len(srcLines[end])},
+	}
+}
+
+// assignAnchorIDs gives every heading the @id the plug-in would generate for
+// it, resolving duplicates in document order. An author-written {#id} wins,
+// but it still consumes a slot in the duplicate counter, the way flexmark's
+// HeaderIdGenerator visits every heading.
+func assignAnchorIDs(elements []Element) {
+	var headings []*Heading
+	var texts []string
+	for _, e := range elements {
+		if h, ok := e.(*Heading); ok {
+			headings = append(headings, h)
+			texts = append(texts, h.Text)
+		}
+	}
+	generated := paths.AnchorIDs(texts)
+	for i, h := range headings {
+		if !h.ExplicitID {
+			h.ID = generated[i]
+		}
+	}
 }

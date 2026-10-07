@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -66,6 +67,18 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 			continue
 		}
 
+		// `exit` ends the process. Without it the server stayed alive after
+		// the client shut it down, leaving an orphan per editor session.
+		if req.Method == "exit" {
+			if s.shutdownRequested.Load() {
+				return nil
+			}
+			return errExitWithoutShutdown
+		}
+		if req.Method == "shutdown" {
+			s.shutdownRequested.Store(true)
+		}
+
 		if req.ID != nil {
 			result, err := s.dispatch(ctx, req.Method, req.Params)
 			resp := Response{JSONRPC: "2.0", ID: req.ID}
@@ -89,7 +102,28 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 	return scanner.Err()
 }
 
-func (s *Server) dispatch(ctx context.Context, method string, params json.RawMessage) (any, error) {
+// ErrExitWithoutShutdown reports an `exit` that arrived before `shutdown`.
+// The spec asks the server to exit non-zero in that case.
+var errExitWithoutShutdown = errors.New("exit notification received before shutdown")
+
+// ErrExitWithoutShutdown exposes that sentinel to the entry point.
+func ErrExitWithoutShutdown() error { return errExitWithoutShutdown }
+
+// dispatch routes a request, turning a panic in a handler into a JSON-RPC
+// error. A slice-bounds panic in one handler used to take the whole server
+// down and lose every open document.
+func (s *Server) dispatch(ctx context.Context, method string, params json.RawMessage) (result any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("panic handling %s: %v\n%s", method, r, debug.Stack())
+			result = nil
+			err = fmt.Errorf("internal error handling %s: %v", method, r)
+		}
+	}()
+	return s.dispatchMethod(ctx, method, params)
+}
+
+func (s *Server) dispatchMethod(ctx context.Context, method string, params json.RawMessage) (any, error) {
 	switch method {
 	case "initialize":
 		return s.handleInitialize(ctx, params)
@@ -153,6 +187,15 @@ func (s *Server) dispatch(ctx context.Context, method string, params json.RawMes
 }
 
 func (s *Server) dispatchNotification(ctx context.Context, method string, params json.RawMessage) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("panic handling notification %s: %v\n%s", method, r, debug.Stack())
+		}
+	}()
+	s.dispatchNotificationMethod(ctx, method, params)
+}
+
+func (s *Server) dispatchNotificationMethod(ctx context.Context, method string, params json.RawMessage) {
 	switch method {
 	case "initialized":
 		// no-op
@@ -174,8 +217,6 @@ func (s *Server) dispatchNotification(ctx context.Context, method string, params
 		_ = s.handleDidChangeConfiguration(ctx, params)
 	case "$/cancelRequest", "$/setTrace":
 		// silently ignored
-	case "exit":
-		// handled by caller
 	}
 }
 

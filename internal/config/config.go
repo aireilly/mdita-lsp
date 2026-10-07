@@ -104,7 +104,7 @@ func Default() *Config {
 	return &Config{
 		Core: CoreConfig{
 			Markdown: MarkdownConfig{
-				FileExtensions:   []string{"md", "markdown", "mditamap"},
+				FileExtensions:   []string{"md", "markdown", "mdita", "mditamap"},
 				TextSync:         "full",
 				TitleFromHeading: true,
 			},

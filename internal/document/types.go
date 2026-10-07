@@ -83,11 +83,18 @@ type Element interface {
 }
 
 type Heading struct {
-	Level       int
-	Text        string
-	ID          string
-	Slug        paths.Slug
-	Range       Range
+	Level int
+	Text  string
+	// ID is the @id the plug-in puts on the generated element.
+	ID string
+	// ExplicitID records an author-written {#id}, which the plug-in keeps
+	// verbatim instead of generating one.
+	ExplicitID bool
+	Slug       paths.Slug
+	Range      Range
+	// LineRange covers the heading's whole source line, including the hashes.
+	// Range starts after them, so it cannot be used for a line replacement.
+	LineRange   Range
 	Attributes  *ParsedAttribute
 	TaskSection TaskSectionKind
 }

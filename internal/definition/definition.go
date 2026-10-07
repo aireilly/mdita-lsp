@@ -71,7 +71,7 @@ func resolveFragment(anchor string, target *document.Document) *Location {
 		}
 		return nil
 	}
-	for _, h := range target.Index.HeadingsBySlug(paths.SlugOf(anchor)) {
+	for _, h := range target.Index.HeadingsByAnchor(anchor) {
 		return &Location{URI: target.URI, Range: h.Range}
 	}
 	return nil

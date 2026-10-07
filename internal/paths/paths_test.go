@@ -68,3 +68,47 @@ func TestIsMditaMapFile(t *testing.T) {
 		})
 	}
 }
+
+func TestPathToURIEncodesSpecialCharacters(t *testing.T) {
+	tests := []struct {
+		path string
+		want string
+	}{
+		{"/home/user/my doc.md", "file:///home/user/my%20doc.md"},
+		{"/home/user/a#b.md", "file:///home/user/a%23b.md"},
+		{"/home/user/plain.md", "file:///home/user/plain.md"},
+	}
+	for _, tt := range tests {
+		if got := PathToURI(tt.path); got != tt.want {
+			t.Errorf("PathToURI(%q) = %q, want %q", tt.path, got, tt.want)
+		}
+	}
+}
+
+func TestURIRoundTrip(t *testing.T) {
+	for _, path := range []string{
+		"/home/user/doc.md",
+		"/home/user/my doc.md",
+		"/home/user/a#b.md",
+		"/home/user/ünïcode.md",
+	} {
+		uri := PathToURI(path)
+		got, err := URIToPath(uri)
+		if err != nil {
+			t.Fatalf("URIToPath(%q): %v", uri, err)
+		}
+		if got != path {
+			t.Errorf("round trip of %q gave %q (uri %q)", path, got, uri)
+		}
+	}
+}
+
+func TestURIToPathWindowsDrive(t *testing.T) {
+	got, err := URIToPath("file:///C:/Users/me/doc.md")
+	if err != nil {
+		t.Fatalf("URIToPath: %v", err)
+	}
+	if got != `C:/Users/me/doc.md` && got != `C:\Users\me\doc.md` {
+		t.Errorf("URIToPath drive path = %q", got)
+	}
+}

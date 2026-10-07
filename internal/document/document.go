@@ -22,6 +22,7 @@ type Document struct {
 
 func New(uri string, version int, text string) *Document {
 	elements, bf, meta := Parse(text)
+	assignAnchorIDs(elements)
 	idx := BuildIndex(elements, bf, meta)
 	idx.Meta = meta
 

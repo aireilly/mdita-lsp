@@ -2,7 +2,6 @@ package formatting
 
 import (
 	"strings"
-	"unicode/utf8"
 
 	"github.com/aireilly/mdita-lsp/internal/document"
 )
@@ -17,203 +16,144 @@ type Options struct {
 	InsertSpaces bool
 }
 
+// Format returns the edits that normalize a document's whitespace, headings,
+// and pipe tables.
+//
+// Every rule runs in one pass over the lines and the result is diffed line by
+// line, so a line yields at most one edit. Emitting one edit per rule let the
+// trailing-whitespace edit and the heading or table edit for the same line
+// overlap, which clients apply in an undefined order.
 func Format(doc *document.Document, opts Options) []TextEdit {
-	lines := strings.Split(doc.Text, "\n")
-	var edits []TextEdit
-
-	edits = append(edits, trimTrailingWhitespace(lines)...)
-	edits = append(edits, normalizeHeadingSpacing(lines)...)
-	edits = append(edits, ensureTrailingNewline(lines)...)
-	edits = append(edits, alignTableLines(lines)...)
-
-	return edits
+	return editsForText(doc.Text)
 }
 
-func trimTrailingWhitespace(lines []string) []TextEdit {
-	var edits []TextEdit
-	for i, line := range lines {
-		trimmed := strings.TrimRight(line, " \t")
-		if len(trimmed) != len(line) {
-			edits = append(edits, TextEdit{
-				Range: document.Range{
-					Start: document.Position{Line: i, Character: utf8.RuneCountInString(trimmed)},
-					End:   document.Position{Line: i, Character: utf8.RuneCountInString(line)},
-				},
-				NewText: "",
-			})
-		}
-	}
-	return edits
-}
-
-func normalizeHeadingSpacing(lines []string) []TextEdit {
-	var edits []TextEdit
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if !strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		hashes := 0
-		for _, ch := range trimmed {
-			if ch == '#' {
-				hashes++
-			} else {
-				break
-			}
-		}
-		if hashes == 0 || hashes > 6 {
-			continue
-		}
-		rest := trimmed[hashes:]
-		if len(rest) == 0 {
-			continue
-		}
-		if rest[0] != ' ' {
-			edits = append(edits, TextEdit{
-				Range: document.Range{
-					Start: document.Position{Line: i, Character: 0},
-					End:   document.Position{Line: i, Character: utf8.RuneCountInString(line)},
-				},
-				NewText: trimmed[:hashes] + " " + strings.TrimLeft(rest, " \t"),
-			})
-		} else if strings.HasPrefix(rest, "  ") {
-			edits = append(edits, TextEdit{
-				Range: document.Range{
-					Start: document.Position{Line: i, Character: 0},
-					End:   document.Position{Line: i, Character: utf8.RuneCountInString(line)},
-				},
-				NewText: trimmed[:hashes] + " " + strings.TrimLeft(rest, " \t"),
-			})
-		}
-
-	}
-	return edits
-}
-
-func ensureTrailingNewline(lines []string) []TextEdit {
-	if len(lines) == 0 {
-		return nil
-	}
-	last := lines[len(lines)-1]
-	if last == "" {
-		return nil
-	}
-	lastLine := len(lines) - 1
-	lastChar := utf8.RuneCountInString(last)
-	return []TextEdit{{
-		Range: document.Range{
-			Start: document.Position{Line: lastLine, Character: lastChar},
-			End:   document.Position{Line: lastLine, Character: lastChar},
-		},
-		NewText: "\n",
-	}}
-}
-
-// AlignTables takes text and returns text edits to align markdown tables.
+// AlignTables returns only the edits that reformat pipe tables. This is what
+// runs on save, where rewriting anything else would be a surprise.
 func AlignTables(text string) []TextEdit {
-	lines := strings.Split(text, "\n")
-	return alignTableLines(lines)
+	lines := splitLines(text)
+	formatted := make([]string, len(lines))
+	copy(formatted, lines)
+	applyTables(formatted)
+	return diffLines(lines, formatted, false)
 }
 
-func alignTableLines(lines []string) []TextEdit {
+func editsForText(text string) []TextEdit {
+	lines := splitLines(text)
+	formatted := make([]string, len(lines))
+	copy(formatted, lines)
+
+	for i := range formatted {
+		formatted[i] = trimTrailing(formatted, i)
+		formatted[i] = normalizeHeading(formatted[i])
+	}
+	applyTables(formatted)
+
+	return diffLines(lines, formatted, true)
+}
+
+func splitLines(text string) []string {
+	return strings.Split(text, "\n")
+}
+
+// diffLines turns two line slices of the same length into one edit per changed
+// line. With addTrailingNewline set, a file whose last line has content also
+// gets the newline appended to that line's edit rather than as a separate edit
+// at the same position.
+func diffLines(old, formatted []string, addTrailingNewline bool) []TextEdit {
 	var edits []TextEdit
+	last := len(old) - 1
+
+	for i := range old {
+		newText := formatted[i]
+		trailing := addTrailingNewline && i == last && old[i] != ""
+		if trailing {
+			newText += "\n"
+		}
+		if newText == old[i] {
+			continue
+		}
+		edits = append(edits, TextEdit{
+			Range: document.Range{
+				Start: document.Position{Line: i, Character: 0},
+				End:   document.Position{Line: i, Character: document.UTF16Len(old[i])},
+			},
+			NewText: newText,
+		})
+	}
+	return edits
+}
+
+// trimTrailing removes trailing spaces and tabs, but leaves a markdown hard
+// line break alone. Two or more trailing spaces before another line of the
+// same paragraph are what the plug-in turns into <?linebreak?>; stripping them
+// silently joined the lines in the built output.
+func trimTrailing(lines []string, i int) string {
+	line := lines[i]
+	trimmed := strings.TrimRight(line, " \t")
+	if trimmed == line {
+		return line
+	}
+	if isHardLineBreak(lines, i, trimmed) {
+		return trimmed + "  "
+	}
+	return trimmed
+}
+
+func isHardLineBreak(lines []string, i int, trimmed string) bool {
+	if trimmed == "" {
+		return false
+	}
+	if i+1 >= len(lines) || strings.TrimSpace(lines[i+1]) == "" {
+		return false
+	}
+	// Only spaces count; a tab does not make a hard break.
+	tail := lines[i][len(trimmed):]
+	return len(tail) >= 2 && strings.Trim(tail, " ") == ""
+}
+
+// normalizeHeading puts exactly one space between an ATX heading's hashes and
+// its text. Indentation and the text itself are left as they are.
+func normalizeHeading(line string) string {
+	trimmed := strings.TrimSpace(line)
+	hashes := 0
+	for _, ch := range trimmed {
+		if ch != '#' {
+			break
+		}
+		hashes++
+	}
+	if hashes == 0 || hashes > 6 {
+		return line
+	}
+	rest := trimmed[hashes:]
+	if rest == "" {
+		return line
+	}
+	if rest[0] != ' ' && rest[0] != '\t' {
+		// "#foo" is a paragraph, not a heading, so leave it alone.
+		return line
+	}
+	body := strings.TrimLeft(rest, " \t")
+	if body == "" {
+		return line
+	}
+	return trimmed[:hashes] + " " + body
+}
+
+// applyTables rewrites each pipe-table block in place.
+func applyTables(lines []string) {
 	i := 0
 	for i < len(lines) {
-		if !isTableRow(lines[i]) {
+		if !isPipeRow(lines[i]) {
 			i++
 			continue
 		}
 		start := i
-		for i < len(lines) && isTableRow(lines[i]) {
+		for i < len(lines) && isPipeRow(lines[i]) {
 			i++
 		}
-		tableEdits := alignTableBlock(lines, start, i)
-		edits = append(edits, tableEdits...)
-	}
-	return edits
-}
-
-func isTableRow(line string) bool {
-	trimmed := strings.TrimSpace(line)
-	return strings.HasPrefix(trimmed, "|") && strings.HasSuffix(trimmed, "|")
-}
-
-func alignTableBlock(lines []string, start, end int) []TextEdit {
-	rows := make([][]string, end-start)
-	maxCols := 0
-	for i := start; i < end; i++ {
-		cells := parseTableCells(lines[i])
-		rows[i-start] = cells
-		if len(cells) > maxCols {
-			maxCols = len(cells)
+		if out := formatTable(lines[start:i]); out != nil {
+			copy(lines[start:i], out)
 		}
 	}
-
-	if maxCols == 0 {
-		return nil
-	}
-
-	var edits []TextEdit
-	for ri, row := range rows {
-		lineIdx := start + ri
-		var b strings.Builder
-		b.WriteString("|")
-		for j := 0; j < maxCols; j++ {
-			cell := ""
-			if j < len(row) {
-				cell = row[j]
-			}
-			if isSeparatorCell(cell) {
-				cell = normalizeSeparatorCell(cell)
-			}
-			b.WriteString(" ")
-			b.WriteString(cell)
-			b.WriteString(" |")
-		}
-		newLine := b.String()
-		if newLine != lines[lineIdx] {
-			edits = append(edits, TextEdit{
-				Range: document.Range{
-					Start: document.Position{Line: lineIdx, Character: 0},
-					End:   document.Position{Line: lineIdx, Character: utf8.RuneCountInString(lines[lineIdx])},
-				},
-				NewText: newLine,
-			})
-		}
-	}
-	return edits
-}
-
-func parseTableCells(line string) []string {
-	trimmed := strings.TrimSpace(line)
-	trimmed = strings.TrimPrefix(trimmed, "|")
-	trimmed = strings.TrimSuffix(trimmed, "|")
-	parts := strings.Split(trimmed, "|")
-	cells := make([]string, len(parts))
-	for i, p := range parts {
-		cells[i] = strings.TrimSpace(p)
-	}
-	return cells
-}
-
-// normalizeSeparatorCell reduces a delimiter-row cell to three dashes while
-// keeping any alignment colons.
-func normalizeSeparatorCell(cell string) string {
-	left := strings.HasPrefix(cell, ":")
-	right := strings.HasSuffix(cell, ":")
-	switch {
-	case left && right:
-		return ":---:"
-	case left:
-		return ":---"
-	case right:
-		return "---:"
-	default:
-		return "---"
-	}
-}
-
-func isSeparatorCell(cell string) bool {
-	stripped := strings.Trim(cell, "-:")
-	return len(cell) > 0 && stripped == ""
 }

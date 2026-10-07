@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/aireilly/mdita-lsp/internal/codeaction"
@@ -42,6 +43,10 @@ type Server struct {
 	diagBounce  *debouncer
 	version     string
 	ditaBuilder *ditaot.Builder
+
+	// shutdownRequested records whether `shutdown` arrived, which decides the
+	// exit status when `exit` follows.
+	shutdownRequested atomic.Bool
 }
 
 func NewServer() *Server {
@@ -95,6 +100,7 @@ type TextDocumentSyncOptions struct {
 }
 
 type ServerCapabilities struct {
+	PositionEncoding                string                  `json:"positionEncoding,omitempty"`
 	TextDocumentSync                TextDocumentSyncOptions `json:"textDocumentSync"`
 	CompletionProvider              *CompletionOptions      `json:"completionProvider,omitempty"`
 	DefinitionProvider              bool                    `json:"definitionProvider"`
@@ -354,15 +360,28 @@ func (s *Server) handleInitialize(_ context.Context, rawParams json.RawMessage) 
 		s.addWorkspaceFolder(wf.URI)
 	}
 
+	// core.markdown.text_sync picks the document sync mode the server
+	// advertises. Incremental is the default; "full" suits a client whose
+	// incremental changes the server should not have to track.
+	syncKind := 2
+	if folders := s.workspace.Folders(); len(folders) > 0 {
+		if strings.EqualFold(folders[0].Config.Core.Markdown.TextSync, "full") {
+			syncKind = 1
+		}
+	}
+
 	return InitializeResult{
 		ServerInfo: &ServerInfo{
 			Name:    "mdita-lsp",
 			Version: s.version,
 		},
 		Capabilities: ServerCapabilities{
+			// utf-16 is the one encoding every client must support, so the
+			// server names it rather than leaving the encoding implicit.
+			PositionEncoding: "utf-16",
 			TextDocumentSync: TextDocumentSyncOptions{
 				OpenClose:         true,
-				Change:            2,
+				Change:            syncKind,
 				WillSaveWaitUntil: true,
 			},
 			CompletionProvider: &CompletionOptions{
@@ -1500,9 +1519,15 @@ func (s *Server) refreshRelatedDiagnostics(folder *workspace.Folder) {
 	}
 }
 
+// applyIncrementalChange splices one didChange range into the buffer. Both
+// ends are clamped and ordered, so a position the client sends for a line it
+// has already shortened cannot slice out of range and take the process down.
 func applyIncrementalChange(text string, lineMap []int, rng document.Range, newText string) string {
-	startOff := offsetFromPosition(lineMap, rng.Start)
-	endOff := offsetFromPosition(lineMap, rng.End)
+	startOff := document.OffsetFromPosition(text, lineMap, rng.Start)
+	endOff := document.OffsetFromPosition(text, lineMap, rng.End)
+	if startOff > endOff {
+		startOff, endOff = endOff, startOff
+	}
 	if startOff < 0 {
 		startOff = 0
 	}
@@ -1510,16 +1535,6 @@ func applyIncrementalChange(text string, lineMap []int, rng document.Range, newT
 		endOff = len(text)
 	}
 	return text[:startOff] + newText + text[endOff:]
-}
-
-func offsetFromPosition(lineMap []int, pos document.Position) int {
-	if pos.Line < 0 || pos.Line >= len(lineMap) {
-		if pos.Line >= len(lineMap) && len(lineMap) > 0 {
-			return lineMap[len(lineMap)-1] + pos.Character
-		}
-		return 0
-	}
-	return lineMap[pos.Line] + pos.Character
 }
 
 func parentURI(uri string) string {

@@ -8,9 +8,11 @@ func TestSlugify(t *testing.T) {
 		want  string
 	}{
 		{"Hello World", "hello-world"},
-		{"Hello  World", "hello-world"},
-		{"Hello - World", "hello-world"},
+		// Runs of separators are not collapsed: NO_DUPED_DASHES defaults to false.
+		{"Hello  World", "hello--world"},
+		{"Hello - World", "hello---world"},
 		{"Hello's World!", "hellos-world"},
+		// Outer whitespace is trimmed before the id is generated.
 		{"  spaces  ", "spaces"},
 		{"UPPER CASE", "upper-case"},
 		{"already-slug", "already-slug"},
@@ -18,9 +20,14 @@ func TestSlugify(t *testing.T) {
 		{"a", "a"},
 		{"Hello #1 World", "hello-1-world"},
 		{"Héllo Wörld", "héllo-wörld"},
-		{"foo---bar", "foo-bar"},
+		{"foo---bar", "foo---bar"},
 		{"!@#start", "start"},
 		{"end!@#", "end"},
+		// '_' is a dash character, which is how the plug-in turns
+		// "My_var config" into "my-var-config".
+		{"My_var config", "my-var-config"},
+		{"a.b.c", "abc"},
+		{"C++ and C#", "c-and-c"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
@@ -52,5 +59,15 @@ func TestSlugIsSubstring(t *testing.T) {
 				t.Errorf("Slug(%q).Contains(%q) = %v, want %v", tt.haystack, tt.needle, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestAnchorIDsResolveDuplicates(t *testing.T) {
+	got := AnchorIDs([]string{"Setup", "Install", "Setup", "Setup"})
+	want := []string{"setup", "install", "setup-1", "setup-2"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("AnchorIDs[%d] = %q, want %q", i, got[i], want[i])
+		}
 	}
 }
