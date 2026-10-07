@@ -2,7 +2,9 @@
 
 ## Project overview
 
-mdita-lsp is an LSP server for the Markdown source formats of the [org.lwdita](https://github.com/jelovirt/org.lwdita) DITA-OT plug-in: Markdown DITA (`md`, `markdown`), MDITA (`mdita`), and MDITA maps (`mditamap`). It is written in Go.
+mdita-lsp is an LSP server for the Markdown source formats of the [org.lwdita](https://github.com/aireilly/org.lwdita) DITA-OT plug-in: Markdown DITA (`md`, `markdown`), MDITA (`mdita`), and MDITA maps (`mditamap`). It is written in Go.
+
+**Target: the `aireilly/org.lwdita` fork, 6.3.0 or newer, not `jelovirt/org.lwdita`.** Upstream's latest release is 5.9.1 and it has no `implicit-task-sections` feature at all, so the whole task-section model the server reports does not exist there. Check a behaviour claim against `~/org.lwdita` on `master`, never against `upstream/master`.
 
 Scope rule: the server handles exactly what the plug-in parses. Do not add editor features for markdown the plug-in does not read, and do not model DITA constructs the plug-in never emits (for example `<mapref>`, `<related-links>`, or keyword keydefs).
 
@@ -94,9 +96,9 @@ testdata/               # Test fixtures
 
 ## Key files
 
-- `Makefile` — build, test, publish targets
-- `.mdita-lsp.yaml` — project-level config (user config at `~/.config/mdita-lsp/config.yaml`)
-- `go.mod` — dependencies: goldmark, yaml.v3
+- `Makefile`: build, test, publish targets
+- `.mdita-lsp.yaml`: project-level config (user config at `~/.config/mdita-lsp/config.yaml`)
+- `go.mod`: dependencies: goldmark, yaml.v3
 
 ## Workflow
 
@@ -108,7 +110,7 @@ testdata/               # Test fixtures
 
 Details that are easy to get wrong; all verified against the plug-in source.
 
-- Keys come only from reference-style link definitions in a map (`[key]: file.md "Title"` → `<keydef>`). A plain topicref defines no key, and every keydef carries an href — there are no keyword keydefs.
+- Keys come only from reference-style link definitions in a map (`[key]: file.md "Title"` → `<keydef>`). A plain topicref defines no key, and every keydef carries an href: there are no keyword keydefs.
 - `[key]` resolves to `<xref keyref>` only when the current topic does not define that label locally; a local definition makes it a plain `<xref href>`.
 - A link to a `.ditamap`/`.mditamap` is a `<topicref>` with `@format`, never a `<mapref>`.
 - `<topichead>`, `collection-type="sequence"`, and `<reltable>` exist only in Markdown DITA maps (`$schema: …map.xsd`). The `mditamap` reader enables no tables extension, and its link-less list items become plain `<topicref>`.
@@ -121,9 +123,22 @@ Details that are easy to get wrong; all verified against the plug-in source.
 - A body-level list that is followed by another body-level list stays in `<context>` as body-ol/body-ul; only the last one becomes `<steps>`/`<steps-unordered>`. An ordered list that restarts its numbering at 1 is split at the restart.
 - "Procedure"/"Steps" is a marker heading: it maps to no element and the list after it becomes `<steps>`. Section titles are configurable via `core.mdita.implicit_task_sections`.
 
+## Plug-in features the server does not surface
+
+Real plug-in behaviours with no editor affordance. Listed so the coverage gap stays explicit.
+
+- **Raw DITA passthrough** - DITA element markup written directly in Markdown DITA (`raw-dita`, on by default for `md` and `markdown`, off for MDITA)
+- **Jekyll tags** - `{% include file.md %}` becomes `<required-cleanup conref="...">`
+- **Admonitions** - `!!! note` becomes `<note type="note">`
+- **Abbreviations** - `*[HTML]: HyperText Markup Language` becomes `<ph otherprops="...">`
+- **Autolinks** - bare URLs and `<user@example.com>` become `<xref>`
+- **HDITA source files** - the `hdita` format reads standalone HTML documents
+- **`wikidocs` format** - a Markdown DITA variant that synthesizes a missing title
+- **DITA-to-Markdown transtypes** - `markdown`, `markdown_github`, `markdown_gitbook`, and `mdx` output, which run in the opposite direction
+
 ## Conventions
 
 - Config filename: `.mdita-lsp.yaml`
 - Version injected via `-ldflags "-X main.version=..."` at build time
-- All packages under `internal/` — not importable externally
+- All packages under `internal/`: not importable externally
 - Tests colocated with source (`*_test.go` in each package)
