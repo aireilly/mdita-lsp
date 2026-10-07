@@ -53,15 +53,18 @@ func (p *Profile) UnmarshalYAML(unmarshal func(interface{}) error) error {
 type MditaConfig struct {
 	Enable        *bool    `yaml:"enable"`
 	MapExtensions []string `yaml:"map_extensions"`
-	// Profile is the MDITA profile this workspace authors in. It is a
-	// pointer for two reasons: an explicit `profile: extended` in a project
-	// config has to override `profile: core` in the user config, which a
-	// comparison against zero could not do because ProfileExtended is zero;
-	// and nil has to mean "not set", because setting it at all is what tells
-	// the server to treat .md and .markdown topics as MDITA. DITA-OT takes
-	// the format from the topicref, so a workspace can perfectly well author
-	// MDITA in .md files.
+	// Profile is the MDITA profile to apply where MDITA applies: a .mdita
+	// file, or a topic the workspace declares as MDITA through
+	// ApplyToMarkdown. A declared $schema overrides it. It is a pointer so
+	// that an explicit `profile: extended` in a project config can override
+	// `profile: core` in the user config; comparing the value against zero
+	// could not, because ProfileExtended is zero.
 	Profile *Profile `yaml:"profile"`
+	// ApplyToMarkdown extends the MDITA checks to .md and .markdown topics,
+	// for a workspace whose map gives them format="mdita". DITA-OT takes the
+	// format from the topicref, not from the extension, so the server cannot
+	// work this out on its own.
+	ApplyToMarkdown *bool `yaml:"apply_to_markdown"`
 	// ImplicitTaskSections overrides the heading titles that map to task
 	// section elements, matching the plug-in's
 	// http://lwdita.org/sax/properties/implicit-task-sections/* properties.
@@ -126,6 +129,7 @@ func Default() *Config {
 			},
 			Mdita: MditaConfig{
 				Enable:             boolPtr(true),
+				ApplyToMarkdown:    boolPtr(false),
 				MapExtensions:      []string{"mditamap"},
 				FormatTablesOnSave: boolPtr(true),
 			},
@@ -199,6 +203,7 @@ func Merge(base, overlay *Config) *Config {
 	if overlay.Core.Mdita.Profile != nil {
 		merged.Core.Mdita.Profile = overlay.Core.Mdita.Profile
 	}
+	merged.Core.Mdita.ApplyToMarkdown = mergeBool(base.Core.Mdita.ApplyToMarkdown, overlay.Core.Mdita.ApplyToMarkdown)
 	if overlay.Core.Mdita.FormatTablesOnSave != nil {
 		merged.Core.Mdita.FormatTablesOnSave = overlay.Core.Mdita.FormatTablesOnSave
 	}

@@ -43,6 +43,7 @@ func checkMapRefs(m *ditamap.MapStructure, doc *document.Document, folder *works
 		return nil
 	}
 	docDir := filepath.Dir(docPath)
+	lines := strings.Split(doc.Text, "\n")
 
 	for _, ref := range m.AllRefs() {
 		href := ref.Href
@@ -57,7 +58,7 @@ func checkMapRefs(m *ditamap.MapStructure, doc *document.Document, folder *works
 			continue
 		}
 		diags = append(diags, Diagnostic{
-			Range:    document.Rng(ref.Line, 0, ref.Line, 0),
+			Range:    document.Rng(ref.Line, 0, ref.Line, lineLength(lines, ref.Line)),
 			Severity: SeverityError,
 			Code:     CodeBrokenMapTopicref,
 			Source:   source,
@@ -75,6 +76,15 @@ func isWorkspaceHref(href string) bool {
 		return false
 	}
 	return !hasURIScheme(href)
+}
+
+// lineLength gives a diagnostic's range the extent of the line it sits on,
+// in UTF-16 units.
+func lineLength(lines []string, line int) int {
+	if line < 0 || line >= len(lines) {
+		return 0
+	}
+	return document.UTF16Len(lines[line])
 }
 
 func stripFragment(href string) string {

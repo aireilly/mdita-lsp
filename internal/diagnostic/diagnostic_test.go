@@ -53,6 +53,10 @@ func TestCoreProfileFootnoteWarning(t *testing.T) {
 	cfg := config.Default()
 	core := config.ProfileCore
 	cfg.Core.Mdita.Profile = &core
+	// A .md topic is Markdown DITA unless the workspace says its maps give
+	// these files format="mdita".
+	on := true
+	cfg.Core.Mdita.ApplyToMarkdown = &on
 	diags := CheckProfile(doc, cfg)
 	found := false
 	for _, d := range diags {

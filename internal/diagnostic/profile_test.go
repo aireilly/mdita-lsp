@@ -37,22 +37,51 @@ func TestAttributeWarningWhenAuthorWritesAttributes(t *testing.T) {
 	}
 }
 
-// Only `profile: core` used to have any effect; `profile: extended` left the
-// MDITA checks switched off entirely.
-func TestProfileExtendedTurnsOnTheMditaChecks(t *testing.T) {
+// Only `profile: core` used to have any effect: it was what switched the
+// MDITA checks on at all, so `profile: extended` did nothing and could not
+// even pick the profile for a .mdita file. Scope and profile are separate
+// settings now.
+func TestApplyToMarkdownTurnsOnTheMditaChecks(t *testing.T) {
 	doc := document.New("file:///project/a.md", 1, "# Title\n\n## Section\n\n### Too deep\n")
 
 	cfg := config.Default()
-	if diags := CheckProfile(doc, cfg); len(diags) != 0 {
-		t.Errorf("no profile set, got %v; want no MDITA diagnostics for a .md file", diags)
-	}
-
 	extended := config.ProfileExtended
 	cfg.Core.Mdita.Profile = &extended
-	diags := CheckProfile(doc, cfg)
-	if len(diags) == 0 {
-		t.Error("profile: extended produced no MDITA diagnostics")
+	if diags := CheckProfile(doc, cfg); len(diags) != 0 {
+		t.Errorf("a .md topic is Markdown DITA by default, got %v", diags)
 	}
+
+	on := true
+	cfg.Core.Mdita.ApplyToMarkdown = &on
+	if diags := CheckProfile(doc, cfg); len(diags) == 0 {
+		t.Error("apply_to_markdown produced no MDITA diagnostics")
+	}
+}
+
+// The profile setting picks which MDITA profile a .mdita file without a
+// $schema gets. Before, it was read only when it equalled core.
+func TestProfileSelectsTheMditaProfileForAMditaFile(t *testing.T) {
+	doc := document.New("file:///project/a.mdita", 1,
+		"# Title\n\nText with a footnote[^1].\n\n[^1]: the note\n")
+
+	cfg := config.Default()
+	if hasCode(codesOf(CheckProfile(doc, cfg)), CodeCoreProfileFeature) {
+		t.Error("the extended profile has footnotes; none should be reported")
+	}
+
+	core := config.ProfileCore
+	cfg.Core.Mdita.Profile = &core
+	if !hasCode(codesOf(CheckProfile(doc, cfg)), CodeCoreProfileFeature) {
+		t.Error("profile: core did not report the footnote")
+	}
+}
+
+func codesOf(diags []Diagnostic) []string {
+	var codes []string
+	for _, d := range diags {
+		codes = append(codes, d.Code)
+	}
+	return codes
 }
 
 func TestMditaEnableFalseTurnsTheChecksOff(t *testing.T) {

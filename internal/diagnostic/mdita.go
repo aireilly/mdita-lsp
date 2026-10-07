@@ -16,6 +16,11 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 	diags = append(diags, checkFootnotes(doc)...)
 
 	if doc.Meta == nil {
+		if doc.Kind == document.Map {
+			// A map's structure comes from its list, not from metadata, and
+			// a .mditamap needs no $schema at all.
+			return diags
+		}
 		// Markdown DITA reads a topic with no front matter, so this is
 		// information, not a problem to fix.
 		return append(diags, Diagnostic{

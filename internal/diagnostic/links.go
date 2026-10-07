@@ -27,6 +27,12 @@ func checkLinks(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 
 		target := folder.ResolveLink(ml.URL, doc.URI)
 		if target == nil {
+			if doc.Kind == document.Map {
+				// Every link in a map is a topicref, and CheckDitamap already
+				// reports a missing one -- with the same message, so running
+				// both produced the diagnostic twice.
+				continue
+			}
 			if existsOnDisk(ml.URL, doc.URI) {
 				// A resource the server does not index -- an image, a .ditamap,
 				// a PDF -- is still a valid link target when the file is there.

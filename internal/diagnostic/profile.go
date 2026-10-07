@@ -31,9 +31,10 @@ func EffectiveProfile(doc *document.Document, cfg *config.Config) config.Profile
 // diagnostic at all.
 //
 // DITA-OT takes the format from the topicref, not the extension, so a
-// workspace can author MDITA in .md files. Setting core.mdita.profile is how
-// it says so. Before, only `profile: core` had any effect, because the check
-// was written as "an MDITA schema, or core"; `profile: extended` did nothing.
+// workspace can author MDITA in .md files; core.mdita.apply_to_markdown says
+// so. That used to be bound to the profile value, which meant only
+// `profile: core` had any effect -- `profile: extended` switched nothing on
+// and could not even pick the profile for a .mdita file.
 func isMdita(doc *document.Document, cfg *config.Config) bool {
 	if doc.Meta != nil &&
 		(doc.Meta.Schema == document.SchemaMditaCore || doc.Meta.Schema == document.SchemaMditaExtended) {
@@ -42,7 +43,7 @@ func isMdita(doc *document.Document, cfg *config.Config) bool {
 	if paths.FormatForURI(doc.URI) == paths.FormatMdita {
 		return true
 	}
-	return cfg.Core.Mdita.Profile != nil
+	return config.BoolVal(cfg.Core.Mdita.ApplyToMarkdown)
 }
 
 // CheckProfile warns when a document uses markdown constructs that the MDITA
