@@ -223,7 +223,7 @@ The server provides:
 
 A topic becomes a DITA task when `$schema` names the task schema or the H1 carries `{.task}`. Sections come from heading classes, and — for Markdown DITA files parsed with the plug-in's `implicit-task-sections` feature, which `plugin.xml` enables for `format="md"` and `format="markdown"` — from well-known heading titles. The feature is off in both MDITA profiles, so a `## Prerequisites` in a `.mdita` file is a plain `<section>` and the server reports it as one.
 
-For a `$schema`-typed task, the server's model matches the build only from plug-in 6.1.0 onwards. Earlier versions discarded every reader feature for a document that declared a `$schema`, so `implicit-task-sections` never applied and each section heading became a nested task. Admonitions in such a topic need 6.2.0.
+Plug-in version matters here. For a `$schema`-typed task, the server's model matches the build only from 6.1.0 onwards: earlier versions discarded every reader feature for a document that declared a `$schema`, so `implicit-task-sections` never applied and each section heading became a nested task. Admonitions in such a topic need 6.2.0. A topicref with `format="markdown"` gets implicit task sections only from 6.3.0. Before that, `plugin.xml` enabled the feature for `format="md"` alone, so the same file produced a nested `<task>` per H2 under the other name.
 
 | Heading class | Default heading title | DITA element |
 |---------------|-----------------------|--------------|
