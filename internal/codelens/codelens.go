@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/aireilly/mdita-lsp/internal/document"
+	"github.com/aireilly/mdita-lsp/internal/references"
 	"github.com/aireilly/mdita-lsp/internal/symbols"
 	"github.com/aireilly/mdita-lsp/internal/workspace"
 )
@@ -39,20 +40,9 @@ func GetLenses(doc *document.Document, graph *symbols.Graph, folder *workspace.F
 }
 
 func findHeadingLocs(h *document.Heading, doc *document.Document, graph *symbols.Graph, folder *workspace.Folder) []Location {
-	target := document.Symbol{Slug: h.Slug}
-	refs := graph.FindRefs(target)
 	var locs []Location
-	for _, r := range refs {
-		locs = append(locs, Location{URI: r.DocURI, Range: r.Range})
-	}
-	if h.IsTitle() && folder != nil {
-		for _, d := range folder.AllDocs() {
-			for _, ml := range d.Index.MdLinks() {
-				if resolved := folder.ResolveLink(ml.URL, d.URI); resolved != nil && resolved.URI == doc.URI {
-					locs = append(locs, Location{URI: d.URI, Range: ml.Range})
-				}
-			}
-		}
+	for _, l := range references.FindHeadingLocations(h, doc, folder) {
+		locs = append(locs, Location{URI: l.URI, Range: l.Range})
 	}
 	return locs
 }

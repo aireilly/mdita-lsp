@@ -89,19 +89,47 @@ func TestFindRefsMdLink(t *testing.T) {
 	}
 }
 
-func TestCountRefs(t *testing.T) {
+func TestCountRefsCountsLinksToTheTopic(t *testing.T) {
 	doc1 := document.New("file:///project/intro.md", 1, "# Introduction\n")
 	doc2 := document.New("file:///project/a.md", 1, "# A\n\n[link](intro.md)\n")
 
-	g := symbols.NewGraph()
-	for _, d := range []*document.Document{doc1, doc2} {
-		g.AddDefs(d.URI, d.Defs())
-		g.AddRefs(d.URI, d.Refs())
+	f := workspace.NewFolder("file:///project", config.Default())
+	f.AddDoc(doc1)
+	f.AddDoc(doc2)
+
+	if got := CountRefs(doc1.Index.Title(), doc1, f); got != 1 {
+		t.Errorf("CountRefs for the title = %d, want 1", got)
+	}
+}
+
+// A link to a section used to be counted against the topic's H1, leaving the
+// section itself with an empty reference list and a code lens of 0.
+func TestSectionReferencesAreCountedAgainstTheSection(t *testing.T) {
+	target := document.New("file:///project/guide.md", 1,
+		"# Guide\n\n## Install Steps\n\ntext\n")
+	a := document.New("file:///project/a.md", 1, "# A\n\n[x](guide.md#install-steps)\n")
+	b := document.New("file:///project/b.md", 1, "# B\n\n[y](guide.md#install-steps)\n")
+	c := document.New("file:///project/c.md", 1, "# C\n\n[z](guide.md#install-steps)\n")
+
+	f := workspace.NewFolder("file:///project", config.Default())
+	for _, d := range []*document.Document{target, a, b, c} {
+		f.AddDoc(d)
 	}
 
-	heading := doc1.Index.Title()
-	count := CountRefs(heading, g)
-	if count != 0 {
-		t.Errorf("CountRefs = %d, want 0 (md links don't create slug-based refs)", count)
+	var section *document.Heading
+	for _, h := range target.Index.Headings() {
+		if h.Level == 2 {
+			section = h
+		}
+	}
+	if section == nil {
+		t.Fatal("no level 2 heading parsed")
+	}
+
+	if got := CountRefs(section, target, f); got != 3 {
+		t.Errorf("section references = %d, want 3", got)
+	}
+	if got := CountRefs(target.Index.Title(), target, f); got != 0 {
+		t.Errorf("title references = %d, want 0; the links address the section", got)
 	}
 }

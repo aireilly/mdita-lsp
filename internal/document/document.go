@@ -557,13 +557,21 @@ func detectNestedListSections(lines []string, fromLine, toLine int) []ImplicitSe
 
 		if indent >= 2 {
 			var kind ImplicitSectionKind
+			isList := false
+			isTable := false
 			switch {
-			case implicitIsUnorderedItem(trimmed):
-				kind = ImplicitChoices
-			case implicitIsOrderedItem(trimmed):
+			case implicitIsUnorderedItem(trimmed), implicitIsOrderedItem(trimmed):
+				// IMPLICIT_SUBSTEPS defaults to true and IMPLICIT_CHOICES to
+				// false, and plugin.xml turns neither on, so a nested list of
+				// either kind becomes <substeps> unless it carries the
+				// {.choices} outputclass.
 				kind = ImplicitSubsteps
+				isList = true
 			case strings.HasPrefix(trimmed, "|"):
+				// IMPLICIT_CHOICETABLE defaults to false, so a table in a step
+				// stays a plain <table> without the {.choicetable} outputclass.
 				kind = ImplicitChoicetable
+				isTable = true
 			default:
 				i++
 				continue
@@ -580,6 +588,16 @@ func detectNestedListSections(lines []string, fromLine, toLine int) []ImplicitSe
 				} else {
 					break
 				}
+			}
+			switch {
+			case isList && blockHasClass(lines, i, blockEnd, "choices"):
+				kind = ImplicitChoices
+			case isList && blockHasClass(lines, i, blockEnd, "substeps"):
+				kind = ImplicitSubsteps
+			case isTable && !blockHasClass(lines, i, blockEnd, "choicetable"):
+				// A plain nested table is not an implicit anything.
+				i = blockEnd + 1
+				continue
 			}
 			sections = append(sections, ImplicitSection{
 				Kind:  kind,
@@ -680,4 +698,27 @@ func taskSectionKindFromClass(class string) TaskSectionKind {
 	default:
 		return TaskSectionNone
 	}
+}
+
+// blockHasClass reports whether a {.class} attribute block belongs to a
+// nested block. The attributes extension attaches it on its own line next to
+// the block, and because that line carries the block's indentation it falls
+// inside the scanned range, so the whole range plus its two neighbours is
+// searched.
+func blockHasClass(lines []string, from, to int, class string) bool {
+	for i := from - 1; i <= to+1; i++ {
+		if i < 0 || i >= len(lines) {
+			continue
+		}
+		trimmed := strings.TrimSpace(lines[i])
+		if !strings.HasPrefix(trimmed, "{") || !strings.HasSuffix(trimmed, "}") {
+			continue
+		}
+		for _, c := range ParseAttrString(trimmed).Classes {
+			if c == class {
+				return true
+			}
+		}
+	}
+	return false
 }

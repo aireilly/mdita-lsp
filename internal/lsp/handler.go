@@ -59,6 +59,25 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 		}
 	})
 
+	// workspace/applyEdit is a request, not a notification: a client that
+	// follows the spec ignores it without an id, so the edit never arrived.
+	s.SetRequest(func(method string, params any) {
+		req := Request{
+			JSONRPC: "2.0",
+			ID:      s.nextRequestID(),
+			Method:  method,
+		}
+		raw, err := json.Marshal(params)
+		if err != nil {
+			log.Printf("marshal request %s: %v", method, err)
+			return
+		}
+		req.Params = raw
+		if err := writeMessage(out, req); err != nil {
+			log.Printf("write request %s: %v", method, err)
+		}
+	})
+
 	for scanner.Scan() {
 		body := scanner.Bytes()
 		var req Request
@@ -77,6 +96,13 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 		}
 		if req.Method == "shutdown" {
 			s.shutdownRequested.Store(true)
+		}
+
+		// A message with an id but no method is the client's reply to a
+		// request the server sent, such as workspace/applyEdit. Dispatching
+		// it as a request answered the client with "method not found".
+		if req.Method == "" {
+			continue
 		}
 
 		if req.ID != nil {

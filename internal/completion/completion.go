@@ -32,6 +32,19 @@ var yamlKeys = []string{
 }
 
 func Complete(doc *document.Document, pos document.Position, folder *workspace.Folder) []CompletionItem {
+	return limit(complete(doc, pos, folder), folder.Config.Completion.MaxCandidates)
+}
+
+// limit caps the candidate list at completion.max_candidates, which was
+// parsed from the config and never applied.
+func limit(items []CompletionItem, max int) []CompletionItem {
+	if max > 0 && len(items) > max {
+		return items[:max]
+	}
+	return items
+}
+
+func complete(doc *document.Document, pos document.Position, folder *workspace.Folder) []CompletionItem {
 	pe := DetectPartial(doc.Text, pos)
 	if pe == nil {
 		return nil

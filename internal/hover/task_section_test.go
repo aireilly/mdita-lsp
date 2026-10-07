@@ -221,3 +221,29 @@ Brief description.
 		})
 	}
 }
+
+// The enclosing steps range always matched first, so the hover for a nested
+// region never showed.
+func TestNestedRegionHoverWinsOverSteps(t *testing.T) {
+	text := "# Task {.task}\n\nShort.\n\n1.  Command\n\n    1.  Sub A\n    2.  Sub B\n"
+	doc := document.New("file:///t.md", 1, text)
+	f := workspace.NewFolder("file:///", config.Default())
+	f.AddDoc(doc)
+
+	got := GetHover(doc, document.Position{Line: 6, Character: 8}, f)
+	if !strings.Contains(got, "<substeps>") {
+		t.Errorf("hover inside the nested list = %q, want the <substeps> text", got)
+	}
+}
+
+func TestStepsHoverStillShowsOutsideTheNestedList(t *testing.T) {
+	text := "# Task {.task}\n\nShort.\n\n1.  Command\n\n    1.  Sub A\n"
+	doc := document.New("file:///t.md", 1, text)
+	f := workspace.NewFolder("file:///", config.Default())
+	f.AddDoc(doc)
+
+	got := GetHover(doc, document.Position{Line: 4, Character: 5}, f)
+	if !strings.Contains(got, "<steps>") {
+		t.Errorf("hover on the step line = %q, want the <steps> text", got)
+	}
+}

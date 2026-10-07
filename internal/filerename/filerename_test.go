@@ -134,3 +134,34 @@ func TestMdLinkRenameMoveDir(t *testing.T) {
 		t.Errorf("expected md link to be updated for dir move, got %v", edits[0].Edits)
 	}
 }
+
+// Moving a file into another directory invalidates its own relative links,
+// not just the links pointing at it.
+func TestMovedFileOutgoingLinksAreRewritten(t *testing.T) {
+	cfg := config.Default()
+	f := workspace.NewFolder("file:///project", cfg)
+
+	moved := document.New("file:///project/guide.md", 1,
+		"# Guide\n\nSee [the ref](reference.md) and [the site](https://example.com).\n")
+	ref := document.New("file:///project/reference.md", 1, "# Reference\n")
+	f.AddDoc(moved)
+	f.AddDoc(ref)
+
+	edits := ComputeEdits([]FileRename{{
+		OldURI: "file:///project/guide.md",
+		NewURI: "file:///project/topics/guide.md",
+	}}, f)
+
+	var got []TextEdit
+	for _, de := range edits {
+		if de.URI == "file:///project/guide.md" {
+			got = de.Edits
+		}
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 edit in the moved file, got %d: %v", len(got), got)
+	}
+	if got[0].NewText != "[the ref](../reference.md)" {
+		t.Errorf("rewrote the link to %q, want %q", got[0].NewText, "[the ref](../reference.md)")
+	}
+}

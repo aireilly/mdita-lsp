@@ -111,19 +111,37 @@ func TestImplicitResultSection(t *testing.T) {
 	}
 }
 
-func TestImplicitChoicesSection(t *testing.T) {
+// IMPLICIT_CHOICES defaults to false and plugin.xml does not enable it, so a
+// nested unordered list becomes <substeps>, the same as a nested ordered one.
+func TestNestedUnorderedListIsSubsteps(t *testing.T) {
 	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\n1. Choose an option:\n   - Option A\n   - Option B\n2. Continue.\n"
 	doc := New("file:///test.md", 1, text)
-	found := false
 	for _, s := range doc.ImplicitSections {
 		if s.Kind == ImplicitChoices {
-			found = true
-			break
+			t.Error("a nested unordered list must not be <choices> without {.choices}")
 		}
 	}
-	if !found {
-		t.Error("expected implicit choices section inside step")
+	if !hasSection(doc, ImplicitSubsteps) {
+		t.Error("expected <substeps> for the nested unordered list")
 	}
+}
+
+// The {.choices} outputclass is what makes it <choices>.
+func TestChoicesOutputclassSection(t *testing.T) {
+	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\n1. Choose an option:\n   - Option A\n   - Option B\n   {.choices}\n2. Continue.\n"
+	doc := New("file:///test.md", 1, text)
+	if !hasSection(doc, ImplicitChoices) {
+		t.Errorf("expected <choices>, got %+v", doc.ImplicitSections)
+	}
+}
+
+func hasSection(doc *Document, kind ImplicitSectionKind) bool {
+	for _, s := range doc.ImplicitSections {
+		if s.Kind == kind {
+			return true
+		}
+	}
+	return false
 }
 
 func TestImplicitSubstepsSection(t *testing.T) {
@@ -141,18 +159,21 @@ func TestImplicitSubstepsSection(t *testing.T) {
 	}
 }
 
-func TestImplicitChoicetableSection(t *testing.T) {
+// IMPLICIT_CHOICETABLE defaults to false, so a table in a step stays a plain
+// <table> until it carries {.choicetable}.
+func TestNestedTableIsNotChoicetableByDefault(t *testing.T) {
 	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\n1. Choose a plan:\n\n   | Plan | Price |\n   |------|-------|\n   | Basic | Free |\n\n2. Continue.\n"
 	doc := New("file:///test.md", 1, text)
-	found := false
-	for _, s := range doc.ImplicitSections {
-		if s.Kind == ImplicitChoicetable {
-			found = true
-			break
-		}
+	if hasSection(doc, ImplicitChoicetable) {
+		t.Error("a nested table must not be <choicetable> without {.choicetable}")
 	}
-	if !found {
-		t.Error("expected implicit choicetable section inside step")
+}
+
+func TestChoicetableOutputclassSection(t *testing.T) {
+	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:task.xsd\n---\n# Install the app\n\n1. Choose a plan:\n\n   | Plan | Price |\n   |------|-------|\n   | Basic | Free |\n   {.choicetable}\n\n2. Continue.\n"
+	doc := New("file:///test.md", 1, text)
+	if !hasSection(doc, ImplicitChoicetable) {
+		t.Errorf("expected <choicetable>, got %+v", doc.ImplicitSections)
 	}
 }
 

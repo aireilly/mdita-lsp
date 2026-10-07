@@ -2,6 +2,7 @@ package codeaction
 
 import (
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/aireilly/mdita-lsp/internal/config"
@@ -64,21 +65,44 @@ func GetActions(doc *document.Document, rng document.Range, folder *workspace.Fo
 	return actions
 }
 
+// mditaSchemaURN is the MDITA extended topic schema. The action used to
+// insert the DITA topic URN, which selects the Markdown DITA parser, not an
+// MDITA one.
+const mditaSchemaURN = "urn:oasis:names:tc:mdita:xsd:topic.xsd"
+
+// addFrontMatterAction offers to declare the MDITA schema.
+//
+// A file that already has front matter but no $schema gets the key added
+// inside that block. Inserting a second block at the top of the file left the
+// topic with two, and the plug-in reads only the first.
 func addFrontMatterAction(doc *document.Document) []CodeAction {
-	if doc.Meta != nil && doc.Meta.SchemaRaw != "" {
-		return nil
-	}
 	if doc.Kind != document.Topic {
 		return nil
 	}
-	fm := "---\n$schema: \"urn:oasis:names:tc:dita:xsd:topic.xsd\"\n---\n\n"
+	if doc.Meta != nil && doc.Meta.SchemaRaw != "" {
+		return nil
+	}
+
+	if doc.Meta == nil {
+		return []CodeAction{{
+			Title:  "Add MDITA YAML front matter",
+			Kind:   "source",
+			DocURI: doc.URI,
+			Edit: &TextEdit{
+				Range:   document.Rng(0, 0, 0, 0),
+				NewText: "---\n$schema: \"" + mditaSchemaURN + "\"\n---\n\n",
+			},
+		}}
+	}
+
+	// Insert the key just inside the opening "---".
 	return []CodeAction{{
-		Title:  "Add MDITA YAML front matter",
+		Title:  "Add MDITA $schema to the front matter",
 		Kind:   "source",
 		DocURI: doc.URI,
 		Edit: &TextEdit{
-			Range:   document.Rng(0, 0, 0, 0),
-			NewText: fm,
+			Range:   document.Rng(1, 0, 1, 0),
+			NewText: "$schema: \"" + mditaSchemaURN + "\"\n",
 		},
 	}}
 }
@@ -129,7 +153,9 @@ func fixNBSPActions(doc *document.Document, rng document.Range) []CodeAction {
 			Kind:   "quickfix",
 			DocURI: doc.URI,
 			Edit: &TextEdit{
-				Range:   h.Range,
+				// LineRange, not Range: a heading's own range starts after
+				// the hashes, so writing them back doubled them.
+				Range:   h.LineRange,
 				NewText: prefix + fixed,
 			},
 			Diagnostics: []DiagnosticInfo{{
@@ -186,14 +212,14 @@ func fixFootnoteRefActions(doc *document.Document, rng document.Range) []CodeAct
 
 func fixHeadingHierarchyActions(doc *document.Document, rng document.Range) []CodeAction {
 	var actions []CodeAction
-	headings := doc.Index.Headings()
-	for i := 1; i < len(headings); i++ {
-		prev := headings[i-1].Level
-		curr := headings[i].Level
-		if curr <= prev+1 {
+	level := 0
+	for _, h := range doc.Index.Headings() {
+		prev := level
+		level = h.Level
+		if h.Level <= prev+1 {
 			continue
 		}
-		if !rangesOverlap(rng, headings[i].Range) {
+		if !rangesOverlap(rng, h.Range) {
 			continue
 		}
 		fixedLevel := prev + 1
@@ -203,15 +229,16 @@ func fixHeadingHierarchyActions(doc *document.Document, rng document.Range) []Co
 			Kind:   "quickfix",
 			DocURI: doc.URI,
 			Edit: &TextEdit{
-				Range:   headings[i].Range,
-				NewText: prefix + headings[i].Text,
+				Range:   h.LineRange,
+				NewText: prefix + h.Text,
 			},
 			Diagnostics: []DiagnosticInfo{{
-				Range:    headings[i].Range,
-				Severity: 2,
+				Range:    h.Range,
+				Severity: 1,
 				Code:     "6",
 				Source:   "mdita-lsp",
-				Message:  "Invalid heading hierarchy: skipped heading level",
+				Message: "Heading level raised from " + itoa(prev) + " to " + itoa(h.Level) +
+					" without an intermediate heading level; the build fails on this",
 			}},
 		})
 	}
@@ -316,3 +343,5 @@ func rangesOverlap(a, b document.Range) bool {
 	}
 	return true
 }
+
+func itoa(i int) string { return strconv.Itoa(i) }

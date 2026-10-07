@@ -97,24 +97,40 @@ func TestShortdescParagraphIsNotContext(t *testing.T) {
 	}
 }
 
-func TestNestedListsInSteps(t *testing.T) {
+// Both nested list kinds become <substeps>: IMPLICIT_SUBSTEPS defaults to
+// true, IMPLICIT_CHOICES to false, and plugin.xml enables neither.
+func TestNestedListsInStepsAreSubsteps(t *testing.T) {
 	text := "# Task {.task}\n\nShort.\n\n1.  Command\n\n    1.  Sub A\n    2.  Sub B\n\n2.  Choose\n\n    *   First\n    *   Second\n"
 	doc := New("file:///t.md", 1, text)
 
 	if !hasKind(doc, ImplicitSubsteps) {
-		t.Error("expected <substeps> for the nested ordered list")
+		t.Error("expected <substeps> for the nested lists")
 	}
-	if !hasKind(doc, ImplicitChoices) {
-		t.Error("expected <choices> for the nested unordered list")
+	if hasKind(doc, ImplicitChoices) {
+		t.Error("a nested unordered list must not be <choices> without {.choices}")
 	}
 }
 
-func TestChoicetableInStep(t *testing.T) {
+func TestChoicesNeedsTheOutputclass(t *testing.T) {
+	text := "# Task {.task}\n\n1.  Choose\n\n    *   First\n    *   Second\n    {.choices}\n"
+	doc := New("file:///t.md", 1, text)
+
+	if !hasKind(doc, ImplicitChoices) {
+		t.Errorf("expected <choices>, got %+v", doc.ImplicitSections)
+	}
+}
+
+func TestChoicetableInStepNeedsTheOutputclass(t *testing.T) {
 	text := "# Task {.task}\n\n1.  Select an option:\n\n    | Option | Description |\n    |--------|-------------|\n    | Fast   | Quick setup |\n"
 	doc := New("file:///t.md", 1, text)
 
-	if !hasKind(doc, ImplicitChoicetable) {
-		t.Errorf("expected <choicetable>, got %+v", doc.ImplicitSections)
+	if hasKind(doc, ImplicitChoicetable) {
+		t.Errorf("a nested table must not be <choicetable> without {.choicetable}: %+v", doc.ImplicitSections)
+	}
+
+	withClass := New("file:///t.md", 1, text+"    {.choicetable}\n")
+	if !hasKind(withClass, ImplicitChoicetable) {
+		t.Errorf("expected <choicetable>, got %+v", withClass.ImplicitSections)
 	}
 }
 

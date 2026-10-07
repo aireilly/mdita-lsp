@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -40,6 +41,8 @@ type Server struct {
 	workspace   *workspace.Workspace
 	graph       *symbols.Graph
 	notify      func(method string, params any)
+	request     func(method string, params any)
+	requestSeq  atomic.Int64
 	diagBounce  *debouncer
 	version     string
 	ditaBuilder *ditaot.Builder
@@ -54,6 +57,7 @@ func NewServer() *Server {
 		workspace:   workspace.New(),
 		graph:       symbols.NewGraph(),
 		notify:      func(string, any) {},
+		request:     func(string, any) {},
 		diagBounce:  newDebouncer(200 * time.Millisecond),
 		version:     "dev",
 		ditaBuilder: &ditaot.Builder{},
@@ -66,6 +70,16 @@ func (s *Server) SetVersion(v string) {
 
 func (s *Server) SetNotify(fn func(method string, params any)) {
 	s.notify = fn
+}
+
+// SetRequest installs the hook that sends a server-to-client request.
+func (s *Server) SetRequest(fn func(method string, params any)) {
+	s.request = fn
+}
+
+func (s *Server) nextRequestID() *json.RawMessage {
+	raw := json.RawMessage(strconv.FormatInt(s.requestSeq.Add(1), 10))
+	return &raw
 }
 
 func (s *Server) logMessage(level int, msg string) {
@@ -1378,16 +1392,23 @@ func (s *Server) executeAddToMap(args []string) (any, error) {
 	if t := doc.Index.Title(); t != nil {
 		title = t.Text
 	}
-	docID := doc.DocID(s.workspace.FolderForURI(docURI).RootURI)
 
-	newEntry := "- [" + title + "](" + docID.RelPath + ")\n"
+	// The href is resolved against the map, not the workspace root. Using the
+	// root-relative path wrote "topics/user.md" into maps/guide.mditamap,
+	// where the build looks for maps/topics/user.md.
+	href, err := relativeHref(mapURI, docURI)
+	if err != nil {
+		return nil, nil
+	}
+
+	newEntry := "- [" + title + "](" + href + ")\n"
 
 	lastLine := len(mapDoc.Lines) - 1
 	if lastLine < 0 {
 		lastLine = 0
 	}
 
-	s.notify("workspace/applyEdit", ApplyWorkspaceEditParams{
+	s.request("workspace/applyEdit", ApplyWorkspaceEditParams{
 		Label: "Add to map",
 		Edit: WorkspaceEditResult{
 			Changes: map[string][]TextEditResult{
@@ -1399,6 +1420,24 @@ func (s *Server) executeAddToMap(args []string) (any, error) {
 		},
 	})
 	return nil, nil
+}
+
+// relativeHref returns the path from the map's directory to the topic, in the
+// forward-slash form an href takes.
+func relativeHref(fromURI, toURI string) (string, error) {
+	fromPath, err := paths.URIToPath(fromURI)
+	if err != nil {
+		return "", err
+	}
+	toPath, err := paths.URIToPath(toURI)
+	if err != nil {
+		return "", err
+	}
+	rel, err := filepath.Rel(filepath.Dir(fromPath), toPath)
+	if err != nil {
+		return "", err
+	}
+	return filepath.ToSlash(rel), nil
 }
 
 func (s *Server) executeDitaOtBuild(args []string) (any, error) {

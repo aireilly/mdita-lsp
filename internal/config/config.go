@@ -21,9 +21,10 @@ type CoreConfig struct {
 }
 
 type MarkdownConfig struct {
-	FileExtensions   []string `yaml:"file_extensions"`
-	TextSync         string   `yaml:"text_sync"`
-	TitleFromHeading bool     `yaml:"title_from_heading"`
+	FileExtensions []string `yaml:"file_extensions"`
+	// TextSync selects the document sync mode the server advertises:
+	// "incremental" (the default) or "full".
+	TextSync string `yaml:"text_sync"`
 }
 
 type Profile int
@@ -52,7 +53,10 @@ func (p *Profile) UnmarshalYAML(unmarshal func(interface{}) error) error {
 type MditaConfig struct {
 	Enable        *bool    `yaml:"enable"`
 	MapExtensions []string `yaml:"map_extensions"`
-	Profile       Profile  `yaml:"profile"`
+	// Profile is a pointer so that an explicit `profile: extended` in a
+	// project config overrides `profile: core` in the user config. Comparing
+	// the value against zero could not, because ProfileExtended is zero.
+	Profile *Profile `yaml:"profile"`
 	// ImplicitTaskSections overrides the heading titles that map to task
 	// section elements, matching the plug-in's
 	// http://lwdita.org/sax/properties/implicit-task-sections/* properties.
@@ -93,6 +97,16 @@ type DitaOTConfig struct {
 
 func boolPtr(v bool) *bool { return &v }
 
+func profilePtr(p Profile) *Profile { return &p }
+
+// ProfileVal reads a profile pointer, defaulting to extended.
+func ProfileVal(p *Profile) Profile {
+	if p == nil {
+		return ProfileExtended
+	}
+	return *p
+}
+
 func BoolVal(b *bool) bool {
 	if b == nil {
 		return false
@@ -104,14 +118,13 @@ func Default() *Config {
 	return &Config{
 		Core: CoreConfig{
 			Markdown: MarkdownConfig{
-				FileExtensions:   []string{"md", "markdown", "mdita", "mditamap"},
-				TextSync:         "full",
-				TitleFromHeading: true,
+				FileExtensions: []string{"md", "markdown", "mdita", "mditamap"},
+				TextSync:       "incremental",
 			},
 			Mdita: MditaConfig{
 				Enable:             boolPtr(true),
 				MapExtensions:      []string{"mditamap"},
-				Profile:            ProfileExtended,
+				Profile:            profilePtr(ProfileExtended),
 				FormatTablesOnSave: boolPtr(true),
 			},
 		},
@@ -177,14 +190,11 @@ func Merge(base, overlay *Config) *Config {
 	if overlay.Core.Markdown.FileExtensions != nil {
 		merged.Core.Markdown.FileExtensions = overlay.Core.Markdown.FileExtensions
 	}
-	if overlay.Core.Markdown.TitleFromHeading != base.Core.Markdown.TitleFromHeading {
-		merged.Core.Markdown.TitleFromHeading = overlay.Core.Markdown.TitleFromHeading
-	}
 	merged.Core.Mdita.Enable = mergeBool(base.Core.Mdita.Enable, overlay.Core.Mdita.Enable)
 	if overlay.Core.Mdita.MapExtensions != nil {
 		merged.Core.Mdita.MapExtensions = overlay.Core.Mdita.MapExtensions
 	}
-	if overlay.Core.Mdita.Profile != 0 {
+	if overlay.Core.Mdita.Profile != nil {
 		merged.Core.Mdita.Profile = overlay.Core.Mdita.Profile
 	}
 	if overlay.Core.Mdita.FormatTablesOnSave != nil {

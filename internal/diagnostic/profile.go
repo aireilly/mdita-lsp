@@ -22,7 +22,7 @@ func EffectiveProfile(doc *document.Document, cfg *config.Config) config.Profile
 	if paths.FormatForURI(doc.URI) == paths.FormatMdita {
 		return config.ProfileExtended
 	}
-	return cfg.Core.Mdita.Profile
+	return config.ProfileVal(cfg.Core.Mdita.Profile)
 }
 
 // isMdita reports whether the MDITA parser profiles apply rather than the full

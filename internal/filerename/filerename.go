@@ -39,36 +39,93 @@ func computeOneRename(r FileRename, folder *workspace.Folder) []DocumentEdit {
 
 	for _, doc := range folder.AllDocs() {
 		if doc.URI == r.OldURI {
+			// The moved file's own relative links are now resolved from a
+			// different directory, so they need rewriting too. Only incoming
+			// links were handled, which broke every outgoing one on a move
+			// between directories.
+			editsByURI[doc.URI] = append(editsByURI[doc.URI], outgoingEdits(doc, oldPath, newPath)...)
 			continue
 		}
 		for _, elem := range doc.Elements {
-			switch el := elem.(type) {
-			case *document.MdLink:
-				if matchesMdLink(el, oldPath, doc.URI) {
-					newRel := computeRelPath(doc.URI, newPath)
-					newURL := newRel
-					if el.Anchor != "" {
-						newURL += "#" + el.Anchor
-					}
-					editsByURI[doc.URI] = append(editsByURI[doc.URI], TextEdit{
-						Range:   el.Range,
-						NewText: buildMdLink(el.Text, newURL),
-					})
+			if el, ok := elem.(*document.MdLink); ok && matchesMdLink(el, oldPath, doc.URI) {
+				newURL := computeRelPath(doc.URI, newPath)
+				if el.Anchor != "" {
+					newURL += "#" + el.Anchor
 				}
+				editsByURI[doc.URI] = append(editsByURI[doc.URI], TextEdit{
+					Range:   el.Range,
+					NewText: buildMdLink(el.Text, newURL),
+				})
 			}
 		}
-
 	}
 
 	var result []DocumentEdit
 	for uri, edits := range editsByURI {
+		if len(edits) == 0 {
+			continue
+		}
 		result = append(result, DocumentEdit{URI: uri, Edits: edits})
 	}
 	return result
 }
 
+// outgoingEdits rewrites the links in the file being moved so they still
+// resolve to the same targets from the new directory.
+func outgoingEdits(doc *document.Document, oldPath, newPath string) []TextEdit {
+	oldDir := filepath.Dir(oldPath)
+	newDir := filepath.Dir(newPath)
+	if oldDir == newDir {
+		return nil
+	}
+
+	var edits []TextEdit
+	for _, elem := range doc.Elements {
+		el, ok := elem.(*document.MdLink)
+		if !ok || el.URL == "" || isExternalURL(el.URL) {
+			continue
+		}
+		target := filepath.Clean(filepath.Join(oldDir, el.URL))
+		rel, err := filepath.Rel(newDir, target)
+		if err != nil {
+			continue
+		}
+		newURL := filepath.ToSlash(rel)
+		if !strings.HasPrefix(newURL, ".") {
+			newURL = "./" + newURL
+		}
+		if el.Anchor != "" {
+			newURL += "#" + el.Anchor
+		}
+		edits = append(edits, TextEdit{
+			Range:   el.Range,
+			NewText: buildMdLink(el.Text, newURL),
+		})
+	}
+	return edits
+}
+
+func isExternalURL(rawURL string) bool {
+	if strings.HasPrefix(rawURL, "/") {
+		return true
+	}
+	colon := strings.Index(rawURL, ":")
+	if colon < 2 {
+		return false
+	}
+	for i := 0; i < colon; i++ {
+		c := rawURL[i]
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') &&
+			c != '+' && c != '-' && c != '.' {
+			return false
+		}
+	}
+	c := rawURL[0]
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
 func matchesMdLink(link *document.MdLink, oldPath, docURI string) bool {
-	if link.URL == "" || strings.HasPrefix(link.URL, "http://") || strings.HasPrefix(link.URL, "https://") {
+	if link.URL == "" || isExternalURL(link.URL) {
 		return false
 	}
 	docPath, _ := paths.URIToPath(docURI)

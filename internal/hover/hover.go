@@ -34,26 +34,12 @@ func GetHover(doc *document.Document, pos document.Position, folder *workspace.F
 		}
 	}
 
-	for _, s := range doc.ImplicitSections {
-		if posInImplicitRange(pos, s.Range) {
-			switch s.Kind {
-			case document.ImplicitContext:
-				return "**Implicit `<context>`** — body content before the steps list wraps in `<context>`"
-			case document.ImplicitSteps:
-				return "**Implicit `<steps>`** — body-level ordered list becomes `<steps>` with `<step>`/`<cmd>`"
-			case document.ImplicitStepsUnordered:
-				return "**Implicit `<steps-unordered>`** — body-level unordered list becomes `<steps-unordered>`"
-			case document.ImplicitBodyList:
-				return "**Body list in `<context>`** — a body-level list followed by another body-level list stays in `<context>` (outputclass `body-ol`/`body-ul`)"
-			case document.ImplicitResult:
-				return "**Implicit `<result>`** — body content after the steps list wraps in `<result>`"
-			case document.ImplicitChoices:
-				return "**Implicit `<choices>`** — unordered list nested in a step becomes `<choices>`"
-			case document.ImplicitSubsteps:
-				return "**Implicit `<substeps>`** — ordered list nested in a step becomes `<substeps>`"
-			case document.ImplicitChoicetable:
-				return "**Implicit `<choicetable>`** — table nested in a step becomes `<choicetable>`"
-			}
+	// The innermost section wins. Taking the first match meant the enclosing
+	// steps range always matched first, so the hovers for the nested regions
+	// were unreachable.
+	if inner := innermostSection(doc, pos); inner != nil {
+		if text := implicitSectionHover(inner.Kind); text != "" {
+			return text
 		}
 	}
 
@@ -65,6 +51,48 @@ func GetHover(doc *document.Document, pos document.Position, folder *workspace.F
 		return "[Follow link](" + url + ")"
 	}
 
+	return ""
+}
+
+// innermostSection returns the implicit section with the smallest range that
+// contains pos.
+func innermostSection(doc *document.Document, pos document.Position) *document.ImplicitSection {
+	var best *document.ImplicitSection
+	for i := range doc.ImplicitSections {
+		s := &doc.ImplicitSections[i]
+		if !posInImplicitRange(pos, s.Range) {
+			continue
+		}
+		if best == nil || spanOf(s.Range) < spanOf(best.Range) {
+			best = s
+		}
+	}
+	return best
+}
+
+func spanOf(r document.Range) int {
+	return r.End.Line - r.Start.Line
+}
+
+func implicitSectionHover(kind document.ImplicitSectionKind) string {
+	switch kind {
+	case document.ImplicitContext:
+		return "**Implicit `<context>`** — body content before the steps list wraps in `<context>`"
+	case document.ImplicitSteps:
+		return "**Implicit `<steps>`** — body-level ordered list becomes `<steps>` with `<step>`/`<cmd>`"
+	case document.ImplicitStepsUnordered:
+		return "**Implicit `<steps-unordered>`** — body-level unordered list becomes `<steps-unordered>`"
+	case document.ImplicitBodyList:
+		return "**Body list in `<context>`** — a body-level list followed by another body-level list stays in `<context>` (outputclass `body-ol`/`body-ul`)"
+	case document.ImplicitResult:
+		return "**Implicit `<result>`** — body content after the steps list wraps in `<result>`"
+	case document.ImplicitChoices:
+		return "**`<choices>`** — the `{.choices}` outputclass turns this list into `<choices>`. Without it the plug-in emits `<substeps>`: `implicit-choices` is off by default."
+	case document.ImplicitSubsteps:
+		return "**Implicit `<substeps>`** — a list nested in a step becomes `<substeps>` (`implicit-substeps` is on by default)"
+	case document.ImplicitChoicetable:
+		return "**`<choicetable>`** — the `{.choicetable}` outputclass turns this table into `<choicetable>`. Without it the table stays a plain `<table>`: `implicit-choicetable` is off by default."
+	}
 	return ""
 }
 

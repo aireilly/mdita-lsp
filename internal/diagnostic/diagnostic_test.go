@@ -50,7 +50,8 @@ func TestCoreProfileFootnoteWarning(t *testing.T) {
 	text := "---\n$schema: urn:oasis:names:tc:dita:xsd:topic.xsd\n---\n# Title\n\nText with footnote[^1].\n\n[^1]: Footnote text\n"
 	doc := document.New("file:///test.md", 1, text)
 	cfg := config.Default()
-	cfg.Core.Mdita.Profile = config.ProfileCore
+	core := config.ProfileCore
+	cfg.Core.Mdita.Profile = &core
 	diags := CheckProfile(doc, cfg)
 	found := false
 	for _, d := range diags {
