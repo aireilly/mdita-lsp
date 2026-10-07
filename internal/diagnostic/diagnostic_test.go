@@ -1,6 +1,7 @@
 package diagnostic
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/aireilly/mdita-lsp/internal/config"
@@ -433,5 +434,35 @@ func TestFootnotesInsideAFencedBlockAreNotReported(t *testing.T) {
 	codes := codesFor(doc, linkFolder(doc))
 	if hasCode(codes, CodeFootnoteRefOrphan) {
 		t.Errorf("a footnote inside a fenced block was reported: %v", codes)
+	}
+}
+
+// TopicRenderer throws "Level 2 section title must be higher level than
+// parent topic title 2" when a section heading sits at the level of the
+// nested topic above it. Only skipped levels used to be checked.
+func TestSectionAtTheSameLevelAsItsParentTopicIsAnError(t *testing.T) {
+	doc := document.New("file:///project/a.md", 1,
+		"# Task {.task}\n\nShort.\n\n## Details\n\ntext\n\n## Procedure\n\n1. Do it\n")
+	var found bool
+	for _, d := range Check(doc, linkFolder(doc)) {
+		if d.Code == CodeHeadingHierarchy && strings.Contains(d.Message, "section title") {
+			found = true
+			if d.Severity != SeverityError {
+				t.Errorf("severity = %v, want error", d.Severity)
+			}
+		}
+	}
+	if !found {
+		t.Error("no diagnostic for a section at the level of its parent topic")
+	}
+}
+
+func TestSectionBelowItsParentTopicIsFine(t *testing.T) {
+	doc := document.New("file:///project/a.md", 1,
+		"# Task {.task}\n\nShort.\n\n## Procedure\n\n1. Do it\n")
+	for _, d := range Check(doc, linkFolder(doc)) {
+		if d.Code == CodeHeadingHierarchy {
+			t.Errorf("unexpected heading diagnostic: %s", d.Message)
+		}
 	}
 }

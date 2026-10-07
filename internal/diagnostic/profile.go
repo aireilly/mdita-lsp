@@ -6,10 +6,10 @@ import (
 	"github.com/aireilly/mdita-lsp/internal/paths"
 )
 
-// EffectiveProfile resolves the MDITA profile for a document. An MDITA $schema
-// URN selects the profile the way the plug-in's schema provider does; a .mdita
-// file without one gets MDitaReader's default, the extended profile; otherwise
-// the workspace setting applies.
+// EffectiveProfile resolves the MDITA profile for a document. An MDITA
+// $schema URN selects the profile the way the plug-in's schema provider does;
+// otherwise the workspace setting applies, and a .mdita file with neither
+// falls back to MDitaReader's default, the extended profile.
 func EffectiveProfile(doc *document.Document, cfg *config.Config) config.Profile {
 	if doc.Meta != nil {
 		switch doc.Meta.Schema {
@@ -19,33 +19,39 @@ func EffectiveProfile(doc *document.Document, cfg *config.Config) config.Profile
 			return config.ProfileExtended
 		}
 	}
-	if paths.FormatForURI(doc.URI) == paths.FormatMdita {
-		return config.ProfileExtended
-	}
 	return config.ProfileVal(cfg.Core.Mdita.Profile)
 }
 
-// isMdita reports whether the MDITA parser profiles apply rather than the full
-// Markdown DITA one. plugin.xml registers MDitaReader for format "mdita", so a
-// .mdita file is MDITA whether or not it declares a $schema. Requiring the
-// $schema meant a level-3 heading in a .mdita file -- fatal for the build --
-// drew no diagnostic at all.
-func isMdita(doc *document.Document) bool {
+// isMdita reports whether the MDITA parser profiles apply to a document
+// rather than the full Markdown DITA one.
+//
+// plugin.xml registers MDitaReader for format "mdita", so a .mdita file is
+// MDITA whether or not it declares a $schema. Requiring the $schema meant a
+// level-3 heading in a .mdita file -- fatal for the build -- drew no
+// diagnostic at all.
+//
+// DITA-OT takes the format from the topicref, not the extension, so a
+// workspace can author MDITA in .md files. Setting core.mdita.profile is how
+// it says so. Before, only `profile: core` had any effect, because the check
+// was written as "an MDITA schema, or core"; `profile: extended` did nothing.
+func isMdita(doc *document.Document, cfg *config.Config) bool {
 	if doc.Meta != nil &&
 		(doc.Meta.Schema == document.SchemaMditaCore || doc.Meta.Schema == document.SchemaMditaExtended) {
 		return true
 	}
-	return paths.FormatForURI(doc.URI) == paths.FormatMdita
+	if paths.FormatForURI(doc.URI) == paths.FormatMdita {
+		return true
+	}
+	return cfg.Core.Mdita.Profile != nil
 }
 
 // CheckProfile warns when a document uses markdown constructs that the MDITA
 // profile in force does not parse.
 func CheckProfile(doc *document.Document, cfg *config.Config) []Diagnostic {
-	profile := EffectiveProfile(doc, cfg)
-	mdita := isMdita(doc) || profile == config.ProfileCore
-	if !mdita {
+	if !config.BoolVal(cfg.Core.Mdita.Enable) || !isMdita(doc, cfg) {
 		return nil
 	}
+	profile := EffectiveProfile(doc, cfg)
 
 	var diags []Diagnostic
 	idx := doc.Index

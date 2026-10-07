@@ -36,3 +36,32 @@ func TestAttributeWarningWhenAuthorWritesAttributes(t *testing.T) {
 		t.Error("expected a profile warning for {.task} in an MDITA topic")
 	}
 }
+
+// Only `profile: core` used to have any effect; `profile: extended` left the
+// MDITA checks switched off entirely.
+func TestProfileExtendedTurnsOnTheMditaChecks(t *testing.T) {
+	doc := document.New("file:///project/a.md", 1, "# Title\n\n## Section\n\n### Too deep\n")
+
+	cfg := config.Default()
+	if diags := CheckProfile(doc, cfg); len(diags) != 0 {
+		t.Errorf("no profile set, got %v; want no MDITA diagnostics for a .md file", diags)
+	}
+
+	extended := config.ProfileExtended
+	cfg.Core.Mdita.Profile = &extended
+	diags := CheckProfile(doc, cfg)
+	if len(diags) == 0 {
+		t.Error("profile: extended produced no MDITA diagnostics")
+	}
+}
+
+func TestMditaEnableFalseTurnsTheChecksOff(t *testing.T) {
+	doc := document.New("file:///project/a.mdita", 1, "# Title\n\n## Section\n\n### Too deep\n")
+	cfg := config.Default()
+	off := false
+	cfg.Core.Mdita.Enable = &off
+
+	if diags := CheckProfile(doc, cfg); len(diags) != 0 {
+		t.Errorf("mdita.enable: false still produced %v", diags)
+	}
+}

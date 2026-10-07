@@ -266,3 +266,22 @@ type ConrefElement struct {
 
 func (c *ConrefElement) Rng() Range { return c.Range }
 func (c *ConrefElement) element()   {}
+
+// sectionClasses are the heading outputclasses TopicRenderer maps to a
+// <section> or <example> instead of opening a nested topic. The list matches
+// the renderer's `sections` map.
+var sectionClasses = map[string]bool{
+	"section":             true,
+	"example":             true,
+	"prereq":              true,
+	"context":             true,
+	"result":              true,
+	"postreq":             true,
+	"tasktroubleshooting": true,
+}
+
+// IsSectionClass reports whether a heading outputclass turns the heading into
+// a section rather than a nested topic.
+func IsSectionClass(class string) bool {
+	return sectionClasses[class]
+}

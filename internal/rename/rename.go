@@ -42,7 +42,10 @@ func Prepare(doc *document.Document, pos document.Position) *PrepareResult {
 // replaced instead. Renaming a heading also changes the id the plug-in
 // generates for it, which breaks every "#old-anchor" link in the workspace, so
 // those fragments are rewritten in the same edit.
-func DoRename(doc *document.Document, pos document.Position, newName string, folder *workspace.Folder, graph *symbols.Graph) []TextEdit {
+//
+// The symbol graph is not consulted: a heading reference is a link with a
+// fragment, which the folder resolves directly.
+func DoRename(doc *document.Document, pos document.Position, newName string, folder *workspace.Folder, _ *symbols.Graph) []TextEdit {
 	elem := doc.ElementAt(pos)
 	if elem == nil {
 		return nil

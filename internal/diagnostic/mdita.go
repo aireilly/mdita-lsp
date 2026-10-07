@@ -12,6 +12,7 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 	// without front matter -- which Markdown DITA does not require -- was
 	// never checked for the heading skip that fails the build.
 	diags = append(diags, checkHeadingHierarchy(doc)...)
+	diags = append(diags, checkSectionDepth(doc)...)
 	diags = append(diags, checkFootnotes(doc)...)
 
 	if doc.Meta == nil {
@@ -93,6 +94,56 @@ func checkHeadingHierarchy(doc *document.Document) []Diagnostic {
 		level = h.Level
 	}
 	return diags
+}
+
+// checkSectionDepth mirrors the other heading rule in TopicRenderer: a
+// heading that becomes a <section> must sit below the topic heading that
+// encloses it, or the renderer throws
+// "Level N section title must be higher level than parent topic title M".
+//
+// Only skipped levels were checked, so this one went unreported. It bites
+// when a nested topic at the same level comes first:
+//
+//	# Task         topic, level 1
+//	## Details     a nested topic, level 2
+//	## Procedure   a section at level 2, inside a level 2 topic -- throws
+func checkSectionDepth(doc *document.Document) []Diagnostic {
+	var diags []Diagnostic
+	topicLevel := 0
+	for _, h := range doc.Index.Headings() {
+		if !isSectionHeading(h) {
+			topicLevel = h.Level
+			continue
+		}
+		if h.Level <= topicLevel {
+			diags = append(diags, Diagnostic{
+				Range:    h.Range,
+				Severity: SeverityError,
+				Code:     CodeHeadingHierarchy,
+				Source:   source,
+				Message: "Level " + itoa(h.Level) + " section title must be deeper than the level " +
+					itoa(topicLevel) + " topic title above it; the build fails on this",
+			})
+		}
+	}
+	return diags
+}
+
+// isSectionHeading reports whether the plug-in renders a heading as a
+// <section> rather than opening a nested topic.
+func isSectionHeading(h *document.Heading) bool {
+	if h.TaskSection != document.TaskSectionNone {
+		return true
+	}
+	if h.Attributes == nil {
+		return false
+	}
+	for _, c := range h.Attributes.Classes {
+		if document.IsSectionClass(c) {
+			return true
+		}
+	}
+	return false
 }
 
 func checkFootnotes(doc *document.Document) []Diagnostic {

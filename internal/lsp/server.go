@@ -472,6 +472,7 @@ func (s *Server) addWorkspaceFolder(uri string) {
 	rootPath, _ := paths.URIToPath(uri)
 	cfg := config.LoadMerged(rootPath)
 	document.SetImplicitTaskSectionTitles(cfg.Core.Mdita.ImplicitTaskSections)
+	document.SetMapExtensions(cfg.Core.Mdita.MapExtensions)
 	folder := workspace.NewFolder(uri, cfg)
 	_ = folder.ScanFiles()
 	s.workspace.AddFolder(folder)

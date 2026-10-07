@@ -53,9 +53,14 @@ func (p *Profile) UnmarshalYAML(unmarshal func(interface{}) error) error {
 type MditaConfig struct {
 	Enable        *bool    `yaml:"enable"`
 	MapExtensions []string `yaml:"map_extensions"`
-	// Profile is a pointer so that an explicit `profile: extended` in a
-	// project config overrides `profile: core` in the user config. Comparing
-	// the value against zero could not, because ProfileExtended is zero.
+	// Profile is the MDITA profile this workspace authors in. It is a
+	// pointer for two reasons: an explicit `profile: extended` in a project
+	// config has to override `profile: core` in the user config, which a
+	// comparison against zero could not do because ProfileExtended is zero;
+	// and nil has to mean "not set", because setting it at all is what tells
+	// the server to treat .md and .markdown topics as MDITA. DITA-OT takes
+	// the format from the topicref, so a workspace can perfectly well author
+	// MDITA in .md files.
 	Profile *Profile `yaml:"profile"`
 	// ImplicitTaskSections overrides the heading titles that map to task
 	// section elements, matching the plug-in's
@@ -97,8 +102,6 @@ type DitaOTConfig struct {
 
 func boolPtr(v bool) *bool { return &v }
 
-func profilePtr(p Profile) *Profile { return &p }
-
 // ProfileVal reads a profile pointer, defaulting to extended.
 func ProfileVal(p *Profile) Profile {
 	if p == nil {
@@ -124,7 +127,6 @@ func Default() *Config {
 			Mdita: MditaConfig{
 				Enable:             boolPtr(true),
 				MapExtensions:      []string{"mditamap"},
-				Profile:            profilePtr(ProfileExtended),
 				FormatTablesOnSave: boolPtr(true),
 			},
 		},

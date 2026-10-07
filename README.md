@@ -87,7 +87,7 @@ core:
   mdita:
     enable: true
     map_extensions: [mditamap]
-    profile: extended          # "core" or "extended" (default: extended)
+    profile: extended          # "core" or "extended"; unset by default
     formatTablesOnSave: true   # auto-format tables on save (default: true)
     implicit_task_sections:    # heading titles that map to task sections
       prereq: [prerequisites]
@@ -131,7 +131,9 @@ The plug-in registers one parser per DITA-OT `format` value, and each parser ena
 | `hdita` | `HDitaReader` | Out of scope — the server reads markdown, not standalone HTML files |
 | `wikidocs` | `MarkdownReader` | Out of scope — a build-time variant of Markdown DITA |
 
-DITA-OT chooses the format from the `format` attribute on the `topicref` that points at the file, not from the file extension. Because the server cannot see the map that will consume a file, it goes by the extension: a `.mdita` file is MDITA extended, a `.md` or `.markdown` file is Markdown DITA. A declared `$schema` overrides that, and the `profile` setting applies where neither says anything.
+DITA-OT chooses the format from the `format` attribute on the `topicref` that points at the file, not from the file extension. Because the server cannot see the map that will consume a file, it goes by the extension: a `.mdita` file is MDITA, a `.md` or `.markdown` file is Markdown DITA. A declared `$schema` overrides that.
+
+Set `core.mdita.profile` when the workspace authors MDITA in `.md` files, which a map can perfectly well do by giving the topicref `format="mdita"`. Setting it at all is what makes the server apply the MDITA checks to every topic; the value picks which profile. Leave it unset and only `.mdita` files and `$schema`-typed ones are treated as MDITA. `core.mdita.enable: false` turns the MDITA checks off everywhere.
 
 ### Profiles
 

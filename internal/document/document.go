@@ -29,7 +29,7 @@ func New(uri string, version int, text string) *Document {
 	// A file is a map when its extension says so, or when it declares the DITA
 	// map schema — the plug-in reads a Markdown DITA map from a .md file.
 	kind := Topic
-	if paths.IsMditaMapFile(uri, []string{"mditamap"}) || (meta != nil && meta.Schema == SchemaMap) {
+	if paths.IsMditaMapFile(uri, mapExtensions) || (meta != nil && meta.Schema == SchemaMap) {
 		kind = Map
 	}
 
@@ -649,6 +649,21 @@ func DefaultImplicitTaskSectionTitles() map[string][]string {
 // the http://lwdita.org/sax/properties/implicit-task-sections/* properties, so
 // SetImplicitTaskSectionTitles offers the same override.
 var implicitTaskSectionTitles = buildTitleIndex(DefaultImplicitTaskSectionTitles())
+
+// mapExtensions are the extensions that mark a file as an MDITA map.
+// core.mdita.map_extensions overrides it; the setting was parsed and ignored,
+// so a workspace that named another extension had its maps read as topics.
+var mapExtensions = []string{"mditamap"}
+
+// SetMapExtensions replaces the extensions that mark a file as an MDITA map.
+// Call it once while loading configuration, before documents are parsed.
+func SetMapExtensions(exts []string) {
+	if len(exts) == 0 {
+		mapExtensions = []string{"mditamap"}
+		return
+	}
+	mapExtensions = append([]string(nil), exts...)
+}
 
 // SetImplicitTaskSectionTitles replaces the heading-title-to-section mapping.
 // Call it once while loading configuration, before documents are parsed.
