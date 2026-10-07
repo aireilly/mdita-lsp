@@ -301,3 +301,137 @@ func TestBrokenMdLinkAnchor(t *testing.T) {
 		t.Error("expected broken link diagnostic for nonexistent heading in install.md")
 	}
 }
+
+func linkFolder(docs ...*document.Document) *workspace.Folder {
+	f := workspace.NewFolder("file:///project", config.Default())
+	for _, d := range docs {
+		f.AddDoc(d)
+	}
+	return f
+}
+
+func codesFor(doc *document.Document, f *workspace.Folder) []string {
+	var codes []string
+	for _, d := range Check(doc, f) {
+		codes = append(codes, d.Code)
+	}
+	return codes
+}
+
+func hasCode(codes []string, want string) bool {
+	for _, c := range codes {
+		if c == want {
+			return true
+		}
+	}
+	return false
+}
+
+// The plug-in gives a root-relative href scope="external" and never resolves
+// it against the source tree.
+func TestRootRelativeLinkIsNotReported(t *testing.T) {
+	doc := document.New("file:///project/a.md", 1, "# A\n\n[x](/target.md)\n")
+	codes := codesFor(doc, linkFolder(doc))
+	if hasCode(codes, CodeBrokenLink) {
+		t.Errorf("root-relative link reported broken: %v", codes)
+	}
+}
+
+func TestLinkWithASchemeIsNotReported(t *testing.T) {
+	doc := document.New("file:///project/a.md", 1,
+		"# A\n\n[x](ftp://example.com/f.md) and [y](mailto:a@example.com)\n")
+	codes := codesFor(doc, linkFolder(doc))
+	if hasCode(codes, CodeBrokenLink) {
+		t.Errorf("a link with a scheme was reported broken: %v", codes)
+	}
+}
+
+// The plug-in keeps "my%20file.md" as the href and the build resolves it to
+// "my file.md" on disk.
+func TestPercentEscapedLinkResolves(t *testing.T) {
+	target := document.New("file:///project/my%20file.md", 1, "# My file\n")
+	doc := document.New("file:///project/a.md", 1, "# A\n\n[x](my%20file.md)\n")
+	codes := codesFor(doc, linkFolder(target, doc))
+	if hasCode(codes, CodeBrokenLink) {
+		t.Errorf("percent-escaped link reported broken: %v", codes)
+	}
+}
+
+// A link to a file name that only exists elsewhere is a build failure, not a
+// working link.
+func TestLinkToASameNamedFileElsewhereIsReported(t *testing.T) {
+	root := document.New("file:///project/target.md", 1, "# Root\n")
+	doc := document.New("file:///project/sub/stem.md", 1, "# Stem\n\n[t](target.md)\n")
+	codes := codesFor(doc, linkFolder(root, doc))
+	if !hasCode(codes, CodeAmbiguousLink) {
+		t.Errorf("expected the ambiguous-link diagnostic, got %v", codes)
+	}
+}
+
+// Generated ids carry a -1 suffix for a duplicate heading and turn '_' into
+// a dash; both were reported broken.
+func TestFragmentsMatchingGeneratedIDs(t *testing.T) {
+	target := document.New("file:///project/guide.md", 1,
+		"# Guide\n\n## My_var config\n\n## Setup\n\n## Setup\n")
+	doc := document.New("file:///project/a.md", 1,
+		"# A\n\n[a](guide.md#my-var-config) [b](guide.md#setup-1)\n")
+	codes := codesFor(doc, linkFolder(target, doc))
+	if hasCode(codes, CodeBrokenLink) {
+		t.Errorf("a working fragment was reported broken: %v", codes)
+	}
+}
+
+// A document without front matter still gets the heading-skip check, and the
+// skip is an error because the build throws.
+func TestHeadingSkipWithoutFrontMatterIsAnError(t *testing.T) {
+	doc := document.New("file:///project/a.md", 1, "# Title\n\n### Too deep\n")
+	f := linkFolder(doc)
+	var found bool
+	for _, d := range Check(doc, f) {
+		if d.Code == CodeHeadingHierarchy {
+			found = true
+			if d.Severity != SeverityError {
+				t.Errorf("severity = %v, want error", d.Severity)
+			}
+		}
+	}
+	if !found {
+		t.Error("no heading-hierarchy diagnostic for a file without front matter")
+	}
+}
+
+func TestMissingFrontMatterIsInformation(t *testing.T) {
+	doc := document.New("file:///project/a.md", 1, "# Title\n\ntext\n")
+	for _, d := range Check(doc, linkFolder(doc)) {
+		if d.Code == CodeMissingFrontMatter && d.Severity != SeverityInfo {
+			t.Errorf("severity = %v, want information", d.Severity)
+		}
+	}
+}
+
+// A .mdita file is MDITA whether or not it declares a $schema, and a level 3
+// heading there fails the build.
+func TestMditaExtensionCapsHeadingsWithoutASchema(t *testing.T) {
+	doc := document.New("file:///project/a.mdita", 1, "# Title\n\n## Section\n\n### Too deep\n")
+	var found bool
+	for _, d := range Check(doc, linkFolder(doc)) {
+		if d.Code == CodeMditaProfileFeature {
+			found = true
+			if d.Severity != SeverityError {
+				t.Errorf("severity = %v, want error", d.Severity)
+			}
+		}
+	}
+	if !found {
+		t.Error("no MDITA profile diagnostic for a level 3 heading in a .mdita file")
+	}
+}
+
+func TestFootnotesInsideAFencedBlockAreNotReported(t *testing.T) {
+	doc := document.New("file:///project/a.md", 1,
+		"# Title\n\n```\n[^1] sample\n```\n")
+	codes := codesFor(doc, linkFolder(doc))
+	if hasCode(codes, CodeFootnoteRefOrphan) {
+		t.Errorf("a footnote inside a fenced block was reported: %v", codes)
+	}
+}

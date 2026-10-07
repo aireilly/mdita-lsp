@@ -32,6 +32,22 @@ func checkLinks(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 				// a PDF -- is still a valid link target when the file is there.
 				continue
 			}
+			// Naming the same-named files elsewhere turns "broken link" into
+			// something the author can act on; the plug-in resolves an href
+			// against the source file's directory and nowhere else.
+			if candidates := folder.ResolveLinkCandidates(ml.URL, doc.URI); len(candidates) > 0 {
+				diags = append(diags, Diagnostic{
+					Range:    ml.Range,
+					Severity: SeverityError,
+					Code:     CodeAmbiguousLink,
+					Source:   source,
+					Message: "Link '" + ml.URL + "' does not resolve from this file. " +
+						itoa(len(candidates)) + " file(s) with that name exist elsewhere; " +
+						"use a path relative to this file, such as '" +
+						suggestPath(candidates[0], doc) + "'",
+				})
+				continue
+			}
 			diags = append(diags, Diagnostic{
 				Range:    ml.Range,
 				Severity: SeverityError,
@@ -42,16 +58,6 @@ func checkLinks(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 			continue
 		}
 
-		if candidates := folder.ResolveLinkCandidates(ml.URL, doc.URI); len(candidates) > 1 {
-			diags = append(diags, Diagnostic{
-				Range:    ml.Range,
-				Severity: SeverityWarning,
-				Code:     CodeAmbiguousLink,
-				Source:   source,
-				Message:  "Link '" + ml.URL + "' matches " + itoa(len(candidates)) + " files; use a path relative to this file",
-			})
-		}
-
 		if ml.Anchor != "" {
 			if d := checkFragment(ml, doc, target, ml.URL); d != nil {
 				diags = append(diags, *d)
@@ -60,6 +66,23 @@ func checkLinks(doc *document.Document, folder *workspace.Folder) []Diagnostic {
 	}
 
 	return diags
+}
+
+// suggestPath returns the path from the source file to a candidate target.
+func suggestPath(target, src *document.Document) string {
+	srcPath, err := paths.URIToPath(src.URI)
+	if err != nil {
+		return ""
+	}
+	targetPath, err := paths.URIToPath(target.URI)
+	if err != nil {
+		return ""
+	}
+	rel, err := filepath.Rel(filepath.Dir(srcPath), targetPath)
+	if err != nil {
+		return ""
+	}
+	return filepath.ToSlash(rel)
 }
 
 // isCheckableLink reports whether a link URL names a file in the workspace

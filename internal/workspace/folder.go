@@ -121,9 +121,10 @@ func (f *Folder) MapTexts() []string {
 	return texts
 }
 
-// ResolveLinkCandidates returns every document a relative link could refer to.
-// An exact path match is unambiguous and returns a single candidate; otherwise
-// the file-name fallback may match more than one document.
+// ResolveLinkCandidates returns every document a link could plausibly refer
+// to. An exact path match is unambiguous and returns a single candidate;
+// otherwise the same-named files elsewhere in the workspace are offered, so a
+// diagnostic can suggest the path the author meant.
 func (f *Folder) ResolveLinkCandidates(rawURL string, sourceURI string) []*document.Document {
 	if d := f.resolveExact(rawURL, sourceURI); d != nil {
 		return []*document.Document{d}
@@ -138,17 +139,17 @@ func (f *Folder) ResolveLinkCandidates(rawURL string, sourceURI string) []*docum
 	return matches
 }
 
+// ResolveLink resolves a link the way the plug-in resolves an href: against
+// the source file's directory, and nowhere else.
+//
+// It used to fall back to any document with the same file name, so
+// "[stem](target.md)" written in sub/ silently resolved to the root
+// target.md. Everything in the editor then behaved as if the link worked
+// while the build failed with DOTX008E on sub/target.md.
+// ResolveLinkCandidates still offers the same-named files, so a diagnostic
+// can name them.
 func (f *Folder) ResolveLink(rawURL string, sourceURI string) *document.Document {
-	if d := f.resolveExact(rawURL, sourceURI); d != nil {
-		return d
-	}
-	for _, d := range f.AllDocs() {
-		id := d.DocID(f.RootURI)
-		if paths.MatchesURL(id, decodeURL(rawURL)) {
-			return d
-		}
-	}
-	return nil
+	return f.resolveExact(rawURL, sourceURI)
 }
 
 // resolveExact resolves a link against the source file's directory, which is
