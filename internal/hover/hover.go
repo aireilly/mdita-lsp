@@ -28,7 +28,7 @@ func GetHover(doc *document.Document, pos document.Position, folder *workspace.F
 			if el.Attributes != nil && len(el.Attributes.Classes) > 0 {
 				return hoverHeadingClass(el)
 			}
-			return "**" + el.Text + "** (level " + itoa(el.Level) + ")"
+			return hoverHeading(el, doc)
 		case *document.ConrefElement:
 			return hoverConref(el)
 		}
@@ -254,6 +254,30 @@ func detectURL(text string, pos document.Position) string {
 
 func itoa(n int) string {
 	return fmt.Sprintf("%d", n)
+}
+
+// hoverHeading explains what the plug-in builds a plain heading as, which
+// differs by topic type: a concept or a reference holds sections, every other
+// type nests topics.
+func hoverHeading(h *document.Heading, doc *document.Document) string {
+	if h.IsTitle() {
+		return "**" + h.Text + "** (level " + itoa(h.Level) + ")"
+	}
+	if h.Section {
+		topicType := "concept"
+		if doc.Meta != nil && doc.Meta.Schema == document.SchemaReference {
+			topicType = "reference"
+		} else if t := doc.Index.Title(); t != nil && t.Attributes != nil {
+			for _, c := range t.Attributes.Classes {
+				if c == "reference" {
+					topicType = "reference"
+				}
+			}
+		}
+		return "DITA `<section>` in this " + topicType +
+			" — link to it as `" + doc.SectionAddress(h) + "`"
+	}
+	return "**" + h.Text + "** (level " + itoa(h.Level) + ") — built as a nested `<topic>`"
 }
 
 func hoverTaskSection(h *document.Heading) string {

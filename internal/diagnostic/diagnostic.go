@@ -42,6 +42,15 @@ const (
 	CodeCircularMapReference = "19"
 	// CodeMditaProfileFeature flags markdown that neither MDITA profile parses.
 	CodeMditaProfileFeature = "20"
+	// CodeNestedSection flags a heading below a section in a concept or a
+	// reference. DITA sections do not nest, so the build fails.
+	CodeNestedSection = "21"
+	// CodeSectionLinkNeedsTopicID flags a link to a section written as
+	// file.md#slug, which the build resolves only as file.md#topic-id/slug.
+	CodeSectionLinkNeedsTopicID = "22"
+	// CodeSectionAfterNestedTopic flags the ordering trap in a generic topic:
+	// a section heading at the level of a heading that opened a nested topic.
+	CodeSectionAfterNestedTopic = "23"
 )
 
 type Diagnostic struct {

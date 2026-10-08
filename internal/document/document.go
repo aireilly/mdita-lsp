@@ -56,6 +56,7 @@ func New(uri string, version int, text string) *Document {
 	}
 	doc.Symbols = extractSymbols(doc)
 	resolveTaskSections(doc)
+	resolveSections(doc)
 	resolveImplicitSections(doc)
 	return doc
 }
@@ -249,6 +250,103 @@ func IsTaskTopic(doc *Document) bool {
 		}
 	}
 	return false
+}
+
+// IsSectionTopic reports whether the plug-in specializes this topic as a DITA
+// concept or reference, either because the H1 carries a {.concept} or
+// {.reference} outputclass or because $schema names that type. The body of
+// those types holds sections, so a heading below the topic title opens a
+// <section> there instead of a nested topic.
+func IsSectionTopic(doc *Document) bool {
+	if doc.Meta != nil && (doc.Meta.Schema == SchemaConcept || doc.Meta.Schema == SchemaReference) {
+		return true
+	}
+	for _, e := range doc.Elements {
+		if h, ok := e.(*Heading); ok && h.IsTitle() && h.Attributes != nil {
+			for _, c := range h.Attributes.Classes {
+				if c == "concept" || c == "reference" {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// resolveSections marks the headings the plug-in builds as a <section>, which
+// mirrors TopicRenderer: in a concept or a reference the heading one level
+// below the enclosing topic title opens a section, unless it carries a class
+// that types a topic. A section class or a task section title makes a section
+// in any type, and those are resolved elsewhere.
+func resolveSections(doc *Document) {
+	sectionTopic := IsSectionTopic(doc)
+	topicLevel := 0
+	topicID := ""
+	for _, h := range doc.Index.Headings() {
+		if h.TaskSection != TaskSectionNone || hasSectionClass(h) {
+			h.Section = true
+			h.SectionTopicID = topicID
+			continue
+		}
+		// Mirrors TopicRenderer: any heading below the enclosing topic title
+		// is a section, which is what makes a heading deeper than the first
+		// section level a nested section the build rejects rather than a
+		// nested topic.
+		if sectionTopic && h.Level > topicLevel && !hasTopicTypeClass(h) {
+			h.Section = true
+			h.SectionTopicID = topicID
+			continue
+		}
+		// The heading opens a topic, so later sections belong to it.
+		topicLevel = h.Level
+		if h.IsTitle() {
+			topicID = ""
+		} else {
+			topicID = h.ID
+		}
+	}
+}
+
+func hasSectionClass(h *Heading) bool {
+	if h.Attributes == nil {
+		return false
+	}
+	for _, c := range h.Attributes.Classes {
+		if IsSectionClass(c) {
+			return true
+		}
+	}
+	return false
+}
+
+// HasTopicTypeClass reports whether a heading carries a class that types a
+// topic, which keeps it a nested topic inside a concept or a reference.
+func HasTopicTypeClass(h *Heading) bool { return hasTopicTypeClass(h) }
+
+func hasTopicTypeClass(h *Heading) bool {
+	if h.Attributes == nil {
+		return false
+	}
+	for _, c := range h.Attributes.Classes {
+		if IsTopicTypeClass(c) {
+			return true
+		}
+	}
+	return false
+}
+
+// SectionAddress returns the DITA address of a section heading: the id of the
+// topic it belongs to, then the section id. A link needs both, because a
+// section is not a topic.
+func (d *Document) SectionAddress(h *Heading) string {
+	topicID := h.SectionTopicID
+	if topicID == "" {
+		topicID = d.TopicID()
+	}
+	if topicID == "" || h.ID == "" {
+		return h.ID
+	}
+	return topicID + "/" + h.ID
 }
 
 // ImplicitTaskSections reports whether the plug-in maps a heading such as

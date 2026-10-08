@@ -112,16 +112,26 @@ func completeInlineAnchor(docPart, input string, doc *document.Document, folder 
 	}
 
 	inputSlug := paths.SlugOf(input)
+	// Tasks and generic topics are unchanged, so only a concept or a
+	// reference gets the qualified form offered.
+	sectionTopic := document.IsSectionTopic(target)
 	var items []CompletionItem
 	for _, h := range target.Index.Headings() {
-		if inputSlug == "" || h.Slug.Contains(inputSlug) {
-			items = append(items, CompletionItem{
-				Label:      h.ID,
-				Detail:     h.Text,
-				InsertText: h.ID,
-				Kind:       17,
-			})
+		if inputSlug != "" && !h.Slug.Contains(inputSlug) {
+			continue
 		}
+		// A section is not a topic, so the build resolves a link to one only
+		// through the id of the topic that holds it.
+		anchor := h.ID
+		if h.Section && sectionTopic {
+			anchor = target.SectionAddress(h)
+		}
+		items = append(items, CompletionItem{
+			Label:      anchor,
+			Detail:     h.Text,
+			InsertText: anchor,
+			Kind:       17,
+		})
 	}
 	return items
 }

@@ -293,3 +293,24 @@ func TestGotoDefDoesNotFallBackAcrossDirectories(t *testing.T) {
 		t.Errorf("got %v, want no locations; the build fails on sub/target.md", locs)
 	}
 }
+
+// A link to a section carries the topic id, and go-to-definition lands on the
+// section heading.
+func TestDefinitionQualifiedSectionLink(t *testing.T) {
+	target := document.New("file:///project/c.md", 1, "# C {.concept}\n\n## Background\n")
+	src := document.New("file:///project/t.md", 1, "# T\n\nSee [x](c.md#c/background).\n")
+	f := workspace.NewFolder("file:///project", config.Default())
+	f.AddDoc(target)
+	f.AddDoc(src)
+
+	locs := GotoDef(src, document.Position{Line: 2, Character: 10}, f)
+	if len(locs) == 0 {
+		t.Fatal("no definition for a qualified section link")
+	}
+	if locs[0].URI != target.URI {
+		t.Errorf("URI = %q, want %q", locs[0].URI, target.URI)
+	}
+	if locs[0].Range.Start.Line != 2 {
+		t.Errorf("line = %d, want 2", locs[0].Range.Start.Line)
+	}
+}

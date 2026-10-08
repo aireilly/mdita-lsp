@@ -63,6 +63,14 @@ func (idx *Index) HeadingsByAnchor(anchor string) []*Heading {
 	return idx.headingSlug[paths.SlugOf(anchor)]
 }
 
+// HeadingByID returns the heading with this generated id, or nil.
+func (idx *Index) HeadingByID(id string) *Heading {
+	if hs := idx.headingID[id]; len(hs) > 0 {
+		return hs[0]
+	}
+	return nil
+}
+
 func (idx *Index) Title() *Heading {
 	for _, h := range idx.headings {
 		if h.IsTitle() {

@@ -97,6 +97,12 @@ type Heading struct {
 	LineRange   Range
 	Attributes  *ParsedAttribute
 	TaskSection TaskSectionKind
+	// Section records that the plug-in builds this heading as a <section> of
+	// the topic above it rather than opening a nested topic.
+	Section bool
+	// SectionTopicID is the @id of the topic the section belongs to, empty
+	// when that topic is the root topic. Only set when Section is true.
+	SectionTopicID string
 }
 
 func (h *Heading) Rng() Range    { return h.Range }
@@ -284,4 +290,19 @@ var sectionClasses = map[string]bool{
 // a section rather than a nested topic.
 func IsSectionClass(class string) bool {
 	return sectionClasses[class]
+}
+
+// topicTypeClasses are the heading outputclasses that type a topic. One of
+// them on a heading inside a concept or a reference keeps the heading a nested
+// topic, which is the only way to nest one there.
+var topicTypeClasses = map[string]bool{
+	"topic":     true,
+	"concept":   true,
+	"task":      true,
+	"reference": true,
+}
+
+// IsTopicTypeClass reports whether a heading outputclass types a topic.
+func IsTopicTypeClass(class string) bool {
+	return topicTypeClasses[class]
 }

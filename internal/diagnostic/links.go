@@ -180,7 +180,18 @@ func checkFragment(ml *document.MdLink, src, target *document.Document, url stri
 		return nil
 	}
 
-	if len(target.Index.HeadingsByAnchor(ml.Anchor)) > 0 {
+	if hs := target.Index.HeadingsByAnchor(ml.Anchor); len(hs) > 0 {
+		// A section is not a topic, so the build resolves a link to one only
+		// through the topic that holds it.
+		if hs[0].Section && document.IsSectionTopic(target) {
+			return &Diagnostic{
+				Range:    ml.Range,
+				Severity: SeverityWarning,
+				Code:     CodeSectionLinkNeedsTopicID,
+				Source:   source,
+				Message:  SectionLinkMessage(url+"#"+ml.Anchor, url+"#"+target.SectionAddress(hs[0])),
+			}
+		}
 		return nil
 	}
 	// The plug-in also accepts a bare topic id as a fragment.

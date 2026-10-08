@@ -13,6 +13,7 @@ func checkMditaCompliance(doc *document.Document) []Diagnostic {
 	// never checked for the heading skip that fails the build.
 	diags = append(diags, checkHeadingHierarchy(doc)...)
 	diags = append(diags, checkSectionDepth(doc)...)
+	diags = append(diags, checkNestedSection(doc)...)
 	diags = append(diags, checkFootnotes(doc)...)
 
 	// Front matter is optional everywhere the plug-in reads: a topic without
@@ -95,52 +96,70 @@ func checkHeadingHierarchy(doc *document.Document) []Diagnostic {
 
 // checkSectionDepth mirrors the other heading rule in TopicRenderer: a
 // heading that becomes a <section> must sit below the topic heading that
-// encloses it, or the renderer throws
-// "Level N section title must be higher level than parent topic title M".
+// encloses it, or the build fails.
 //
-// Only skipped levels were checked, so this one went unreported. It bites
-// when a nested topic at the same level comes first:
+// It bites when a nested topic at the same level comes first:
 //
 //	# Task         topic, level 1
 //	## Details     a nested topic, level 2
 //	## Procedure   a section at level 2, inside a level 2 topic -- throws
+//
+// A concept or a reference cannot reach this state, because a heading one
+// level below the topic title is a section there rather than a nested topic.
 func checkSectionDepth(doc *document.Document) []Diagnostic {
 	var diags []Diagnostic
 	topicLevel := 0
+	var topicHeading *document.Heading
 	for _, h := range doc.Index.Headings() {
-		if !isSectionHeading(h) {
+		if !h.Section {
 			topicLevel = h.Level
+			topicHeading = h
 			continue
 		}
 		if h.Level <= topicLevel {
 			diags = append(diags, Diagnostic{
 				Range:    h.Range,
 				Severity: SeverityError,
-				Code:     CodeHeadingHierarchy,
+				Code:     CodeSectionAfterNestedTopic,
 				Source:   source,
-				Message: "Level " + itoa(h.Level) + " section title must be deeper than the level " +
-					itoa(topicLevel) + " topic title above it; the build fails on this",
+				Message:  SectionAfterNestedTopicMessage(doc, h, topicHeading),
 			})
 		}
 	}
 	return diags
 }
 
-// isSectionHeading reports whether the plug-in renders a heading as a
-// <section> rather than opening a nested topic.
-func isSectionHeading(h *document.Heading) bool {
-	if h.TaskSection != document.TaskSectionNone {
-		return true
+// checkNestedSection mirrors the depth rule TopicRenderer applies inside a
+// concept or a reference: the heading one level below the topic title opens a
+// <section>, and anything deeper would nest a section, which DITA does not
+// allow.
+func checkNestedSection(doc *document.Document) []Diagnostic {
+	if !document.IsSectionTopic(doc) {
+		return nil
 	}
-	if h.Attributes == nil {
-		return false
-	}
-	for _, c := range h.Attributes.Classes {
-		if document.IsSectionClass(c) {
-			return true
+	var diags []Diagnostic
+	topicLevel := 0
+	prevLevel := 0
+	for _, h := range doc.Index.Headings() {
+		skipped := h.Level > prevLevel+1
+		prevLevel = h.Level
+		if !h.Section {
+			topicLevel = h.Level
+			continue
+		}
+		// A skipped heading level is already reported, and it fails the build
+		// before the renderer sees the section.
+		if h.Level > topicLevel+1 && !skipped {
+			diags = append(diags, Diagnostic{
+				Range:    h.Range,
+				Severity: SeverityError,
+				Code:     CodeNestedSection,
+				Source:   source,
+				Message:  NestedSectionMessage(doc, h, topicLevel),
+			})
 		}
 	}
-	return false
+	return diags
 }
 
 func checkFootnotes(doc *document.Document) []Diagnostic {

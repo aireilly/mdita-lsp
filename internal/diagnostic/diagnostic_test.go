@@ -440,15 +440,14 @@ func TestFootnotesInsideAFencedBlockAreNotReported(t *testing.T) {
 	}
 }
 
-// TopicRenderer throws "Level 2 section title must be higher level than
-// parent topic title 2" when a section heading sits at the level of the
-// nested topic above it. Only skipped levels used to be checked.
+// The build rejects a section heading that sits at the level of the nested
+// topic above it, and reports it as code 23.
 func TestSectionAtTheSameLevelAsItsParentTopicIsAnError(t *testing.T) {
 	doc := document.New("file:///project/a.md", 1,
 		"# Task {.task}\n\nShort.\n\n## Details\n\ntext\n\n## Procedure\n\n1. Do it\n")
 	var found bool
 	for _, d := range Check(doc, linkFolder(doc)) {
-		if d.Code == CodeHeadingHierarchy && strings.Contains(d.Message, "section title") {
+		if d.Code == CodeSectionAfterNestedTopic && strings.Contains(d.Message, "nested topic") {
 			found = true
 			if d.Severity != SeverityError {
 				t.Errorf("severity = %v, want error", d.Severity)
@@ -464,7 +463,7 @@ func TestSectionBelowItsParentTopicIsFine(t *testing.T) {
 	doc := document.New("file:///project/a.md", 1,
 		"# Task {.task}\n\nShort.\n\n## Procedure\n\n1. Do it\n")
 	for _, d := range Check(doc, linkFolder(doc)) {
-		if d.Code == CodeHeadingHierarchy {
+		if d.Code == CodeHeadingHierarchy || d.Code == CodeSectionAfterNestedTopic {
 			t.Errorf("unexpected heading diagnostic: %s", d.Message)
 		}
 	}

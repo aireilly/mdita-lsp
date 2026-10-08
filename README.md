@@ -6,7 +6,7 @@ It validates, completes and navigates exactly the syntax the plug-in reads, so p
 
 ## Requirements
 
-**This server targets [aireilly/org.lwdita](https://github.com/aireilly/org.lwdita), a fork of [jelovirt/org.lwdita](https://github.com/jelovirt/org.lwdita). Version 6.3.0 or newer.** Against upstream, parts of what the server reports will not match what the build produces.
+**This server targets [aireilly/org.lwdita](https://github.com/aireilly/org.lwdita), a fork of [jelovirt/org.lwdita](https://github.com/jelovirt/org.lwdita). Version 6.4.0 or newer.** Against upstream, parts of what the server reports will not match what the build produces.
 
 Every behaviour claim here holds against the fork. The fork carries features upstream lacks, and implicit task sections are the big one: `implicit-task-sections` and its configurable titles exist only in the fork. Upstream turns every `## Prerequisites` into a nested topic instead of a `<prereq>`. Its latest release is 5.9.1.
 
@@ -174,7 +174,7 @@ The plug-in registers one parser per DITA-OT `format` value, and each parser ena
 | Blockquote | `<lq>` | inlined, no `<lq>` | inlined, no `<lq>` |
 | Inline code | `<codeph>` | `<tt>` | `<codeph>` |
 | Heading depth | any | `#` and `##` only | `#` and `##` only |
-| H2 becomes | a nested `<topic>`, unless classed | `<section>` | `<section>` |
+| H2 becomes | `<section>` in a concept or a reference, a nested `<topic>` otherwise, unless classed | `<section>` | `<section>` |
 | Specialization from heading class | yes | no | no |
 
 A heading below level 2 in either MDITA profile is an error, not a warning: the parser throws `LwDITA does not support level 3 heading` and the build produces nothing.
@@ -217,7 +217,9 @@ The server models what the plug-in parses and nothing else. For the full markdow
 
 ### Headings
 
-H1 is the topic title. In Markdown DITA a lower heading opens a nested `<topic>` unless it carries a recognized class; in MDITA an H2 is always a `<section>`.
+H1 is the topic title. In concept and reference topics, `##` starts a `<section>`. Sections don't nest, so `###` is an error. Link to a section as `file.md#topic-id/heading`.
+
+In every other Markdown DITA type a lower heading opens a nested `<topic>` unless it carries a recognized class. In MDITA an H2 is always a `<section>`.
 
 | Heading class | DITA element |
 | --- | --- |
@@ -227,7 +229,9 @@ H1 is the topic title. In Markdown DITA a lower heading opens a nested `<topic>`
 | `{.section}` | `<section>` |
 | `{.example}` | `<example>` |
 
-Two heading mistakes fail the build, so the server reports both as errors: skipping a level, and a section heading that is not deeper than the topic title above it.
+A type class is also the escape hatch inside a concept or a reference: `## Details {.concept}` still opens a nested topic, and its own `###` headings are that topic's sections.
+
+Three heading mistakes fail the build, so the server reports all three as errors: skipping a level, a heading that would nest a section in a concept or a reference, and a section heading that is not deeper than the topic title above it.
 
 Anchors follow the plug-in's rule. Letters lowercase, digits stay, space, `-` and `_` become `-`, and everything else disappears. Runs of separators survive intact, and a repeated heading gains `-1`, `-2`. So `## My_var config` is `#my-var-config`, and a second `## Setup` is `#setup-1`.
 
@@ -248,11 +252,11 @@ Titles are configurable through `implicit_task_sections`. They apply to `.md` an
 
 A list nested in a step is `<substeps>`, whether ordered or unordered. `{.choices}` and `{.choicetable}` select those elements; without them a table in a step stays a plain `<table>`.
 
-Plug-in versions: a `$schema`-typed task needs 6.1.0, admonitions in one need 6.2.0, and `format="markdown"` gets the section titles from 6.3.0.
+Plug-in versions: a `$schema`-typed task needs 6.1.0, admonitions in one need 6.2.0, and `format="markdown"` gets the section titles from 6.3.0. `##` as a section in a concept or a reference needs 6.4.0.
 
 ### Links and keys
 
-A fragment passes through to `@href`, so `file.md#topic-id` and `file.md#topic-id/element-id` both work. The topic ID is the YAML `id`, or the one derived from the title.
+A fragment passes through to `@href`, so `file.md#topic-id` and `file.md#topic-id/element-id` both work. The topic ID is the YAML `id`, or the one derived from the title. A section is not a topic, so a link to one needs both parts: `file.md#topic-id/heading`.
 
 An href resolves against the source file's directory only. There is no same-name fallback, because the build has none either.
 
@@ -330,6 +334,9 @@ Three constructs differ by format, because the `mditamap` reader enables fewer e
 | 18 | Task section heading in a non-task topic |
 | 19 | Circular map reference |
 | 20 | Feature unavailable in the MDITA profiles (an error for a heading below level 2) |
+| 21 | Heading would nest a section in a concept or a reference (error: the build fails) |
+| 22 | Link to a section without the topic id the build needs |
+| 23 | Section heading at the level of a heading that opened a nested topic (error: the build fails) |
 
 ## LSP capabilities
 
@@ -342,7 +349,7 @@ Three constructs differ by format, because the `mditamap` reader enables fewer e
 | Hover | Links, keyrefs, headings, YAML keys, task sections, implicit task structure, conrefs |
 | References | Cross-workspace references to a topic and to each of its sections |
 | Rename | Heading rename with prepare support, repointing every fragment link to that heading |
-| Code actions | Create missing files, add front matter, add to map, add task sections, fix NBSP/footnotes/heading hierarchy, build with DITA-OT |
+| Code actions | Create missing files, add front matter, add to map, add task sections, fix NBSP/footnotes/heading hierarchy, fix nested sections and section links, build with DITA-OT |
 | Code lens | Reference counts on headings |
 | Document links | External URL detection |
 | Document symbols | Hierarchical heading outline |

@@ -15,6 +15,7 @@ import (
 // a location that is not there.
 type DocSymbol struct {
 	Name           string         `json:"name"`
+	Detail         string         `json:"detail,omitempty"`
 	Kind           int            `json:"kind"` // 5=class (file), 23=struct (section)
 	Range          document.Range `json:"range"`
 	SelectionRange document.Range `json:"selectionRange"`
@@ -59,6 +60,10 @@ func GetSymbols(doc *document.Document) []DocSymbol {
 		}
 		if h.IsTitle() {
 			sym.Kind = 5
+		} else if h.Section {
+			// The outline says which headings the plug-in builds as a section,
+			// because a section and a nested topic look the same in Markdown.
+			sym.Detail = "section"
 		}
 
 		for len(levels) > 1 && h.Level <= levels[len(levels)-1] {

@@ -4,7 +4,7 @@
 
 mdita-lsp is an LSP server for the Markdown source formats of the [org.lwdita](https://github.com/aireilly/org.lwdita) DITA-OT plug-in: Markdown DITA (`md`, `markdown`), MDITA (`mdita`), and MDITA maps (`mditamap`). It is written in Go.
 
-**Target: the `aireilly/org.lwdita` fork, 6.3.0 or newer, not `jelovirt/org.lwdita`.** Upstream's latest release is 5.9.1 and it has no `implicit-task-sections` feature at all, so the whole task-section model the server reports does not exist there. Check a behaviour claim against `~/org.lwdita` on `master`, never against `upstream/master`.
+**Target: the `aireilly/org.lwdita` fork, 6.4.0 or newer, not `jelovirt/org.lwdita`.** Upstream's latest release is 5.9.1 and it has no `implicit-task-sections` feature at all, so the whole task-section model the server reports does not exist there. Check a behaviour claim against `~/org.lwdita` on `master`, never against `upstream/master`.
 
 Scope rule: the server handles exactly what the plug-in parses. Do not add editor features for markdown the plug-in does not read, and do not model DITA constructs the plug-in never emits (for example `<mapref>`, `<related-links>`, or keyword keydefs).
 
@@ -47,7 +47,7 @@ internal/
   ditamap/              # .mditamap parsing (nested markdown lists, TopicRef tree, reltable, mapref)
   workspace/            # Folder/workspace management, file scanning
   symbols/              # Symbol graph with bidirectional ref/def resolution
-  diagnostic/           # 18 diagnostic codes (4 and 12 retired), MDITA compliance, profile, conref, link/map/keyref validation
+  diagnostic/           # 21 diagnostic codes (4 and 12 retired), MDITA compliance, profile, conref, link/map/keyref validation
   keyref/               # Keys from reference-style link definitions only, [text][key] refs, data-keyref
   definition/           # Go-to-definition for markdown links, keyrefs, conrefs
   hover/                # Hover for links, keyrefs, headings, YAML keys, task sections, conrefs, implicit task structure
@@ -89,7 +89,7 @@ testdata/               # Test fixtures
 - File Operations (didCreate, didDelete, willCreate, willRename)
 - Execute Command (createFile, addToMap, ditaOtBuild)
 - Profile support (core vs extended, from `$schema` then the file extension; `core.mdita.apply_to_markdown` extends it to `.md`/`.markdown`)
-- Diagnostic quick-fixes (NBSP, footnotes, heading hierarchy)
+- Diagnostic quick-fixes (NBSP, footnotes, heading hierarchy, nested sections, section links)
 - Ditamap parsing (topicrefs, nesting, keydefs, relationship tables)
 - Server Info (name + version in initialize response)
 - Configuration change notification (workspace/didChangeConfiguration)
@@ -120,6 +120,7 @@ Details that are easy to get wrong; all verified against the plug-in source.
 - A skipped heading level, and a section heading at or above its parent topic's level, are both fatal `ParseException`s in `MarkdownParserImpl.validate` and `TopicRenderer`. Diagnostics for them are errors.
 - The plug-in resolves an href against the source file's directory only. There is no same-name fallback anywhere in the tree.
 - The paragraph after the title becomes `<shortdesc>` only when a `$schema` is declared or the title carries `{.concept}`/`{.task}`/`{.reference}`.
+- In a concept or a reference, any heading below the enclosing topic title is a `<section>` unless it carries a topic-type class (`topic`, `concept`, `task`, `reference`). A heading more than one level below the topic title would nest a section, which the renderer rejects. 6.4.0 onwards.
 - A body-level list that is followed by another body-level list stays in `<context>` as body-ol/body-ul; only the last one becomes `<steps>`/`<steps-unordered>`. An ordered list that restarts its numbering at 1 is split at the restart.
 - "Procedure"/"Steps" is a marker heading: it maps to no element and the list after it becomes `<steps>`. Section titles are configurable via `core.mdita.implicit_task_sections`.
 

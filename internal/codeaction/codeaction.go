@@ -39,6 +39,8 @@ type Command struct {
 	Arguments []any
 }
 
+const source = "mdita-lsp"
+
 func GetActions(doc *document.Document, rng document.Range, folder *workspace.Folder) []CodeAction {
 	var actions []CodeAction
 	cfg := folder.Config
@@ -61,6 +63,9 @@ func GetActions(doc *document.Document, rng document.Range, folder *workspace.Fo
 	actions = append(actions, fixHeadingHierarchyActions(doc, rng)...)
 	actions = append(actions, buildDitaOTActions(doc, folder)...)
 	actions = append(actions, addTaskSectionActions(doc)...)
+	actions = append(actions, fixNestedSectionActions(doc, rng)...)
+	actions = append(actions, fixSectionAfterNestedTopicActions(doc, rng)...)
+	actions = append(actions, qualifySectionLinkActions(doc, rng, folder)...)
 
 	return actions
 }

@@ -170,3 +170,30 @@ func TestWorkspaceSymbolWireFormat(t *testing.T) {
 		t.Errorf("containerName = %q", decoded[0].ContainerName)
 	}
 }
+
+// A section in a concept is a section in the outline, not a nested topic.
+func TestSymbolDetailNamesSection(t *testing.T) {
+	doc := document.New("file:///c.md", 1, "# C {.concept}\n\n## Background\n")
+	syms := GetSymbols(doc)
+	if len(syms) != 1 || len(syms[0].Children) != 1 {
+		t.Fatalf("expected one child under the title, got %+v", syms)
+	}
+	child := syms[0].Children[0]
+	if child.Kind != 23 {
+		t.Errorf("Kind = %d, want 23", child.Kind)
+	}
+	if child.Detail != "section" {
+		t.Errorf("Detail = %q, want %q", child.Detail, "section")
+	}
+}
+
+func TestSymbolDetailEmptyForNestedTopic(t *testing.T) {
+	doc := document.New("file:///t.md", 1, "# T\n\n## A\n")
+	syms := GetSymbols(doc)
+	if len(syms) != 1 || len(syms[0].Children) != 1 {
+		t.Fatalf("expected one child under the title, got %+v", syms)
+	}
+	if d := syms[0].Children[0].Detail; d != "" {
+		t.Errorf("Detail = %q, want empty", d)
+	}
+}
