@@ -292,7 +292,7 @@ func resolveSections(doc *Document) {
 		// is a section, which is what makes a heading deeper than the first
 		// section level a nested section the build rejects rather than a
 		// nested topic.
-		if sectionTopic && h.Level > topicLevel && !hasTopicTypeClass(h) {
+		if sectionTopic && !h.IsTitle() && h.Level > topicLevel && !hasTopicTypeClass(h) {
 			h.Section = true
 			h.SectionTopicID = topicID
 			continue
@@ -318,10 +318,6 @@ func hasSectionClass(h *Heading) bool {
 	}
 	return false
 }
-
-// HasTopicTypeClass reports whether a heading carries a class that types a
-// topic, which keeps it a nested topic inside a concept or a reference.
-func HasTopicTypeClass(h *Heading) bool { return hasTopicTypeClass(h) }
 
 func hasTopicTypeClass(h *Heading) bool {
 	if h.Attributes == nil {

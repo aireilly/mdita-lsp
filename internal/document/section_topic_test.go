@@ -100,3 +100,28 @@ func TestSectionAddress(t *testing.T) {
 		t.Errorf("SectionAddress() = %q, want %q", got, "c/background")
 	}
 }
+
+// The topic title is the topic, never a section of itself, which a $schema
+// typed concept has to get right because its title carries no class.
+func TestTitleIsNeverASection(t *testing.T) {
+	for _, text := range []string{
+		"---\n$schema: urn:oasis:names:tc:dita:xsd:concept.xsd\nid: c\n---\n\n# C\n\n## Background\n",
+		"# C {.concept}\n\n## Background\n",
+	} {
+		doc := New("file:///c.md", 1, text)
+		title := doc.Index.Title()
+		if title == nil {
+			t.Fatal("no title")
+		}
+		if title.Section {
+			t.Errorf("title %q marked as a section in:\n%s", title.Text, text)
+		}
+		h := doc.Index.HeadingByID("background")
+		if h == nil || !h.Section {
+			t.Fatalf("Background is not a section: %+v", h)
+		}
+		if got := doc.SectionAddress(h); got != "c/background" {
+			t.Errorf("SectionAddress() = %q, want %q", got, "c/background")
+		}
+	}
+}
